@@ -104,10 +104,10 @@ def Record(Num, Mode):
 
 
 def Add(Num):
+    Recent = Get_Recent('Reports_All')
     if Num or len(CR_('List', 0)) < 250:
         Item = CR_('List', Num).add()
         if Num:
-            Recent = Get_Recent('Reports_All')
             if Recent[-2].body.count('bpy'):
                 Name_Temp = Recent[-2].body
                 Item.name = Name_Temp[Name_Temp.find('bpy'):]
