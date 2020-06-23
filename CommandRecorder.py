@@ -1,4 +1,4 @@
-#==============================================================
+﻿#==============================================================
 #スタートアップ
 #-------------------------------------------------------------------------------------------
 import bpy #Blender内部のデータ構造にアクセスするために必要
@@ -94,7 +94,7 @@ def Record(Num , Mode):
         CR_Prop.Temp_Num = len(Get_Recent("Reports_All"))
     else :
         CR_PT_List.Bool_Record = 0
-        for Num_Loop in range (CR_Prop.Temp_Num , len(Get_Recent("Reports_All"))) :
+        for Num_Loop in range (CR_Prop.Temp_Num+1 , len(Get_Recent("Reports_All"))) :
             TempText = Get_Recent("Reports_All")[Num_Loop-1].body
             if TempText.count("bpy") :
                 Item = CR_("List",Num).add()
@@ -280,7 +280,7 @@ class CR_OT_Selector_Down(Operator):
 class Command_OT_Play(Operator):
     bl_idname = "cr_commandplay.button"#大文字禁止
     bl_label = "Command_OT_Play"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
+    #bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
     def execute(self, context):
         #コマンドを実行
         Play(CR_("List",CR_("Index",0)+1))
