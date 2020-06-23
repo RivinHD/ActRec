@@ -105,11 +105,12 @@ def Add(Num) :
     if Num or len(CR_("List",0)) < 250 :
         Item = CR_("List",Num).add()
         if Num :
-            if Get_Recent("Reports_All")[-2].body.count("bpy"):
-                Name_Temp = Get_Recent("Reports_All")[-2].body
+            Recent = Get_Recent("Reports_All")
+            if Recent[-2].body.count("bpy"):
+                Name_Temp = Recent[-2].body
                 Item.name = Name_Temp[Name_Temp.find("bpy"):]
             else :
-                Name_Temp = Get_Recent("Reports_All")[-3].body
+                Name_Temp = Recent[-3].body
                 Item.name = Name_Temp[Name_Temp.find("bpy."):]
         else :
             Item.name = "Untitled_{0:03d}".format(len(CR_("List",Num)))
@@ -240,7 +241,7 @@ def Clear(Num) :
 class CR_OT_Selector(Operator):
     bl_idname = "cr_selector.button"#大文字禁止
     bl_label = "Button_Selector"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'} # 処理の属性
+    #bl_options = {'REGISTER', 'UNDO'} # 処理の属性
     Mode : bpy.props.StringProperty(default="")
     def execute(self, context):
         #追加
@@ -261,7 +262,7 @@ class CR_OT_Selector(Operator):
 class CR_OT_Selector_Up(Operator):
     bl_idname = "cr_selector_up.button"
     bl_label = "Command_OT_Selection_Up"
-    bl_options = {'REGISTER', 'UNDO'}
+    #bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
         Select_Command("Up")
         bpy.context.area.tag_redraw()
@@ -270,7 +271,7 @@ class CR_OT_Selector_Up(Operator):
 class CR_OT_Selector_Down(Operator):
     bl_idname = "cr_selector_down.button"
     bl_label = "Command_OT_Selection_Down"
-    bl_options = {'REGISTER', 'UNDO'}
+    #bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
         Select_Command("Down")
         bpy.context.area.tag_redraw()
@@ -279,7 +280,7 @@ class CR_OT_Selector_Down(Operator):
 class Command_OT_Play(Operator):
     bl_idname = "cr_commandplay.button"#大文字禁止
     bl_label = "Command_OT_Play"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
+    #bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
     def execute(self, context):
         #コマンドを実行
         Play(CR_("List",CR_("Index",0)+1))
@@ -290,7 +291,7 @@ class Command_OT_Play(Operator):
 class Command_OT_Add(Operator):
     bl_idname = "cr_commandadd.button"#大文字禁止
     bl_label = "Command_OT_Add"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
+    #bl_options = {'REGISTER', 'UNDO'}#アンドゥ履歴に登録
     def execute(self, context):
         #コマンドを実行
         Add(CR_("Index",0)+1)
@@ -300,7 +301,7 @@ class Command_OT_Add(Operator):
 class CR_OT_Command(Operator):
     bl_idname = "cr_command.button"#大文字禁止
     bl_label = "Button_Command"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'} # 処理の属性
+    #bl_options = {'REGISTER', 'UNDO'} # 処理の属性
     Mode : bpy.props.StringProperty(default="")
     def execute(self, context):
         #録画を開始
@@ -334,7 +335,7 @@ class CR_OT_Command(Operator):
 def StrageFile() :
     Name_File = "CommandRecorder_Storage.txt"
     AddonDirector = os.path.dirname(os.path.abspath(__file__))#アドオン管理システムの絶対パスを取得
-    File_Path = os.path.normpath(os.path.join(AddonDirector, '../CommandRecorder/Storage/' + Name_File))
+    File_Path = os.path.normpath(os.path.join(AddonDirector, '../CommandRecorder-master/Storage/' + Name_File))
     return File_Path
 
 def Save():
@@ -434,7 +435,7 @@ def I_Move(Mode):
 class CR_OT_Instance(Operator):
     bl_idname = "cr_instance.button"#大文字禁止
     bl_label = "Button_Instance"#メニューに登録される名前
-    bl_options = {'REGISTER', 'UNDO'} # 処理の属性
+    #bl_options = {'REGISTER', 'UNDO'} # 処理の属性
     Mode : bpy.props.StringProperty(default="")
     def execute(self, context):
         #追加
