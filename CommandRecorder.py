@@ -329,11 +329,23 @@ class CR_OT_Command(Operator):
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
 
-
-
-
-def StrageFile() :
-    return os.path.dirname(__file__) + "/Storage/" + "CommandRecorder_Storage.txt"
+def StrageFile():
+    Name_Folder = 'Storage'
+    Name_File   = 'CommandRecorder_Storage.txt'
+    Preset_Data = ''
+    Addon_Directory = os.path.dirname(os.path.abspath(__file__))
+    Path = Addon_Directory
+    Path = os.path.join(Path, Name_Folder)
+    Path = os.path.join(Path, Name_File)
+    Destination  = os.path.normpath(Path) 
+    if os.path.exists(Destination):
+        return Destination
+    else:
+        with open(Destination, mode='w') as f:
+            write(Preset_Data)
+        if os.path.exists(Destination):
+            return Destination
+    raise ValueError("Destination Not Exists.")
 
 def Save():
     scene = bpy.context.scene
