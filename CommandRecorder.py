@@ -333,8 +333,9 @@ class CR_OT_Command(Operator):
 
 
 def StrageFile():
-    Name_Folder = "Storage"
-    Name_File   = "CommandRecorder_Storage.txt"
+    Name_Folder = 'Storage'
+    Name_File   = 'CommandRecorder_Storage.txt'
+    Preset_Data = ''
     Addon_Directory = os.path.dirname(os.path.abspath(__file__))
     Path = Addon_Directory
     Path = os.path.join(Path, Name_Folder)
@@ -342,7 +343,12 @@ def StrageFile():
     Destination  = os.path.normpath(Path) 
     if os.path.exists(Destination):
         return Destination
-    raise ValueError("Storage directory not found.")
+    else:
+        with open(Destination, mode='w') as f:
+            write(Preset_Data)
+        if os.path.exists(Destination):
+            return Destination
+    raise ValueError("Destination Not Exists.")
 
 def Save():
     scene = bpy.context.scene
