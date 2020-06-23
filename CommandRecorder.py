@@ -334,18 +334,9 @@ class CR_OT_Command(Operator):
 
 def StrageFile() :
     Name_File = "CommandRecorder_Storage.txt"
-    Relative_NonSuffix = '../CommandRecorder/Storage/'
-    Relative_GitHubZip = '../CommandRecorder-master/Storage/'
-    AddonDirectory = os.path.dirname(os.path.abspath(__file__))#アドオン管理システムの絶対パスを取得
-    Relative_NonSuffix = Relative_NonSuffix + Name_File
-    Relative_GitHubZip = Relative_GitHubZip + Name_File
-    File_Path_NonSuffix = os.path.normpath(os.path.join(AddonDirectory, Relative_NonSuffix))
-    File_Path_GitHubZip = os.path.normpath(os.path.join(AddonDirectory, Relative_GitHubZip)) 
-    if os.path.exists(File_Path_NonSuffix):
-        return File_Path_NonSuffix
-    if os.path.exists(File_Path_GitHubZip):
-        return File_Path_GitHubZip
-    raise ValueError("Storage directory not found.")
+    AddonDirector = os.path.dirname(os.path.abspath(__file__))#アドオン管理システムの絶対パスを取得
+    File_Path = os.path.normpath(os.path.join(AddonDirector, '../CommandRecorder-master/Storage/' + Name_File))
+    return File_Path
 
 def Save():
     scene = bpy.context.scene
