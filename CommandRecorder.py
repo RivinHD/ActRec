@@ -336,7 +336,6 @@ def StrageFile() :
     Name_File = "CommandRecorder_Storage.txt"
     Relative_NonSuffix = '../CommandRecorder/Storage/'
     Relative_GitHubZip = '../CommandRecorder-master/Storage/'
-
     AddonDirectory = os.path.dirname(os.path.abspath(__file__))#アドオン管理システムの絶対パスを取得
     Relative_NonSuffix = Relative_NonSuffix + Name_File
     Relative_GitHubZip = Relative_GitHubZip + Name_File
