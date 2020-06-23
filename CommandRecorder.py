@@ -3,6 +3,7 @@
 #-------------------------------------------------------------------------------------------
 import bpy #Blender内部のデータ構造にアクセスするために必要
 import os
+import shutil
 
 from bpy.props import\
 (#プロパティを使用するために必要
@@ -332,7 +333,7 @@ class CR_OT_Command(Operator):
 def StrageFile():
     Name_Folder = 'Storage'
     Name_File   = 'CommandRecorder_Storage.txt'
-    Preset_Data = ''
+    Preset_Data = 'CommandRecorder_Storage_Preset.txt'
     Addon_Directory = os.path.dirname(os.path.abspath(__file__))
     Path = Addon_Directory
     Path = os.path.join(Path, Name_Folder)
@@ -341,8 +342,8 @@ def StrageFile():
     if os.path.exists(Destination):
         return Destination
     else:
-        with open(Destination, mode='w') as f:
-            write(Preset_Data)
+        Source = os.path.join(Addon_Directory, Preset_Data)
+        shutil.copyfile(Source, Destination)
         if os.path.exists(Destination):
             return Destination
     raise ValueError("Destination Not Exists.")
