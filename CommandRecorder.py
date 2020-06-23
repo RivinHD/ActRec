@@ -1,4 +1,4 @@
-#==============================================================
+﻿#==============================================================
 #スタートアップ
 #-------------------------------------------------------------------------------------------
 import bpy #Blender内部のデータ構造にアクセスするために必要
@@ -333,10 +333,7 @@ class CR_OT_Command(Operator):
 
 
 def StrageFile() :
-    Name_File = "CommandRecorder_Storage.txt"
-    AddonDirector = os.path.dirname(os.path.abspath(__file__))#アドオン管理システムの絶対パスを取得
-    File_Path = os.path.normpath(os.path.join(AddonDirector, '../CommandRecorder-master/Storage/' + Name_File))
-    return File_Path
+    return os.path.dirname(__file__) + "/Storage/" + "CommandRecorder_Storage.txt"
 
 def Save():
     scene = bpy.context.scene
