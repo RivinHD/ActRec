@@ -144,19 +144,20 @@ def TempUpdateCommand(Key): # update one command in temp.json file
 
 @persistent
 def TempLoad(dummy): # load commands after undo
-    with open(path, 'r', encoding='utf8') as tempfile:
-        data = json.load(tempfile)
-    command = CR_('List', 0)
-    command.clear()
-    keys = list(data.keys())
-    for i in range(1, len(data)):
-        Item = command.add()
-        Item.name = data["0"][i - 1]
-        record = CR_('List', i)
-        record.clear()
-        for j in range(len(data[keys[i]])):
-            Item = record.add()
-            Item.name = data[keys[i]][j]
+    if bpy.context.scene.CR_Var.IgnoreUndo:
+        with open(path, 'r', encoding='utf8') as tempfile:
+            data = json.load(tempfile)
+        command = CR_('List', 0)
+        command.clear()
+        keys = list(data.keys())
+        for i in range(1, len(data)):
+            Item = command.add()
+            Item.name = data["0"][i - 1]
+            record = CR_('List', i)
+            record.clear()
+            for j in range(len(data[keys[i]])):
+                Item = record.add()
+                Item.name = data[keys[i]][j]
 
 bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
 
