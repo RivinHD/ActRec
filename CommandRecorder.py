@@ -2,8 +2,11 @@
 #スタートアップ
 #-------------------------------------------------------------------------------------------
 import bpy #Blender内部のデータ構造にアクセスするために必要
+from bpy.app.handlers import persistent
 import os
 import shutil
+import json
+from json.decoder import JSONDecodeError
 
 from bpy.props import\
 (#プロパティを使用するために必要
@@ -88,7 +91,6 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
     elif Return_Bool == 'Reports_Length':
         return len(bpy.data.texts['Recent Reports'].lines)#操作履歴の要素数
 
-
 def Record(Num, Mode):
     Recent = Get_Recent('Reports_All')
     if Mode == 'Start':
@@ -102,6 +104,61 @@ def Record(Num, Mode):
                 Item = CR_('List', Num).add()
                 Item.name = TempText[TempText.find('bpy'):]
 
+path = os.path.dirname(__file__) + "/temp.json"
+FirstOpen = [True]
+tempcount = [0]
+
+def TempSave(Num):  # write new command to temp.json file
+    if os.path.exists(path):
+        if FirstOpen[0]:
+            FirstOpen[0] = False
+            with open(path, 'r+', encoding='utf8') as tempfile:
+                tempfile.truncate(0)
+                tempfile.seek(0)
+                json.dump({"0":[]}, tempfile)
+    else:
+        open(path, 'x', encoding='utf8')
+    with open(path, 'r+', encoding='utf8') as tempfile:   
+        data = json.load(tempfile)
+        data.update({str(Num):[]})
+        data["0"].append(CR_('List', 0)[Num - 1]['name'])
+        tempfile.seek(0)
+        json.dump(data, tempfile)
+
+def TempUpdate(): # update all commands in temp.json file
+    with open(path, 'r+', encoding='utf8') as tempfile:
+        tempfile.truncate(0)
+        tempfile.seek(0)
+        data = {}
+        for cmd in range(len(CR_('List', 0)) + 1):
+            data.update({str(cmd):[i.name for i in CR_('List', cmd)]})
+        json.dump(data, tempfile)
+
+def TempUpdateCommand(Key): # update one command in temp.json file
+    with open(path, 'r+', encoding='utf8') as tempfile:
+        data = json.load(tempfile)
+        data[str(Key)] = [i.name for i in CR_('List', int(Key))]
+        tempfile.truncate(0)
+        tempfile.seek(0)
+        json.dump(data, tempfile)
+
+@persistent
+def TempLoad(dummy): # load commands after undo
+    with open(path, 'r', encoding='utf8') as tempfile:
+        data = json.load(tempfile)
+    command = CR_('List', 0)
+    command.clear()
+    keys = list(data.keys())
+    for i in range(1, len(data)):
+        Item = command.add()
+        Item.name = data["0"][i - 1]
+        record = CR_('List', i)
+        record.clear()
+        for j in range(len(data[keys[i]])):
+            Item = record.add()
+            Item.name = data[keys[i]][j]
+
+bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -117,7 +174,6 @@ def Add(Num):
         else:
             Item.name = 'Untitled_{0:03d}'.format(len(CR_('List', Num)))
         CR_( len(CR_('List',Num))-1, Num )
-
 
 def Remove(Num):
     if not Num:
@@ -186,13 +242,13 @@ def Select_Command(Mode):
 
 def Play(Commands) :
     scene = bpy.context.scene
-    if scene.CR_Var.Target_Switch == 'Once':
+    if scene.CR_Var.Target_Switch == 'Once': #Target Switch is always 'Once'
         for Command in Commands :
             if type(Command) == str :
                 exec(Command)
             else :
                 exec(Command.name)
-    else :
+    else :      
         current_mode = bpy.context.mode
         Set_DeSelect = ''
         Set_Select = []
@@ -239,25 +295,33 @@ def Play(Commands) :
 def Clear(Num) :
     CR_('List',Num).clear()
 
-
 class CR_OT_Selector(Operator):
     bl_idname = 'cr_selector.button'#大文字禁止
     bl_label = 'Button_Selector'#メニューに登録される名前
     #bl_options = {'REGISTER', 'UNDO'} # 処理の属性
     Mode : bpy.props.StringProperty(default='')
     def execute(self, context):
+        scene = bpy.context.scene
         #追加
         if self.Mode == 'Add' :
             Add(0)
+            if scene.CR_Var.IgnoreUndo:
+                TempSave(CR_('Index',0) + 1)
         #削除
         elif self.Mode == 'Remove' :
             Remove(0)
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdate()
         #上へ
         elif self.Mode == 'Up' :
             Move(0 , 'Up')
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdate()
         #下へ
         elif self.Mode == 'Down' :
             Move(0 , 'Down')
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdate()
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
 
@@ -288,8 +352,6 @@ class Command_OT_Play(Operator):
         Play(CR_('List',CR_('Index',0)+1))
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
 
-
-
 class Command_OT_Add(Operator):
     bl_idname = 'cr_commandadd.button'#大文字禁止
     bl_label = 'Command_OT_Add'#メニューに登録される名前
@@ -297,6 +359,8 @@ class Command_OT_Add(Operator):
     def execute(self, context):
         #コマンドを実行
         Add(CR_('Index',0)+1)
+        if bpy.context.scene.CR_Var.IgnoreUndo:
+            TempUpdateCommand(CR_('Index',0)+1)
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
 
@@ -306,27 +370,40 @@ class CR_OT_Command(Operator):
     #bl_options = {'REGISTER', 'UNDO'} # 処理の属性
     Mode : bpy.props.StringProperty(default='')
     def execute(self, context):
+        scene = bpy.context.scene
         #録画を開始
         if self.Mode == 'Record_Start' :
             Record(CR_('Index',0)+1 , 'Start')
         #録画を終了
         elif self.Mode == 'Record_Stop' :
             Record(CR_('Index',0)+1 , 'Stop')
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
         #追加
         elif self.Mode == 'Add' :
             Add(CR_('Index',0)+1)
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
         #削除
         elif self.Mode == 'Remove' :
             Remove(CR_('Index',0)+1)
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
         #上へ
         elif self.Mode == 'Up' :
             Move(CR_('Index',0)+1 , 'Up')
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
         #下へ
         elif self.Mode == 'Down' :
             Move(CR_('Index',0)+1 , 'Down')
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
         #リストをクリア
         elif self.Mode == 'Clear' :
             Clear(CR_('Index',0)+1)
+            if scene.CR_Var.IgnoreUndo:
+                TempUpdateCommand(CR_('Index',0)+1)
 
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
@@ -569,8 +646,10 @@ class CR_PT_List(bpy.types.Panel):
         box_row.prop(scene.CR_Var, 'Recent_Switch' ,expand = 1)
         if not(CR_PT_List.Bool_Recent == scene.CR_Var.Recent_Switch) :
             Recent_Switch(scene.CR_Var.Recent_Switch)
-
-
+        box_row = box.row()
+        box_row.label(text = 'Ignore Undo')
+        box_row.prop(scene.CR_Var, 'IgnoreUndo', toggle = 1, text="Ignore")
+        
 class CR_PT_Instance(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'# メニューを表示するエリア
     bl_region_type = 'UI'# メニューを表示するリージョン
@@ -654,6 +733,9 @@ class CR_Prop(PropertyGroup):#何かとプロパティを収納
     ('Standard' , 'Standard' , ''),
     ('Extend' , 'Extend' , ''),
     ])
+
+    IgnoreUndo : BoolProperty(default=True, description="all records and changes are unaffected by undo")
+
     Temp_Command = []
     Temp_Num = 0
     for Num_Loop in range(256) :
