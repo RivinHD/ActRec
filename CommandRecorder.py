@@ -117,7 +117,8 @@ def TempSave(Num):  # write new command to temp.json file
                 tempfile.seek(0)
                 json.dump({"0":[]}, tempfile)
     else:
-        open(path, 'x', encoding='utf8')
+        with open(path, 'w', encoding='utf8') as tempfile:
+            json.dump({"0":[]}, tempfile)
     with open(path, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
