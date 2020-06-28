@@ -104,22 +104,22 @@ def Record(Num, Mode):
                 Item = CR_('List', Num).add()
                 Item.name = TempText[TempText.find('bpy'):]
 
-path = os.path.dirname(__file__) + "/temp.json"
+tpath = os.path.dirname(__file__) + "/temp.json"
 FirstOpen = [True]
 tempcount = [0]
 
 def TempSave(Num):  # write new command to temp.json file
-    if os.path.exists(path):
+    if os.path.exists(tpath):
         if FirstOpen[0]:
             FirstOpen[0] = False
-            with open(path, 'r+', encoding='utf8') as tempfile:
+            with open(tpath, 'r+', encoding='utf8') as tempfile:
                 tempfile.truncate(0)
                 tempfile.seek(0)
                 json.dump({"0":[]}, tempfile)
     else:
-        with open(path, 'w', encoding='utf8') as tempfile:
+        with open(tpath, 'w', encoding='utf8') as tempfile:
             json.dump({"0":[]}, tempfile)
-    with open(path, 'r+', encoding='utf8') as tempfile:   
+    with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
         data["0"].append(CR_('List', 0)[Num - 1]['name'])
@@ -127,7 +127,7 @@ def TempSave(Num):  # write new command to temp.json file
         json.dump(data, tempfile)
 
 def TempUpdate(): # update all commands in temp.json file
-    with open(path, 'r+', encoding='utf8') as tempfile:
+    with open(tpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
         data = {}
@@ -136,7 +136,8 @@ def TempUpdate(): # update all commands in temp.json file
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
-    with open(path, 'r+', encoding='utf8') as tempfile:
+    print(tpath)
+    with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [i.name for i in CR_('List', int(Key))]
         tempfile.truncate(0)
@@ -146,7 +147,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
 @persistent
 def TempLoad(dummy): # load commands after undo
     if bpy.context.scene.CR_Var.IgnoreUndo:
-        with open(path, 'r', encoding='utf8') as tempfile:
+        with open(tpath, 'r', encoding='utf8') as tempfile:
             data = json.load(tempfile)
         command = CR_('List', 0)
         command.clear()
@@ -773,8 +774,6 @@ def Clear_Props():
     for km in CR_Prop.addon_keymaps:
         bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
     CR_Prop.addon_keymaps.clear()
-
-
 
 #==============================================================
 #Blenderへ登録
