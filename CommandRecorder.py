@@ -104,19 +104,12 @@ def Record(Num, Mode):
                 Item = CR_('List', Num).add()
                 Item.name = TempText[TempText.find('bpy'):]
 
-tpath = os.path.dirname(__file__) + "/temp.json"
+tpath = bpy.app.tempdir + "/temp.json"
 FirstOpen = [True]
 tempcount = [0]
 
 def TempSave(Num):  # write new command to temp.json file
-    if os.path.exists(tpath):
-        if FirstOpen[0]:
-            FirstOpen[0] = False
-            with open(tpath, 'r+', encoding='utf8') as tempfile:
-                tempfile.truncate(0)
-                tempfile.seek(0)
-                json.dump({"0":[]}, tempfile)
-    else:
+    if not os.path.exists(tpath):
         with open(tpath, 'w', encoding='utf8') as tempfile:
             json.dump({"0":[]}, tempfile)
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
