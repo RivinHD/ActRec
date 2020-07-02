@@ -155,6 +155,7 @@ def TempLoad(dummy): # load commands after undo
                 Item.name = data[keys[i]][j]
 
 bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
+bpy.app.handlers.redo_post.append(TempLoad) # also for redo
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
