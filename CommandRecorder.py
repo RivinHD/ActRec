@@ -104,7 +104,7 @@ def Record(Num, Mode):
                 Item = CR_('List', Num).add()
                 Item.name = TempText[TempText.find('bpy'):]
 
-tpath = bpy.app.tempdir + "/temp.json"
+tpath = bpy.app.tempdir + "temp.json"
 FirstOpen = [True]
 tempcount = [0]
 
@@ -129,7 +129,6 @@ def TempUpdate(): # update all commands in temp.json file
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
-    print(tpath)
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [i.name for i in CR_('List', int(Key))]
@@ -156,6 +155,38 @@ def TempLoad(dummy): # load commands after undo
 
 bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
 bpy.app.handlers.redo_post.append(TempLoad) # also for redo
+
+UndoRedoStack = []
+
+def GetCommand(scene, index):
+    return eval('scene.CR_Var.List_Command_{0:03d}'.format(index))
+
+@persistent
+def SaveUndoStep(scene):
+    All = []
+    l = []
+    l.append([i.name for i in list(GetCommand(scene, 0))])
+    for x in range(1, len(l[0]) + 1):
+        l.append([ i.name for i in list(GetCommand(scene, x))])
+    UndoRedoStack.append(l)
+
+@persistent
+def GetRedoStep(dummy):
+    command = CR_('List', 0)
+    command.clear()
+    l = UndoRedoStack[len(UndoRedoStack) - 1]
+    for i in range(1, len(l[0]) + 1):
+        item = command.add()
+        item.name = l[0][i - 1]
+        record = CR_('List', i)
+        record.clear()
+        for j in range(len(l[i])):
+            item = record.add()
+            item.name = l[i][j]
+    UndoRedoStack.pop()
+
+bpy.app.handlers.undo_pre.append(SaveUndoStep)
+bpy.app.handlers.redo_post.append(GetRedoStep)
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -768,6 +799,8 @@ def Clear_Props():
     for km in CR_Prop.addon_keymaps:
         bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
     CR_Prop.addon_keymaps.clear()
+
+
 
 #==============================================================
 #Blenderへ登録
