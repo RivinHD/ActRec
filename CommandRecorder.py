@@ -87,9 +87,13 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
     bpy.data.texts['Recent Reports'].write(clipboard)
     # print the report
     if Return_Bool == 'Reports_All':
-        return bpy.data.texts['Recent Reports'].lines#操作履歴全ての行
+        text = bpy.data.texts['Recent Reports'].lines #操作履歴全ての行
+        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
+        return text
     elif Return_Bool == 'Reports_Length':
-        return len(bpy.data.texts['Recent Reports'].lines)#操作履歴の要素数
+        textlen = len(bpy.data.texts['Recent Reports'].lines)#操作履歴の要素数
+        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
+        return textlen
 
 def Record(Num, Mode):
     Recent = Get_Recent('Reports_All')
