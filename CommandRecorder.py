@@ -267,55 +267,11 @@ def Select_Command(Mode):
 
 def Play(Commands) :
     scene = bpy.context.scene
-    if scene.CR_Var.Target_Switch == 'Once': #Target Switch is always 'Once'
-        for Command in Commands :
-            if type(Command) == str :
-                exec(Command)
-            else :
-                exec(Command.name)
-    else :      
-        current_mode = bpy.context.mode
-        Set_DeSelect = ''
-        Set_Select = []
-        Set_Active = []
-        if current_mode == 'OBJECT':
-            Set_DeSelect = ("bpy.ops.object.select_all(action='DESELECT')")
-            for Target in bpy.context.selected_objects:
-                Set_Select.append("bpy.data.objects['{0}'].select = True".format(Target.name))
-                Set_Active.append("bpy.context.scene.objects.active = bpy.data.objects['{0}']".format(Target.name))
-        elif current_mode == 'EDIT_MESH':
-            pass
-
-        elif current_mode == 'EDIT_ARMATURE':
-            Arm = bpy.context.scene.objects.active.name
-            Set_DeSelect = ("bpy.ops.armature.select_all(action='DESELECT')")
-            for Target in bpy.context.selected_editable_bones :
-                Set_Select.append("bpy.data.objects['{0}'].data.edit_bones['{1}'].select = True".format(Arm , Target.name))
-                Set_Active.append("bpy.data.objects['{0}'].data.edit_bones.active = bpy.data.objects['{0}'].data.edit_bones['{1}']".format(Arm , Target.name))
-
-        elif current_mode == 'POSE':
-            Arm = bpy.context.scene.objects.active.name
-            Set_DeSelect = ("bpy.ops.pose.select_all(action='DESELECT')")
-            for Target in bpy.context.selected_pose_bones :
-                print('a')
-                Set_Select.append("bpy.data.objects['{0}'].pose.bones['{1}'].bone.select = True".format(Arm , Target.name))
-                Set_Active.append("bpy.data.objects['{0}'].data.bones.active = bpy.data.objects['{0}'].data.bones['{1}']".format(Arm , Target.name))
-
-        for Num_Loop in range(len(Set_Select)) :
-            print(Set_DeSelect)
-            print(Set_Select[Num_Loop])
-            print(Set_Active[Num_Loop])
-            exec(Set_DeSelect)
-            exec(Set_Select[Num_Loop])
-            exec(Set_Active[Num_Loop])
-            if current_mode == 'EDIT_ARMATURE' :
-                bpy.ops.object.mode_set(mode='POSE')
-                bpy.ops.object.mode_set(mode='EDIT')
-            for Command in Commands :
-                if type(Command) == str :
-                    exec(Command)
-                else :
-                    exec(Command.name)
+    for Command in Commands :
+        if type(Command) == str :
+            exec(Command)
+        else :
+            exec(Command.name)
 
 def Clear(Num) :
     CR_('List',Num).clear()
@@ -590,13 +546,6 @@ class CR_OT_Instance(Operator):
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
 
-def Recent_Switch(Mode):
-    if Mode == 'Standard' :
-        bpy.app.debug_wm = 0
-    else :
-        bpy.app.debug_wm = 1
-    CR_PT_List.Bool_Recent = Mode
-
 
 #==============================================================
 #レイアウト
@@ -657,14 +606,6 @@ class CR_PT_List(bpy.types.Panel):
                 box.operator(CR_OT_Command.bl_idname , text='Clear').Mode = 'Clear'
         box = layout.box()
         box.label(text = 'Options', icon = 'PRESET_NEW')
-        #box_row = box.row()
-        #box_row.label(text = 'Target')
-        #box_row.prop(scene.CR_Var, 'Target_Switch' ,expand = 1)
-        box_row = box.row()
-        box_row.label(text = 'History')
-        box_row.prop(scene.CR_Var, 'Recent_Switch' ,expand = 1)
-        if not(CR_PT_List.Bool_Recent == scene.CR_Var.Recent_Switch) :
-            Recent_Switch(scene.CR_Var.Recent_Switch)
         box_row = box.row()
         box_row.label(text = 'Ignore Undo')
         box_row.prop(scene.CR_Var, 'IgnoreUndo', toggle = 1, text="Ignore")
@@ -886,18 +827,6 @@ class CR_Prop(PropertyGroup):#何かとプロパティを収納
     Instance_Command = []
 
     Instance_Index : IntProperty(default= 0)
-    #コマンド切り替え
-    Target_Switch : EnumProperty(
-    items = [
-    ('Once' , 'Once' , ''),
-    ('Each' , 'Each' , ''),
-    ])
-    #履歴の詳細
-    Recent_Switch : EnumProperty(
-    items = [
-    ('Standard' , 'Standard' , ''),
-    ('Extend' , 'Extend' , ''),
-    ])
 
     IgnoreUndo : BoolProperty(default=True, description="all records and changes are unaffected by undo")
 
@@ -981,3 +910,4 @@ CategorizeProps,
 AddCategory,
 CR_Enum
 ]
+
