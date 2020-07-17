@@ -433,8 +433,7 @@ def Load():
                     for line in text.readlines():
                         CmdList.append(line.strip())
                 CR_Prop.Instance_Command.append(CmdList)
-    if len(scene.cr_enum) != 0:
-        scene.cr_enum[0].Index = True
+        scene.cr_enum[scene.CR_Var.Instance_Index].Index = True
 
 def Recorder_to_Instance(panel):
     i = panel.Instance_Start +  panel.Instance_length
@@ -630,8 +629,10 @@ class CR_PT_Instance(bpy.types.Panel):
         #
         box = layout.box()
         box.operator(CR_OT_Instance.bl_idname , text='Button to Recorder' ).Mode = 'Instance_to_Recorder'
-        box.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
-        box.operator(CR_OT_Instance.bl_idname , text='Load from File' ).Mode = 'Load'
+        col = box.column(align= True)
+        col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
+        col.operator(CR_OT_Instance.bl_idname , text='Load from File' ).Mode = 'Load'
+        col.operator(AddCategory.bl_idname, text= "Add from File").Mode = 'AddFromFile'
         if len(CR_Prop.Instance_Name) :
             box_row = box.row()
             row2 = box_row.row(align= True)
@@ -668,7 +669,7 @@ class CR_PT_Instance(bpy.types.Panel):
                 split = box.split(factor=0.2)
                 col = split.column(align= True)
                 for i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.prop(scene.cr_enum[i], 'Index' ,toggle = 1, text= str(i + 1))
+                    col.prop(scene.cr_enum[i], 'Index' ,toggle = 1, text= str(i - cat.Instance_Start + 1))
                 col = split.column()
                 col.scale_y = 0.9493
                 for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
@@ -679,7 +680,9 @@ lastselected = [None]
 def UseRadioButtons(self, context):
     categories = context.scene.cr_categories
     for cat in categories:
-        if cat.pn_selected and lastselected[0] != cat and currentselected[0] != cat:
+        if not cat.pn_selected and lastselected[0] == cat and currentselected[0] == cat:
+            cat.pn_selected = True
+        elif cat.pn_selected and lastselected[0] != cat and currentselected[0] != cat:
             currentselected[0] = cat
             if lastselected[0] is not None:
                 lastselected[0].pn_selected = False
@@ -709,6 +712,7 @@ class AddCategory(bpy.types.Operator):
 
     Mode : StringProperty()
     PanelName : StringProperty(name = "Panel Name", default="")
+    NewPanel : BoolProperty(default= False, description= "Create a new Panel with all selected Buttons")
 
     def execute(self, context):
         categories = context.scene.cr_categories
@@ -722,12 +726,22 @@ class AddCategory(bpy.types.Operator):
         elif self.Mode == 'Delet':
             for cat in categories:
                 if cat.pn_selected:
+                    index = GetPanelIndex(cat)
+                    start = cat.Instance_Start
+                    for i in range(start, start + cat.Instance_length):
+                        scene.cr_enum.remove(start)
+                        CR_Prop.Instance_Name.pop(start)
+                        CR_Prop.Instance_Command.pop(start)
+                    for nextcat in categories[index + 1 :]:
+                        nextcat.Instance_Start -= cat.Instance_length
                     categories.remove(GetPanelIndex(cat))
+                    break
         elif self.Mode == 'Rename':
             for cat in categories:
                 if cat.pn_selected:
                     cat.name = self.PanelName
                     cat.pn_name = self.PanelName
+                    break
         elif self.Mode == 'Move':
             for cat in categories:
                 if cat.pn_selected:
@@ -736,16 +750,78 @@ class AddCategory(bpy.types.Operator):
                     for curcat in categories:
                         if Index >= curcat.Instance_Start and Index < curcat.Instance_Start + curcat.Instance_length:
                             curcat.Instance_length -= 1
+                            for nextcat in categories[GetPanelIndex(curcat) + 1 :]:
+                                nextcat.Instance_Start -= 1
                             break
                     CR_Prop.Instance_Name.insert(catendl, CR_Prop.Instance_Name.pop(Index))
                     CR_Prop.Instance_Command.insert(catendl, CR_Prop.Instance_Command.pop(Index))
+                    for nextcat in categories[GetPanelIndex(cat) + 1:]:
+                        nextcat.Instance_Start += 1
                     cat.Instance_length += 1
-                    cat.Instance_Start -= 1
-                    scene.cr_enum[catendl].Index = True
+                    scene.cr_enum[0].Index = True
+                    break
         elif self.Mode == 'ToButton':
             for cat in categories:
                 if cat.pn_selected:
                     Recorder_to_Instance(cat)
+                    break
+        elif self.Mode == 'AddFromFile':
+            if self.NewPanel:
+                new = scene.cr_categories.add()
+                new.name = "Add from File"
+                new.pn_name = "Add from File"
+                new.Instance_Start = len(CR_Prop.Instance_Name)
+                filedisp = scene.cr_filedisp
+                for filecat in scene.cr_filecategories:
+                    if filecat.pn_selected:
+                        for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
+                            filedisp[i].Index = True
+                for i in range(len(filedisp)):
+                    if filedisp[i].Index:
+                        item = scene.cr_enum.add()
+                        CR_Prop.Instance_Name.append(CR_Prop.FileDisp_Name[i])
+                        CR_Prop.Instance_Command.append(CR_Prop.FileDisp_Command[i])
+                new.Instance_length = len(CR_Prop.Instance_Name) - new.Instance_Start
+                self.NewPanel = False
+            else:
+                for filecat in scene.cr_filecategories:
+                    index = None
+                    for i in range(len(categories)):
+                        if categories[i].pn_name == filecat.pn_name:
+                            index = i
+                            break
+                    if filecat.pn_selected:
+                        if index is None:
+                            new = scene.cr_categories.add()
+                            new.name = filecat.name
+                            new.pn_name = filecat.pn_name
+                            new.Instance_Start = len(CR_Prop.Instance_Name)
+                            new.Instance_length = filecat.FileDisp_length
+                            for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
+                                item = scene.cr_enum.add()
+                                CR_Prop.Instance_Name.append(CR_Prop.FileDisp_Name[i])
+                                CR_Prop.Instance_Command.append(CR_Prop.FileDisp_Command[i])
+                        else:
+                            for i_cat in range(index + 1, len(categories)):
+                                categories[i_cat].Instance_Start += filecat.FileDisp_length
+                            categories[index].Instance_length += filecat.FileDisp_length
+                            i_start = categories[index].Instance_Start + categories[index].Instance_length - filecat.FileDisp_length
+                            for i in range(i_start, categories[index].Instance_Start + categories[index].Instance_length):
+                                scene.cr_enum.add()
+                                i_file = filecat.FileDisp_Start + i - i_start
+                                CR_Prop.Instance_Name.insert(i , CR_Prop.FileDisp_Name[i_file])
+                                CR_Prop.Instance_Command.insert(i, CR_Prop.FileDisp_Command[i_file])
+                    else:
+                        for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
+                            if scene.cr_filedisp[i].Index:
+                                scene.cr_enum.add() # insert at i
+                                i_cat = categories[index].Instance_Start + categories[index].Instance_length
+                                CR_Prop.Instance_Name.insert(i_cat, CR_Prop.FileDisp_Name[i])
+                                CR_Prop.Instance_Command.insert(i_cat, CR_Prop.FileDisp_Command[i])
+                                categories[index].Instance_length += 1
+                                for i_cat in range(index + 1, len(categories)):
+                                    categories[i_cat].Instance_Start += 1
+        bpy.context.area.tag_redraw()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -769,13 +845,47 @@ class AddCategory(bpy.types.Operator):
                 categories[i].pn_selected, categories[i - 1].pn_selected = categories[i - 1].pn_selected, categories[i].pn_selected
                 categories[i].Instance_Start, categories[i - 1].Instance_Start = categories[i - 1].Instance_Start, categories[i].Instance_Start
                 categories[i].Instance_length, categories[i - 1].Instance_length = categories[i - 1].Instance_length, categories[i].Instance_length
+        elif self.Mode == 'AddFromFile':
+            #Load the File data to FileDisps
+            scene = bpy.context.scene
+            scene.cr_filecategories.clear()
+            scene.cr_filedisp.clear() 
+            CR_Prop.FileDisp_Name.clear()
+            CR_Prop.FileDisp_Command.clear()
+            for folder in os.listdir(path):
+                folderpath = path + "/" + folder
+                if os.path.isdir(folderpath):
+                    textfiles = os.listdir(folderpath)
+                    new = scene.cr_filecategories.add()
+                    name = folder.split('–')[0]
+                    new.name = name
+                    new.pn_name = name
+                    new.pn_show = True
+                    new.FileDisp_Start = len(CR_Prop.FileDisp_Name)
+                    new.FileDisp_length = len(textfiles)
+                    sortedtxt = [None] * len(textfiles)
+                    for txt in textfiles:
+                        sortedtxt[int(''.join(txt.split('.')[:-1]).split('–')[1])] = txt #remove the .txtending, join to string again, get the index
+
+                    for txt in sortedtxt:
+                        blnew = scene.cr_filedisp.add()
+                        CR_Prop.FileDisp_Name.append(txt.split('–')[0])
+                        CmdList = []
+                        with open(folderpath + "/" + txt, 'r') as text:
+                            for line in text.readlines():
+                                CmdList.append(line.strip())
+                        CR_Prop.FileDisp_Command.append(CmdList)
+            bpy.context.area.tag_redraw()
+            return context.window_manager.invoke_props_dialog(self)
         else:
             return context.window_manager.invoke_props_dialog(self)
+        bpy.context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context):
         layout = self.layout
         categories = context.scene.cr_categories
+        scene = context.scene
         if self.Mode == 'Add':
             layout.prop(self, 'PanelName')
         elif self.Mode == 'Delet':
@@ -792,6 +902,27 @@ class AddCategory(bpy.types.Operator):
         elif self.Mode == 'ToButton':
             for cat in categories:
                 layout.prop(cat, 'pn_selected', text= cat.pn_name)
+        elif self.Mode == 'AddFromFile':
+            for cat in scene.cr_filecategories:
+                box = layout.box()
+                col = box.column()
+                row = col.row()
+                if cat.pn_show:
+                    row.prop(cat, 'pn_show', icon="TRIA_DOWN", text= "", emboss= False)
+                else:
+                    row.prop(cat, 'pn_show', icon="TRIA_RIGHT", text= "", emboss= False)
+                row.label(text= cat.pn_name)
+                row.prop(cat, 'pn_selected', text= "")
+                if cat.pn_show:
+                    col = box.column(align= False)
+                    if cat.pn_selected:
+                        row2 = col.row()
+                        for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                            col.label(text= CR_Prop.FileDisp_Name[i], icon= 'CHECKBOX_HLT')
+                    else:
+                        for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                            col.prop(scene.cr_filedisp[i], 'Index' , text= CR_Prop.FileDisp_Name[i])
+            layout.prop(self, 'NewPanel', text= "Create as a new Panel")
 
 class CR_List_PT_VIEW_3D(CR_PT_List):
     bl_space_type = 'VIEW_3D'# メニューを表示するエリア
@@ -809,7 +940,9 @@ Ilastselected = [None]
 def Instance_Updater(self, context):
     enum = context.scene.cr_enum
     for e in enum:
-        if e.Index and Ilastselected[0] != e and Icurrentselected[0] != e:
+        if not e.Index and Ilastselected[0] == e and Icurrentselected[0] == e:
+            e.Index = True
+        elif e.Index and Ilastselected[0] != e and Icurrentselected[0] != e: 
             Icurrentselected[0] = e
             if Ilastselected[0] is not None:
                 Ilastselected[0].Index = False
@@ -819,14 +952,27 @@ def Instance_Updater(self, context):
 class CR_Enum(PropertyGroup):
     Index : BoolProperty(default= False, update= Instance_Updater)
 
+class CR_FileDisp(PropertyGroup):
+    Index : BoolProperty(default= False)
+
+class CategorizeFileDisp(PropertyGroup):
+    pn_name : StringProperty()
+    pn_show : BoolProperty(default= True)
+    pn_selected : BoolProperty(default= False)
+    FileDisp_Start : IntProperty(default= 0)
+    FileDisp_length : IntProperty(default= 0)
+
 class CR_Prop(PropertyGroup):#何かとプロパティを収納
     Rename : StringProperty(
     ) #CR_Var.name
 
     Instance_Name = []
     Instance_Command = []
-
     Instance_Index : IntProperty(default= 0)
+
+    FileDisp_Name = []
+    FileDisp_Command = []
+    FileDisp_Index : IntProperty(default= 0)
 
     IgnoreUndo : BoolProperty(default=True, description="all records and changes are unaffected by undo")
 
@@ -854,8 +1000,10 @@ class CR_Prop(PropertyGroup):#何かとプロパティを収納
 #-------------------------------------------------------------------------------------------
 def Initialize_Props():# プロパティをセットする関数
     bpy.types.Scene.cr_categories = CollectionProperty(type= CategorizeProps)
-    bpy.types.Scene.CR_Var = bpy.props.PointerProperty(type=CR_Prop)
+    bpy.types.Scene.CR_Var = PointerProperty(type=CR_Prop)
     bpy.types.Scene.cr_enum = CollectionProperty(type= CR_Enum)
+    bpy.types.Scene.cr_filecategories = CollectionProperty(type= CategorizeFileDisp)
+    bpy.types.Scene.cr_filedisp = CollectionProperty(type= CR_FileDisp)
     bpy.app.handlers.load_factory_preferences_post.append(InitSavedPanel)
     bpy.app.handlers.load_post.append(InitSavedPanel)
     bpy.app.handlers.undo_pre.append(SaveUndoStep)
@@ -872,6 +1020,8 @@ def Clear_Props():
     del bpy.types.Scene.cr_categories
     del bpy.types.Scene.CR_Var
     del bpy.types.Scene.cr_enum
+    del bpy.types.Scene.cr_filedisp
+    del bpy.types.Scene.cr_filecategories
     bpy.app.handlers.load_factory_preferences_post.remove(InitSavedPanel)
     bpy.app.handlers.load_post.remove(InitSavedPanel)
     bpy.app.handlers.undo_pre.remove(SaveUndoStep)
@@ -908,6 +1058,8 @@ CR_List_PT_IMAGE_EDITOR,
 CR_PT_Instance_IMAGE_EDITOR,
 CategorizeProps,
 AddCategory,
-CR_Enum
+CR_Enum,
+CategorizeFileDisp,
+CR_FileDisp
 ]
 
