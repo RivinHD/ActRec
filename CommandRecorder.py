@@ -966,8 +966,9 @@ class ImportButton(Operator, ImportHelper):
                     CR_Prop.Instance_Command.insert(inserti, TempCommand)
                     scene.cr_enum.add()
                     mycat.Instance_length += 1
-                    for cat in cr_categories[Index + 1:] :
-                        cat.Instance_Start += 1
+                    if Index is not None:
+                        for cat in cr_categories[Index + 1:] :
+                            cat.Instance_Start += 1
                 else:
                     self.report({'ERROR'}, "{ " + path + " } Select a .txt file")
         return {"FINISHED"}
