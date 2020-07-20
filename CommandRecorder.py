@@ -28,7 +28,7 @@ PropertyGroup
 
 
 from . import DefineCommon as Common
-
+from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 #==============================================================
 #使用クラスの宣言
@@ -423,8 +423,7 @@ def Load():
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
             for txt in textfiles:
-                sortedtxt[int(''.join(txt.split('.')[:-1]).split('–')[1])] = txt #remove the .txtending, join to string again, get the index
-
+                sortedtxt[int(os.path.splitext(txt)[0].split('–')[1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
                 blnew = scene.cr_enum.add()
                 CR_Prop.Instance_Name.append(txt.split('–')[0])
@@ -633,6 +632,9 @@ class CR_PT_Instance(bpy.types.Panel):
         col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
         col.operator(CR_OT_Instance.bl_idname , text='Load from File' ).Mode = 'Load'
         col.operator(AddCategory.bl_idname, text= "Add from File").Mode = 'AddFromFile'
+        col = box.column(align= True)
+        col.operator(ImportButton.bl_idname, text= 'Import')
+        col.operator(ExportButton.bl_idname, text= 'Export')
         if len(CR_Prop.Instance_Name) :
             box_row = box.row()
             row2 = box_row.row(align= True)
@@ -865,8 +867,7 @@ class AddCategory(bpy.types.Operator):
                     new.FileDisp_length = len(textfiles)
                     sortedtxt = [None] * len(textfiles)
                     for txt in textfiles:
-                        sortedtxt[int(''.join(txt.split('.')[:-1]).split('–')[1])] = txt #remove the .txtending, join to string again, get the index
-
+                        sortedtxt[int(os.path.splitext(txt)[0].split('–')[1])] = txt #remove the .txtending, join to string again, get the index
                     for txt in sortedtxt:
                         blnew = scene.cr_filedisp.add()
                         CR_Prop.FileDisp_Name.append(txt.split('–')[0])
@@ -923,6 +924,133 @@ class AddCategory(bpy.types.Operator):
                         for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                             col.prop(scene.cr_filedisp[i], 'Index' , text= CR_Prop.FileDisp_Name[i])
             layout.prop(self, 'NewPanel', text= "Create as a new Panel")
+
+class ImportButton(Operator, ImportHelper):
+    bl_idname = "cr.import"
+    bl_label = "Import"
+
+    filter_glob: StringProperty( default='*.txt', options={'HIDDEN'} )
+    filename_ext = ".txt"
+    files : CollectionProperty(type= PropertyGroup)
+    directory : StringProperty(subtype='DIR_PATH')
+
+    Category : StringProperty(default= "Imports")
+
+    def execute(self, context):
+        scene = context.scene
+        # new Panel (Import)
+        Index = None
+        mycat = None
+        cr_categories = scene.cr_categories
+        for cat in cr_categories:
+            if cat.pn_name == self.Category:
+                Index = GetPanelIndex(cat)
+                break
+        if Index is None:
+            mycat = cr_categories.add()
+            mycat.name = "Imports"
+            mycat.pn_name = "Imports"
+            mycat.Instance_Start = len(CR_Prop.Instance_Name)
+        else:
+            mycat = cr_categories[Index]
+
+        for file in self.files:
+            path = self.directory + file.name
+            with open(path, 'r') as recfile:
+                if os.path.splitext(path)[1] == ".txt":
+                    inserti = mycat.Instance_Start + mycat.Instance_length
+                    CR_Prop.Instance_Name.insert(inserti, os.path.basename(path))
+                    TempCommand = []
+                    for line in recfile.readlines():
+                        TempCommand.append(line.strip())
+                    CR_Prop.Instance_Command.insert(inserti, TempCommand)
+                    scene.cr_enum.add()
+                    mycat.Instance_length += 1
+                    for cat in cr_categories[Index + 1:] :
+                        cat.Instance_Start += 1
+                else:
+                    self.report({'ERROR'}, "{ " + path + " } Select a .txt file")
+        return {"FINISHED"}
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'Category', text= "Category")
+
+class ExportButton(Operator, ExportHelper):
+    bl_idname = "cr.export"
+    bl_label = "Export"
+
+    filter_glob: StringProperty( default='*.txt', options={'HIDDEN'} )
+    filename_ext = " "
+    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "choose a directory")
+    directory : StringProperty(subtype='DIR_PATH')
+
+    def execute(self, context):
+        scene = context.scene
+        direc = self.directory
+        print(direc)
+        for cat in scene.cr_filecategories:
+            if cat.pn_selected:
+                for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                    path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
+                    with open(path, 'w') as recfile:
+                        for cmd in CR_Prop.FileDisp_Command[i]:
+                            recfile.write(cmd + '\n')
+            else:
+                for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                    if scene.cr_filedisp[i].Index:
+                        path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
+                        with open(path, 'w') as recfile:
+                            for cmd in CR_Prop.FileDisp_Command[i]:
+                                recfile.write(cmd + '\n')
+        return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        box = layout.box()
+        col = box.column_flow(align= True)
+        col.scale_y = 0.7
+        col.label(text= "All Buttons will be exported without", icon= 'INFO')
+        col.label(text= "the Categories and as .txt file ", icon= 'BLANK1') 
+        col.label(text= "in the selected direcory", icon= 'BLANK1')
+        for cat in scene.cr_filecategories:
+                box = layout.box()
+                col = box.column()
+                row = col.row()
+                if cat.pn_show:
+                    row.prop(cat, 'pn_show', icon="TRIA_DOWN", text= "", emboss= False)
+                else:
+                    row.prop(cat, 'pn_show', icon="TRIA_RIGHT", text= "", emboss= False)
+                row.label(text= cat.pn_name)
+                row.prop(cat, 'pn_selected', text= "")
+                if cat.pn_show:
+                    col = box.column(align= False)
+                    if cat.pn_selected:
+                        row2 = col.row()
+                        for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                            col.label(text= CR_Prop.FileDisp_Name[i], icon= 'CHECKBOX_HLT')
+                    else:
+                        for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                            col.prop(scene.cr_filedisp[i], 'Index' , text= CR_Prop.FileDisp_Name[i])
+    
+    def invoke(self, context, event):
+        scene = context.scene
+        scene.cr_filecategories.clear()
+        for cat in scene.cr_categories:
+            new = scene.cr_filecategories.add()
+            new.name = cat.name
+            new.pn_name = cat.pn_name
+            new.FileDisp_Start = cat.Instance_Start
+            new.FileDisp_length = cat.Instance_length
+        CR_Prop.FileDisp_Name = CR_Prop.Instance_Name[:]
+        CR_Prop.FileDisp_Command = CR_Prop.Instance_Command[:]
+        scene.cr_filedisp.clear()
+        for i in range(len(scene.cr_enum)):
+            scene.cr_filedisp.add()
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
 
 class CR_List_PT_VIEW_3D(CR_PT_List):
     bl_space_type = 'VIEW_3D'# メニューを表示するエリア
@@ -1060,6 +1188,8 @@ CategorizeProps,
 AddCategory,
 CR_Enum,
 CategorizeFileDisp,
-CR_FileDisp
+CR_FileDisp,
+ImportButton,
+ExportButton
 ]
 
