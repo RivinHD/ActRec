@@ -7,7 +7,7 @@ from . import CommandRecorder as CommandRecorder
 from . import DefineCommon as Common
 
 #==============================================================
-# プラグインに関する情報
+# プラグインに関する情報    
 #==============================================================
 bl_info = {
 "name" : "CommandRecorder",# プラグイン名
