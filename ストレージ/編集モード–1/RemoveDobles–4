@@ -1,0 +1,2 @@
+bpy.ops.transform.resize(value=(0, 0, 0), constraint_axis=(False, False, False), constraint_orientation='GLOBAL', mirror=False, proportional='DISABLED', proportional_edit_falloff='SPHERE', proportional_size=0.0520987)
+bpy.ops.mesh.remove_doubles()
