@@ -723,7 +723,7 @@ print(bpy.app.tempdir + " ------------------------------------------------------
 
 tcatpath = bpy.app.tempdir + "tempcats.json"
 def CreateTempCats():
-    if not os.path.exists(tpath):
+    if not os.path.exists(tcatpath):
         with open(tcatpath, 'x') as tempfile:
             print(tcatpath)
 
