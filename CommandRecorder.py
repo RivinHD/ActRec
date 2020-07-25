@@ -111,7 +111,6 @@ def CreateTempFile():
             json.dump({"0":[]}, tempfile)
 
 def TempSave(Num):  # write new command to temp.json file
-    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
@@ -120,7 +119,6 @@ def TempSave(Num):  # write new command to temp.json file
         json.dump(data, tempfile)
 
 def TempUpdate(): # update all commands in temp.json file
-    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
@@ -130,7 +128,6 @@ def TempUpdate(): # update all commands in temp.json file
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
-    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [i.name for i in CR_('List', int(Key))]
@@ -140,7 +137,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
 
 @persistent
 def TempLoad(dummy): # load commands after undo
-    if bpy.context.scene.CR_Var.IgnoreUndo:
+    if bpy.context.scene.CR_Var.IgnoreUndo and os.path.exists(tpath):
         with open(tpath, 'r', encoding='utf8') as tempfile:
             data = json.load(tempfile)
         command = CR_('List', 0)
@@ -425,7 +422,7 @@ def Load():
             for txt in textfiles:
                 sortedtxt[int(os.path.splitext(txt)[0].split('–')[1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
-                blnew = scene.cr_enum.add()
+                scene.cr_enum.add()
                 CR_Prop.Instance_Name.append(txt.split('–')[0])
                 CmdList = []
                 with open(folderpath + "/" + txt, 'r') as text:
@@ -522,21 +519,26 @@ class CR_OT_Instance(Operator):
         #読み込み
         elif self.Mode == 'Load' :
             Load()
+            TempSaveCats()
         #コマンドをインスタンスに
         elif self.Mode == 'Instance_to_Recorder' :
             Instance_to_Recorder()
         #削除
         elif self.Mode == 'I_Remove' :
             I_Remove()
+            TempSaveCats()
         #上へ
         elif self.Mode == 'I_Up' :
             I_Move('Up')
+            TempSaveCats()
         #下へ
         elif self.Mode == 'I_Down' :
             I_Move('Down')
+            TempSaveCats()
         #インスタンスのリネーム
         elif self.Mode == 'Rename' :
             Rename_Instance()
+            TempSaveCats()
         #インスタンスを実行
         else :
             Execute_Instance(CR_Prop.Instance_Name.index(self.Mode))
@@ -708,6 +710,66 @@ def InitSavedPanel(dummy):
 def GetPanelIndex(cat):
     return int(cat.path_from_id().split("[")[1].split("]")[0])
 
+tempnotinited = [True]
+@persistent
+def InitTemp(dummy):
+    if tempnotinited[0]:
+        TempSaveCats()
+        CreateTempFile()
+        tempnotinited[0] = False
+
+tcatpath = bpy.app.tempdir + "tempcats.json"
+def CreateTempCats():
+    if not os.path.exists(tpath):
+        with open(tcatpath, 'x') as tempfile:
+            print(tcatpath)
+
+def TempSaveCats():
+    scene = bpy.context.scene
+    CreateTempCats()
+    with open(tcatpath, 'r+', encoding='utf8') as tempfile:
+        tempfile.truncate(0)
+        tempfile.seek(0)
+        cats = []
+        for cat in scene.cr_categories:
+            cats.append({
+                "name": cat.name,
+                "pn_name": cat.pn_name,
+                "pn_show": cat.pn_show,
+                "Instance_Start": cat.Instance_Start,
+                "Instance_length": cat.Instance_length
+            })
+        data = {
+            "Instance_Name": CR_Prop.Instance_Name,
+            "Instance_Command": CR_Prop.Instance_Command,
+            "Instance_Index": scene.CR_Var.Instance_Index,
+            "Categories": cats
+        }
+        json.dump(data, tempfile)
+
+
+@persistent
+def TempLoadCats(scene):
+    scene.cr_categories.clear()
+    scene.cr_enum.clear() 
+    CR_Prop.Instance_Name.clear()
+    CR_Prop.Instance_Command.clear()
+    with open(tcatpath, 'r', encoding='utf8') as tempfile:
+        data = json.load(tempfile)
+        CR_Prop.Instance_Name = data["Instance_Name"]
+        CR_Prop.Instance_Command = data["Instance_Command"]
+        for i in CR_Prop.Instance_Name:
+            scene.cr_enum.add()
+        scene.CR_Var.Instance_Index = data["Instance_Index"]
+        scene.cr_enum[data["Instance_Index"]].Index = True
+        for cat in data["Categories"]:
+            new = scene.cr_categories.add()
+            new.name = cat["name"]
+            new.pn_name = cat["pn_name"]
+            new.pn_show = cat["pn_show"]
+            new.Instance_Start = cat["Instance_Start"]
+            new.Instance_length = cat["Instance_length"]
+
 class AddCategory(bpy.types.Operator):
     bl_idname = "cr.add_category"
     bl_label = "Category"
@@ -814,6 +876,12 @@ class AddCategory(bpy.types.Operator):
                                 CR_Prop.Instance_Name.insert(i , CR_Prop.FileDisp_Name[i_file])
                                 CR_Prop.Instance_Command.insert(i, CR_Prop.FileDisp_Command[i_file])
                     else:
+                        if index is None:
+                            new = scene.cr_categories.add()
+                            new.name = filecat.name
+                            new.pn_name = filecat.pn_name
+                            new.Instance_Start = len(CR_Prop.Instance_Name)
+                            index = GetPanelIndex(new)
                         for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
                             if scene.cr_filedisp[i].Index:
                                 scene.cr_enum.add() # insert at i
@@ -824,6 +892,7 @@ class AddCategory(bpy.types.Operator):
                                 for i_cat in range(index + 1, len(categories)):
                                     categories[i_cat].Instance_Start += 1
         bpy.context.area.tag_redraw()
+        TempSaveCats()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -877,10 +946,12 @@ class AddCategory(bpy.types.Operator):
                                 CmdList.append(line.strip())
                         CR_Prop.FileDisp_Command.append(CmdList)
             bpy.context.area.tag_redraw()
+            TempSaveCats()
             return context.window_manager.invoke_props_dialog(self)
         else:
             return context.window_manager.invoke_props_dialog(self)
         bpy.context.area.tag_redraw()
+        TempSaveCats()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -1139,6 +1210,9 @@ def Initialize_Props():# プロパティをセットする関数
     bpy.app.handlers.redo_post.append(GetRedoStep)
     bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
+    bpy.app.handlers.undo_post.append(TempLoadCats)
+    bpy.app.handlers.redo_post.append(TempLoadCats)
+    bpy.app.handlers.undo_pre.append(InitTemp)
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')#Nullとして登録
         CR_Prop.addon_keymaps.append(km)
@@ -1157,6 +1231,9 @@ def Clear_Props():
     bpy.app.handlers.redo_post.remove(GetRedoStep)
     bpy.app.handlers.undo_post.remove(TempLoad)
     bpy.app.handlers.redo_post.remove(TempLoad)
+    bpy.app.handlers.undo_post.remove(TempLoadCats)
+    bpy.app.handlers.redo_post.remove(TempLoadCats)
+    bpy.app.handlers.undo_pre.remove(InitTemp)
     for km in CR_Prop.addon_keymaps:
         bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
     CR_Prop.addon_keymaps.clear()
