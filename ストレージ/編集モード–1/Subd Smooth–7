@@ -1,0 +1,4 @@
+bpy.ops.object.subdivision_set(level=1, relative=False)
+bpy.ops.object.editmode_toggle()
+bpy.ops.object.shade_smooth()
+bpy.ops.object.editmode_toggle()
