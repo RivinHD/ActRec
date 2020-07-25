@@ -717,7 +717,9 @@ tempnotinited = [True]
 def InitTemp(dummy):
     if tempnotinited[0]:
         TempSaveCats()
+        import time
         tempnotinited[0] = False
+print(bpy.app.tempdir + " -------------------------------------------------------")
 
 tcatpath = bpy.app.tempdir + "tempcats.json"
 def CreateTempCats():
