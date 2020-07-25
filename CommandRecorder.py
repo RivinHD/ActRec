@@ -431,7 +431,7 @@ def Load():
                     for line in text.readlines():
                         CmdList.append(line.strip())
                 CR_Prop.Instance_Command.append(CmdList)
-        scene.cr_enum[scene.CR_Var.Instance_Index].Index = True
+        scene.cr_enum[scene.CR_Var.Instance_Index if scene.CR_Var.Instance_Index < len(scene.cr_enum) else 0].Index = True
 
 def Recorder_to_Instance(panel):
     i = panel.Instance_Start +  panel.Instance_length
