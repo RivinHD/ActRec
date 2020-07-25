@@ -103,7 +103,6 @@ def Record(Num, Mode):
                 Item.name = TempText[TempText.find('bpy'):]
 
 tpath = bpy.app.tempdir + "temp.json"
-
 def CreateTempFile():
     if not os.path.exists(tpath):
         print(tpath)
@@ -111,6 +110,7 @@ def CreateTempFile():
             json.dump({"0":[]}, tempfile)
 
 def TempSave(Num):  # write new command to temp.json file
+    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
@@ -119,6 +119,7 @@ def TempSave(Num):  # write new command to temp.json file
         json.dump(data, tempfile)
 
 def TempUpdate(): # update all commands in temp.json file
+    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
@@ -128,6 +129,7 @@ def TempUpdate(): # update all commands in temp.json file
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
+    CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [i.name for i in CR_('List', int(Key))]
@@ -715,7 +717,6 @@ tempnotinited = [True]
 def InitTemp(dummy):
     if tempnotinited[0]:
         TempSaveCats()
-        CreateTempFile()
         tempnotinited[0] = False
 
 tcatpath = bpy.app.tempdir + "tempcats.json"
