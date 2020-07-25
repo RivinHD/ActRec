@@ -525,6 +525,7 @@ class CR_OT_Instance(Operator):
         #コマンドをインスタンスに
         elif self.Mode == 'Instance_to_Recorder' :
             Instance_to_Recorder()
+            TempUpdate()
         #削除
         elif self.Mode == 'I_Remove' :
             I_Remove()
