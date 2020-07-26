@@ -397,7 +397,7 @@ def Save():
             os.remove(folderpath + "/" + savedfile)
         os.rmdir(folderpath)
     for cat in bpy.context.scene.cr_categories:
-        panelpath = path + "/" + cat.pn_name + f"–{GetPanelIndex(cat)}"
+        panelpath = path + "/" + cat.pn_name + f"~{GetPanelIndex(cat)}"
         os.mkdir(panelpath)
         for cmd_i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
             with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"–{cmd_i}" + ".txt", 'w') as cmd_file:
@@ -415,8 +415,9 @@ def Load():
         folderpath = path + "/" + folder
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
+            print(textfiles)
             new = scene.cr_categories.add()
-            name = folder.split('–')[0]
+            name = "".join(folder.split('~')[:-1])
             new.name = name
             new.pn_name = name
             new.pn_show = True
@@ -424,10 +425,11 @@ def Load():
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
             for txt in textfiles:
-                sortedtxt[int(os.path.splitext(txt)[0].split('–')[1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
+                print(os.path.splitext(txt)[0].split('~'))
+                sortedtxt[int(os.path.splitext(txt)[0].split('~')[-1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
                 scene.cr_enum.add()
-                CR_Prop.Instance_Name.append(txt.split('–')[0])
+                CR_Prop.Instance_Name.append("".join(txt.split('~')[:-1]))
                 CmdList = []
                 with open(folderpath + "/" + txt, 'r') as text:
                     for line in text.readlines():
@@ -937,7 +939,7 @@ class AddCategory(bpy.types.Operator):
                 if os.path.isdir(folderpath):
                     textfiles = os.listdir(folderpath)
                     new = scene.cr_filecategories.add()
-                    name = folder.split('–')[0]
+                    name = "".join(folder.split('~')[:-1])
                     new.name = name
                     new.pn_name = name
                     new.pn_show = True
@@ -945,10 +947,10 @@ class AddCategory(bpy.types.Operator):
                     new.FileDisp_length = len(textfiles)
                     sortedtxt = [None] * len(textfiles)
                     for txt in textfiles:
-                        sortedtxt[int(os.path.splitext(txt)[0].split('–')[1])] = txt #remove the .txtending, join to string again, get the index
+                        sortedtxt[int(os.path.splitext(txt)[0].split('~')[:-1])] = txt #remove the .txtending, join to string again, get the index
                     for txt in sortedtxt:
                         blnew = scene.cr_filedisp.add()
-                        CR_Prop.FileDisp_Name.append(txt.split('–')[0])
+                        CR_Prop.FileDisp_Name.append("".join(txt.split('~')[:-1]))
                         CmdList = []
                         with open(folderpath + "/" + txt, 'r') as text:
                             for line in text.readlines():
