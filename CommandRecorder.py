@@ -400,7 +400,7 @@ def Save():
         panelpath = path + "/" + cat.pn_name + f"~{GetPanelIndex(cat)}"
         os.mkdir(panelpath)
         for cmd_i in range(cat.Instance_length):
-            with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"~{cmd_i}" + ".txt", 'w') as cmd_file:
+            with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"~{cmd_i}" + ".txt", 'w', encoding='utf8') as cmd_file:
                 for cmd in CR_Prop.Instance_Command[cmd_i]:
                     cmd_file.write(cmd + "\n")
 
@@ -431,7 +431,7 @@ def Load():
                 scene.cr_enum.add()
                 CR_Prop.Instance_Name.append("".join(txt.split('~')[:-1]))
                 CmdList = []
-                with open(folderpath + "/" + txt, 'r') as text:
+                with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                     for line in text.readlines():
                         CmdList.append(line.strip())
                 CR_Prop.Instance_Command.append(CmdList)
@@ -548,7 +548,7 @@ class CR_OT_Instance(Operator):
             TempSaveCats()
         #インスタンスを実行
         else :
-            Execute_Instance(CR_Prop.Instance_Name.index(self.Mode))
+            Execute_Instance(int(self.Mode))
 
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
@@ -684,7 +684,7 @@ class CR_PT_Instance(bpy.types.Panel):
                 col = split.column()
                 col.scale_y = 0.9493
                 for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = CR_Prop.Instance_Name[Num_Loop]
+                    col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = str(Num_Loop)
 
 currentselected = [None]
 lastselected = [None]
@@ -730,7 +730,7 @@ print(bpy.app.tempdir + " ------------------------------------------------------
 def CreateTempCats():
     tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
-        with open(tcatpath, 'x') as tempfile:
+        with open(tcatpath, 'x', encoding='utf8') as tempfile:
             print(tcatpath)
     return tcatpath
 
@@ -952,7 +952,7 @@ class AddCategory(bpy.types.Operator):
                         blnew = scene.cr_filedisp.add()
                         CR_Prop.FileDisp_Name.append("".join(txt.split('~')[:-1]))
                         CmdList = []
-                        with open(folderpath + "/" + txt, 'r') as text:
+                        with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                             for line in text.readlines():
                                 CmdList.append(line.strip())
                         CR_Prop.FileDisp_Command.append(CmdList)
@@ -1038,7 +1038,7 @@ class ImportButton(Operator, ImportHelper):
 
         for file in self.files:
             path = self.directory + file.name
-            with open(path, 'r') as recfile:
+            with open(path, 'r', encoding='utf8') as recfile:
                 if os.path.splitext(path)[1] == ".txt":
                     inserti = mycat.Instance_Start + mycat.Instance_length
                     CR_Prop.Instance_Name.insert(inserti, os.path.basename(path))
@@ -1076,14 +1076,14 @@ class ExportButton(Operator, ExportHelper):
             if cat.pn_selected:
                 for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                     path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
-                    with open(path, 'w') as recfile:
+                    with open(path, 'w', encoding='utf8') as recfile:
                         for cmd in CR_Prop.FileDisp_Command[i]:
                             recfile.write(cmd + '\n')
             else:
                 for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                     if scene.cr_filedisp[i].Index:
                         path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
-                        with open(path, 'w') as recfile:
+                        with open(path, 'w', encoding='utf8') as recfile:
                             for cmd in CR_Prop.FileDisp_Command[i]:
                                 recfile.write(cmd + '\n')
         return {'FINISHED'}
