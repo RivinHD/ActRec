@@ -102,15 +102,16 @@ def Record(Num, Mode):
                 Item = CR_('List', Num).add()
                 Item.name = TempText[TempText.find('bpy'):]
 
-tpath = bpy.app.tempdir + "temp.json"
 def CreateTempFile():
+    tpath = bpy.app.tempdir + "temp.json"
     if not os.path.exists(tpath):
         print(tpath)
         with open(tpath, 'w', encoding='utf8') as tempfile:
             json.dump({"0":[]}, tempfile)
+    return tpath
 
 def TempSave(Num):  # write new command to temp.json file
-    CreateTempFile()
+    tpath = CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
@@ -119,7 +120,7 @@ def TempSave(Num):  # write new command to temp.json file
         json.dump(data, tempfile)
 
 def TempUpdate(): # update all commands in temp.json file
-    CreateTempFile()
+    tpath = CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
@@ -129,7 +130,7 @@ def TempUpdate(): # update all commands in temp.json file
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
-    CreateTempFile()
+    tpath = CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [i.name for i in CR_('List', int(Key))]
@@ -139,6 +140,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
 
 @persistent
 def TempLoad(dummy): # load commands after undo
+    tpath = bpy.app.tempdir + "temp.json"
     if bpy.context.scene.CR_Var.IgnoreUndo and os.path.exists(tpath):
         with open(tpath, 'r', encoding='utf8') as tempfile:
             data = json.load(tempfile)
@@ -722,15 +724,17 @@ def InitTemp(dummy):
         tempnotinited[0] = False
 print(bpy.app.tempdir + " -------------------------------------------------------")
 
-tcatpath = bpy.app.tempdir + "tempcats.json"
+
 def CreateTempCats():
+    tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
         with open(tcatpath, 'x') as tempfile:
             print(tcatpath)
+    return tcatpath
 
 def TempSaveCats():
     scene = bpy.context.scene
-    CreateTempCats()
+    tcatpath = CreateTempCats()
     with open(tcatpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
@@ -754,6 +758,7 @@ def TempSaveCats():
 
 @persistent
 def TempLoadCats(scene):
+    tcatpath = bpy.app.tempdir + "tempcats.json"
     scene.cr_categories.clear()
     scene.cr_enum.clear() 
     CR_Prop.Instance_Name.clear()
