@@ -400,7 +400,7 @@ def Save():
         panelpath = path + "/" + cat.pn_name + f"–{GetPanelIndex(cat)}"
         os.mkdir(panelpath)
         for cmd_i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-            with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"–{cmd_i}", 'w') as cmd_file:
+            with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"–{cmd_i}" + ".txt", 'w') as cmd_file:
                 for cmd in CR_Prop.Instance_Command[cmd_i]:
                     cmd_file.write(cmd + "\n")
 
