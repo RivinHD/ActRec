@@ -428,7 +428,7 @@ def Load():
                 sortedtxt[int(os.path.splitext(txt)[0].split('~')[0])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
                 scene.cr_enum.add()
-                CR_Prop.Instance_Name.append("".join(txt.split('~')[1:]))
+                CR_Prop.Instance_Name.append("".join(os.path.splitext(txt)[0].split('~')[1:]))
                 CmdList = []
                 with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                     for line in text.readlines():
@@ -920,21 +920,25 @@ class AddCategory(bpy.types.Operator):
         if m == 'Move_Up':
             i = int(self.Mode.split('-')[1])
             if i - 1 >= 0:
-                categories[i].name, categories[i - 1].name = categories[i - 1].name, categories[i].name
-                categories[i].pn_name, categories[i - 1].pn_name = categories[i - 1].pn_name, categories[i].pn_name
-                categories[i].pn_show, categories[i - 1].pn_show = categories[i - 1].pn_show, categories[i].pn_show
-                categories[i].pn_selected, categories[i - 1].pn_selected = categories[i - 1].pn_selected, categories[i].pn_selected
-                categories[i].Instance_Start, categories[i - 1].Instance_Start = categories[i - 1].Instance_Start, categories[i].Instance_Start
-                categories[i].Instance_length, categories[i - 1].Instance_length = categories[i - 1].Instance_length, categories[i].Instance_length
+                cat1 = categories[i]
+                cat2 = categories[i - 1]
+                cat1.name, cat2.name = cat2.name, cat1.name
+                cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
+                cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
+                cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
+                cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
+                cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         elif m == 'Move_Down':
             i = int(self.Mode.split('-')[1])
             if i + 1 < len(categories):
-                categories[i].name, categories[i - 1].name = categories[i - 1].name, categories[i].name
-                categories[i].pn_name, categories[i - 1].pn_name = categories[i - 1].pn_name, categories[i].pn_name
-                categories[i].pn_show, categories[i - 1].pn_show = categories[i - 1].pn_show, categories[i].pn_show
-                categories[i].pn_selected, categories[i - 1].pn_selected = categories[i - 1].pn_selected, categories[i].pn_selected
-                categories[i].Instance_Start, categories[i - 1].Instance_Start = categories[i - 1].Instance_Start, categories[i].Instance_Start
-                categories[i].Instance_length, categories[i - 1].Instance_length = categories[i - 1].Instance_length, categories[i].Instance_length
+                cat1 = categories[i]
+                cat2 = categories[i + 1]
+                cat1.name, cat2.name = cat2.name, cat1.name
+                cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
+                cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
+                cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
+                cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
+                cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         elif self.Mode == 'AddFromFile':
             #Load the File data to FileDisps
             scene = bpy.context.scene
