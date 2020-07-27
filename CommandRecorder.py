@@ -947,7 +947,7 @@ class AddCategory(bpy.types.Operator):
                     new.FileDisp_length = len(textfiles)
                     sortedtxt = [None] * len(textfiles)
                     for txt in textfiles:
-                        sortedtxt[int(os.path.splitext(txt)[0].split('~')[:-1])] = txt #remove the .txtending, join to string again, get the index
+                        sortedtxt[int(os.path.splitext(txt)[0].split('~')[-1])] = txt #remove the .txtending, join to string again, get the index
                     for txt in sortedtxt:
                         blnew = scene.cr_filedisp.add()
                         CR_Prop.FileDisp_Name.append("".join(txt.split('~')[:-1]))
