@@ -1030,8 +1030,8 @@ class ImportButton(Operator, ImportHelper):
                 break
         if Index is None:
             mycat = cr_categories.add()
-            mycat.name = "Imports"
-            mycat.pn_name = "Imports"
+            mycat.name = self.Category
+            mycat.pn_name = self.Category
             mycat.Instance_Start = len(CR_Prop.Instance_Name)
         else:
             mycat = cr_categories[Index]
