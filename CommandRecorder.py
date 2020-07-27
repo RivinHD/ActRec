@@ -415,7 +415,6 @@ def Load():
         folderpath = path + "/" + folder
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
-            print(textfiles)
             new = scene.cr_categories.add()
             name = "".join(folder.split('~')[:-1])
             new.name = name
@@ -425,7 +424,6 @@ def Load():
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
             for txt in textfiles:
-                print(os.path.splitext(txt)[0].split('~'))
                 sortedtxt[int(os.path.splitext(txt)[0].split('~')[-1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
                 scene.cr_enum.add()
@@ -1041,7 +1039,7 @@ class ImportButton(Operator, ImportHelper):
             with open(path, 'r', encoding='utf8') as recfile:
                 if os.path.splitext(path)[1] == ".txt":
                     inserti = mycat.Instance_Start + mycat.Instance_length
-                    CR_Prop.Instance_Name.insert(inserti, os.path.basename(path))
+                    CR_Prop.Instance_Name.insert(inserti, os.path.splitext(os.path.basename(path))[0])
                     TempCommand = []
                     for line in recfile.readlines():
                         TempCommand.append(line.strip())
