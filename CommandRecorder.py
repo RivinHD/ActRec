@@ -159,16 +159,16 @@ def TempLoad(dummy): # load commands after undo
 
 UndoRedoStack = []
 
-def GetCommand(scene, index):
-    return eval('scene.CR_Var.List_Command_{0:03d}'.format(index))
+def GetCommand(index):
+    return eval('bpy.context.scene.CR_Var.List_Command_{0:03d}'.format(index))
 
 @persistent
-def SaveUndoStep(scene):
+def SaveUndoStep(dummy):
     All = []
     l = []
-    l.append([i.name for i in list(GetCommand(scene, 0))])
+    l.append([i.name for i in list(GetCommand(0))])
     for x in range(1, len(l[0]) + 1):
-        l.append([ i.name for i in list(GetCommand(scene, x))])
+        l.append([ i.name for i in list(GetCommand(x))])
     UndoRedoStack.append(l)
 
 @persistent
@@ -766,7 +766,8 @@ def TempSaveCats():
 
 
 @persistent
-def TempLoadCats(scene):
+def TempLoadCats(dummy):
+    scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
     scene.cr_categories.clear()
     scene.cr_enum.clear() 
