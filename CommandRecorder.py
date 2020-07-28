@@ -842,7 +842,7 @@ class AddCategory(bpy.types.Operator):
                     for nextcat in categories[GetPanelIndex(cat) + 1:]:
                         nextcat.Instance_Start += 1
                     cat.Instance_length += 1
-                    scene.cr_enum[0].Index = True
+                    SetEnumIndex()
                     break
         elif self.Mode == 'ToButton':
             for cat in categories:
