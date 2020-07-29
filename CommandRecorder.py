@@ -7,6 +7,7 @@ import os
 import shutil
 import json
 from json.decoder import JSONDecodeError
+import zipfile
 
 from bpy.props import\
 (#プロパティを使用するために必要
@@ -158,16 +159,16 @@ def TempLoad(dummy): # load commands after undo
 
 UndoRedoStack = []
 
-def GetCommand(scene, index):
-    return eval('scene.CR_Var.List_Command_{0:03d}'.format(index))
+def GetCommand(index):
+    return eval('bpy.context.scene.CR_Var.List_Command_{0:03d}'.format(index))
 
 @persistent
-def SaveUndoStep(scene):
+def SaveUndoStep(dummy):
     All = []
     l = []
-    l.append([i.name for i in list(GetCommand(scene, 0))])
+    l.append([i.name for i in list(GetCommand(0))])
     for x in range(1, len(l[0]) + 1):
-        l.append([ i.name for i in list(GetCommand(scene, x))])
+        l.append([ i.name for i in list(GetCommand(x))])
     UndoRedoStack.append(l)
 
 @persistent
@@ -397,10 +398,10 @@ def Save():
             os.remove(folderpath + "/" + savedfile)
         os.rmdir(folderpath)
     for cat in bpy.context.scene.cr_categories:
-        panelpath = path + "/" + cat.pn_name + f"~{GetPanelIndex(cat)}"
+        panelpath = path + "/" + f"{GetPanelIndex(cat)}~" + cat.pn_name
         os.mkdir(panelpath)
-        for cmd_i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-            with open(panelpath + "/" + CR_Prop.Instance_Name[cmd_i] + f"–{cmd_i}" + ".txt", 'w') as cmd_file:
+        for cmd_i in range(cat.Instance_length):
+            with open(panelpath + "/" + f"{cmd_i}~" + CR_Prop.Instance_Name[cmd_i] + ".txt", 'w', encoding='utf8') as cmd_file:
                 for cmd in CR_Prop.Instance_Command[cmd_i]:
                     cmd_file.write(cmd + "\n")
 
@@ -415,9 +416,8 @@ def Load():
         folderpath = path + "/" + folder
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
-            print(textfiles)
             new = scene.cr_categories.add()
-            name = "".join(folder.split('~')[:-1])
+            name = "".join(folder.split('~')[1:])
             new.name = name
             new.pn_name = name
             new.pn_show = True
@@ -425,17 +425,18 @@ def Load():
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
             for txt in textfiles:
-                print(os.path.splitext(txt)[0].split('~'))
-                sortedtxt[int(os.path.splitext(txt)[0].split('~')[-1])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
+                sortedtxt[int(os.path.splitext(txt)[0].split('~')[0])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for txt in sortedtxt:
                 scene.cr_enum.add()
-                CR_Prop.Instance_Name.append("".join(txt.split('~')[:-1]))
+                CR_Prop.Instance_Name.append("".join(os.path.splitext(txt)[0].split('~')[1:]))
                 CmdList = []
-                with open(folderpath + "/" + txt, 'r') as text:
+                with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                     for line in text.readlines():
                         CmdList.append(line.strip())
                 CR_Prop.Instance_Command.append(CmdList)
-        scene.cr_enum[scene.CR_Var.Instance_Index if scene.CR_Var.Instance_Index < len(scene.cr_enum) else 0].Index = True
+
+        SetEnumIndex()
+
 
 def Recorder_to_Instance(panel):
     i = panel.Instance_Start +  panel.Instance_length
@@ -548,7 +549,7 @@ class CR_OT_Instance(Operator):
             TempSaveCats()
         #インスタンスを実行
         else :
-            Execute_Instance(CR_Prop.Instance_Name.index(self.Mode))
+            Execute_Instance(int(self.Mode))
 
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
@@ -684,7 +685,7 @@ class CR_PT_Instance(bpy.types.Panel):
                 col = split.column()
                 col.scale_y = 0.9493
                 for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = CR_Prop.Instance_Name[Num_Loop]
+                    col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = str(Num_Loop)
 
 currentselected = [None]
 lastselected = [None]
@@ -717,6 +718,12 @@ def InitSavedPanel(dummy):
 def GetPanelIndex(cat):
     return int(cat.path_from_id().split("[")[1].split("]")[0])
 
+def SetEnumIndex():
+    scene = bpy.context.scene
+    enumIndex = scene.CR_Var.Instance_Index * (scene.CR_Var.Instance_Index < len(scene.cr_enum))
+    scene.cr_enum[enumIndex].Index = True
+    scene.CR_Var.Instance_Index = enumIndex
+
 tempnotinited = [True]
 @persistent
 def InitTemp(dummy):
@@ -730,7 +737,7 @@ print(bpy.app.tempdir + " ------------------------------------------------------
 def CreateTempCats():
     tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
-        with open(tcatpath, 'x') as tempfile:
+        with open(tcatpath, 'x', encoding='utf8') as tempfile:
             print(tcatpath)
     return tcatpath
 
@@ -759,7 +766,8 @@ def TempSaveCats():
 
 
 @persistent
-def TempLoadCats(scene):
+def TempLoadCats(dummy):
+    scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
     scene.cr_categories.clear()
     scene.cr_enum.clear() 
@@ -786,8 +794,8 @@ class AddCategory(bpy.types.Operator):
     bl_label = "Category"
 
     Mode : StringProperty()
-    PanelName : StringProperty(name = "Panel Name", default="")
-    NewPanel : BoolProperty(default= False, description= "Create a new Panel with all selected Buttons")
+    PanelName : StringProperty(name = "Category Name", default="")
+    NewPanel : BoolProperty(default= False, description= "Create a new Category with all selected Buttons")
 
     def execute(self, context):
         categories = context.scene.cr_categories
@@ -810,6 +818,7 @@ class AddCategory(bpy.types.Operator):
                     for nextcat in categories[index + 1 :]:
                         nextcat.Instance_Start -= cat.Instance_length
                     categories.remove(GetPanelIndex(cat))
+                    SetEnumIndex()
                     break
         elif self.Mode == 'Rename':
             for cat in categories:
@@ -912,21 +921,25 @@ class AddCategory(bpy.types.Operator):
         if m == 'Move_Up':
             i = int(self.Mode.split('-')[1])
             if i - 1 >= 0:
-                categories[i].name, categories[i - 1].name = categories[i - 1].name, categories[i].name
-                categories[i].pn_name, categories[i - 1].pn_name = categories[i - 1].pn_name, categories[i].pn_name
-                categories[i].pn_show, categories[i - 1].pn_show = categories[i - 1].pn_show, categories[i].pn_show
-                categories[i].pn_selected, categories[i - 1].pn_selected = categories[i - 1].pn_selected, categories[i].pn_selected
-                categories[i].Instance_Start, categories[i - 1].Instance_Start = categories[i - 1].Instance_Start, categories[i].Instance_Start
-                categories[i].Instance_length, categories[i - 1].Instance_length = categories[i - 1].Instance_length, categories[i].Instance_length
+                cat1 = categories[i]
+                cat2 = categories[i - 1]
+                cat1.name, cat2.name = cat2.name, cat1.name
+                cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
+                cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
+                cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
+                cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
+                cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         elif m == 'Move_Down':
             i = int(self.Mode.split('-')[1])
             if i + 1 < len(categories):
-                categories[i].name, categories[i - 1].name = categories[i - 1].name, categories[i].name
-                categories[i].pn_name, categories[i - 1].pn_name = categories[i - 1].pn_name, categories[i].pn_name
-                categories[i].pn_show, categories[i - 1].pn_show = categories[i - 1].pn_show, categories[i].pn_show
-                categories[i].pn_selected, categories[i - 1].pn_selected = categories[i - 1].pn_selected, categories[i].pn_selected
-                categories[i].Instance_Start, categories[i - 1].Instance_Start = categories[i - 1].Instance_Start, categories[i].Instance_Start
-                categories[i].Instance_length, categories[i - 1].Instance_length = categories[i - 1].Instance_length, categories[i].Instance_length
+                cat1 = categories[i]
+                cat2 = categories[i + 1]
+                cat1.name, cat2.name = cat2.name, cat1.name
+                cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
+                cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
+                cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
+                cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
+                cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         elif self.Mode == 'AddFromFile':
             #Load the File data to FileDisps
             scene = bpy.context.scene
@@ -939,7 +952,7 @@ class AddCategory(bpy.types.Operator):
                 if os.path.isdir(folderpath):
                     textfiles = os.listdir(folderpath)
                     new = scene.cr_filecategories.add()
-                    name = "".join(folder.split('~')[:-1])
+                    name = "".join(folder.split('~')[1:])
                     new.name = name
                     new.pn_name = name
                     new.pn_show = True
@@ -947,12 +960,12 @@ class AddCategory(bpy.types.Operator):
                     new.FileDisp_length = len(textfiles)
                     sortedtxt = [None] * len(textfiles)
                     for txt in textfiles:
-                        sortedtxt[int(os.path.splitext(txt)[0].split('~')[:-1])] = txt #remove the .txtending, join to string again, get the index
+                        sortedtxt[int(os.path.splitext(txt)[0].split('~')[0])] = txt #remove the .txtending, join to string again, get the index
                     for txt in sortedtxt:
                         blnew = scene.cr_filedisp.add()
-                        CR_Prop.FileDisp_Name.append("".join(txt.split('~')[:-1]))
+                        CR_Prop.FileDisp_Name.append("".join(txt.split('~')[1:]))
                         CmdList = []
-                        with open(folderpath + "/" + txt, 'r') as text:
+                        with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                             for line in text.readlines():
                                 CmdList.append(line.strip())
                         CR_Prop.FileDisp_Command.append(CmdList)
@@ -1011,92 +1024,122 @@ class ImportButton(Operator, ImportHelper):
     bl_idname = "cr.import"
     bl_label = "Import"
 
-    filter_glob: StringProperty( default='*.txt', options={'HIDDEN'} )
-    filename_ext = ".txt"
+    filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
     files : CollectionProperty(type= PropertyGroup)
-    directory : StringProperty(subtype='DIR_PATH')
 
     Category : StringProperty(default= "Imports")
+    AddNewPanel : BoolProperty(default= False)
 
     def execute(self, context):
         scene = context.scene
-        # new Panel (Import)
-        Index = None
-        mycat = None
         cr_categories = scene.cr_categories
-        for cat in cr_categories:
-            if cat.pn_name == self.Category:
-                Index = GetPanelIndex(cat)
-                break
-        if Index is None:
-            mycat = cr_categories.add()
-            mycat.name = "Imports"
-            mycat.pn_name = "Imports"
-            mycat.Instance_Start = len(CR_Prop.Instance_Name)
-        else:
-            mycat = cr_categories[Index]
-
-        for file in self.files:
-            path = self.directory + file.name
-            with open(path, 'r') as recfile:
-                if os.path.splitext(path)[1] == ".txt":
-                    inserti = mycat.Instance_Start + mycat.Instance_length
-                    CR_Prop.Instance_Name.insert(inserti, os.path.basename(path))
-                    TempCommand = []
-                    for line in recfile.readlines():
-                        TempCommand.append(line.strip())
-                    CR_Prop.Instance_Command.insert(inserti, TempCommand)
-                    scene.cr_enum.add()
-                    mycat.Instance_length += 1
-                    if Index is not None:
-                        for cat in cr_categories[Index + 1:] :
-                            cat.Instance_Start += 1
+        if self.filepath.endswith(".zip"):
+            with zipfile.ZipFile(self.filepath, 'r') as zip_out:
+                filepaths = sorted(zip_out.namelist())
+                if self.AddNewPanel:
+                    mycat = cr_categories.add()
+                    mycat.name = self.Category
+                    mycat.pn_name = self.Category
+                    mycat.Instance_Start = len(CR_Prop.Instance_Name)
+                    for btn_file in filepaths:
+                        CR_Prop.Instance_Name.append(os.path.splitext(os.path.basename(btn_file))[0])
+                        CR_Prop.Instance_Command.append(zip_out.read(btn_file).decode("utf-8").splitlines())
+                        scene.cr_enum.add()
+                        mycat.Instance_length += 1
                 else:
-                    self.report({'ERROR'}, "{ " + path + " } Select a .txt file")
+                    dirlist = []
+                    tempdirfiles = []
+                    dirfileslist = []
+                    for btn_file in filepaths:
+                        btn_dirc = btn_file.split("/")[0]
+                        if btn_dirc not in dirlist:
+                            if len(tempdirfiles):
+                                dirfileslist.append(tempdirfiles[:])
+                            dirlist.append(btn_dirc)
+                            tempdirfiles.clear()
+                        tempdirfiles.append(btn_file)
+                    else:
+                        if len(tempdirfiles):
+                            dirfileslist.append(tempdirfiles)
+
+                    for i in range(len(dirlist)):
+                        Index = None
+                        mycat = None
+                        for cat in cr_categories:
+                            if cat.pn_name == dirlist[i]:
+                                Index = GetPanelIndex(cat)
+                                break
+                        if Index is None:
+                            mycat = cr_categories.add()
+                            name = dirlist[i]
+                            mycat.name = name
+                            mycat.pn_name = name
+                            mycat.Instance_Start = len(CR_Prop.Instance_Name)
+                        else:
+                            mycat = cr_categories[Index]
+                        
+                        for dir_file in dirfileslist[i]:
+                            inserti = mycat.Instance_Start + mycat.Instance_length
+                            CR_Prop.Instance_Name.insert(inserti, os.path.splitext(os.path.basename(dir_file))[0])
+                            CR_Prop.Instance_Command.insert(inserti, zip_out.read(dir_file).decode("utf-8").splitlines())
+                            scene.cr_enum.add()
+                            mycat.Instance_length += 1
+                            if Index is not None:
+                                for cat in cr_categories[Index + 1:] :
+                                    cat.Instance_Start += 1
+            SetEnumIndex()
+        else:
+            self.report({'ERROR'}, "{ " + path + " } Select a .zip file")
         return {"FINISHED"}
     
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, 'Category', text= "Category")
+        layout.prop(self, 'AddNewPanel', text= "Create new Panel")
+        if self.AddNewPanel:
+            layout.prop(self, 'Category', text= "Category")
 
 class ExportButton(Operator, ExportHelper):
     bl_idname = "cr.export"
     bl_label = "Export"
 
-    filter_glob: StringProperty( default='*.txt', options={'HIDDEN'} )
-    filename_ext = " "
-    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "choose a directory")
-    directory : StringProperty(subtype='DIR_PATH')
+    filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
+    filename_ext = ".zip"
+    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "ComandRecorderButtons")
 
     def execute(self, context):
         scene = context.scene
-        direc = self.directory
-        print(direc)
-        for cat in scene.cr_filecategories:
-            if cat.pn_selected:
-                for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                    path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
-                    with open(path, 'w') as recfile:
-                        for cmd in CR_Prop.FileDisp_Command[i]:
-                            recfile.write(cmd + '\n')
-            else:
-                for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                    if scene.cr_filedisp[i].Index:
-                        path = direc + CR_Prop.FileDisp_Name[i] + ".txt"
-                        with open(path, 'w') as recfile:
+        temppath = bpy.app.tempdir + "CR_Zip"
+        if not os.path.exists(temppath):
+            os.mkdir(temppath)
+        with zipfile.ZipFile(self.filepath, 'w') as zip_it:
+            for cat in scene.cr_filecategories:
+                folderpath = temppath + "/" + cat.pn_name
+                if not os.path.exists(folderpath):
+                    os.mkdir(folderpath)
+                if cat.pn_selected:
+                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                        path = folderpath + "/" + CR_Prop.FileDisp_Name[i] + ".txt"
+                        with open(path, 'w', encoding='utf8') as recfile:
                             for cmd in CR_Prop.FileDisp_Command[i]:
                                 recfile.write(cmd + '\n')
+                        zip_it.write(path, cat.pn_name + "/" + CR_Prop.FileDisp_Name[i] + ".txt")
+                        os.remove(path)
+                else:
+                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
+                        if scene.cr_filedisp[i].Index:
+                            path = folderpath + "/" + CR_Prop.FileDisp_Name[i] + ".txt"
+                            with open(path, 'w', encoding='utf8') as recfile:
+                                for cmd in CR_Prop.FileDisp_Command[i]:
+                                    recfile.write(cmd + '\n')
+                            zip_it.write(path, cat.pn_name + "/" + CR_Prop.FileDisp_Name[i] + ".txt")
+                            os.remove(path)
+                os.rmdir(folderpath)
         return {'FINISHED'}
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         box = layout.box()
-        col = box.column_flow(align= True)
-        col.scale_y = 0.7
-        col.label(text= "All Buttons will be exported without", icon= 'INFO')
-        col.label(text= "the Categories and as .txt file ", icon= 'BLANK1') 
-        col.label(text= "in the selected direcory", icon= 'BLANK1')
         for cat in scene.cr_filecategories:
                 box = layout.box()
                 col = box.column()
