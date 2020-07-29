@@ -1,2 +1,0 @@
-bpy.ops.uv.uv_squares()
-bpy.ops.uv.follow_active_quads()
