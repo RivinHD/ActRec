@@ -32,7 +32,6 @@ from . import DefineCommon as Common
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 def TempNameUpdate(self, context):
-    print("Name Update")
     TempUpdate()
 
 class CR_OT_String(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
@@ -589,7 +588,10 @@ class CR_PT_List(bpy.types.Panel):
         box_row = box.row()
         box_row.label(text = '', icon = 'SETTINGS')
         if len(CR_('List',0)) :
-            box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
+            try:
+                box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
+            except:
+                scene.CR_Var.List_Index_000 = 0
         box_row = box.row()
         col = box_row.column()
         col.template_list('CR_List_Selector' , '' , scene.CR_Var , 'List_Command_000' , scene.CR_Var , 'List_Index_000', rows=4)
