@@ -36,17 +36,17 @@ def TempNameUpdate(self, context):
     TempUpdate()
 
 class CR_OT_String(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
-    Command : StringProperty(default='', update= TempNameUpdate) #CR_Var.name
+    cname : StringProperty(default='', update= TempNameUpdate) #CR_Var.name
 
 class CR_List_Selector(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,active_propname, index):
-        layout.label(text = item.name)
+        layout.label(text = item.cname)
 class CR_List_Command(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,active_propname, index):
-        layout.label(text = item.name)
+        layout.label(text = item.cname)
 class CR_List_Instance(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,active_propname, index):
-        layout.label(text = item.name)
+        layout.label(text = item.cname)
 
 
 #-------------------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def Record(Num, Mode):
             TempText = Recent[i-1].body
             if TempText.count('bpy'):
                 Item = CR_('List', Num).add()
-                Item.name = TempText[TempText.find('bpy'):]
+                Item.cname = TempText[TempText.find('bpy'):]
 
 def CreateTempFile():
     tpath = bpy.app.tempdir + "temp.json"
@@ -115,7 +115,7 @@ def TempSave(Num):  # write new command to temp.json file
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
-        data["0"].append(CR_('List', 0)[Num - 1]['name'])
+        data["0"].append(CR_('List', 0)[Num - 1]['cname'])
         tempfile.seek(0)
         json.dump(data, tempfile)
 
@@ -126,14 +126,14 @@ def TempUpdate(): # update all commands in temp.json file
         tempfile.seek(0)
         data = {}
         for cmd in range(len(CR_('List', 0)) + 1):
-            data.update({str(cmd):[i.name for i in CR_('List', cmd)]})
+            data.update({str(cmd):[i.cname for i in CR_('List', cmd)]})
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
     tpath = CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
-        data[str(Key)] = [i.name for i in CR_('List', int(Key))]
+        data[str(Key)] = [i.cname for i in CR_('List', int(Key))]
         tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
@@ -149,12 +149,12 @@ def TempLoad(dummy): # load commands after undo
         keys = list(data.keys())
         for i in range(1, len(data)):
             Item = command.add()
-            Item.name = data["0"][i - 1]
+            Item.cname = data["0"][i - 1]
             record = CR_('List', i)
             record.clear()
             for j in range(len(data[keys[i]])):
                 Item = record.add()
-                Item.name = data[keys[i]][j]
+                Item.cname = data[keys[i]][j]
 
 UndoRedoStack = []
 
@@ -165,9 +165,9 @@ def GetCommand(index):
 def SaveUndoStep(dummy):
     All = []
     l = []
-    l.append([i.name for i in list(GetCommand(0))])
+    l.append([i.cname for i in list(GetCommand(0))])
     for x in range(1, len(l[0]) + 1):
-        l.append([ i.name for i in list(GetCommand(x))])
+        l.append([ i.cname for i in list(GetCommand(x))])
     UndoRedoStack.append(l)
 
 @persistent
@@ -177,12 +177,12 @@ def GetRedoStep(dummy):
     l = UndoRedoStack[len(UndoRedoStack) - 1]
     for i in range(1, len(l[0]) + 1):
         item = command.add()
-        item.name = l[0][i - 1]
+        item.cname = l[0][i - 1]
         record = CR_('List', i)
         record.clear()
         for j in range(len(l[i])):
             item = record.add()
-            item.name = l[i][j]
+            item.cname = l[i][j]
     UndoRedoStack.pop()
 
 
@@ -198,7 +198,7 @@ def Add(Num):
                 Name_Temp = Recent[-3].body
                 Item.name = Name_Temp[Name_Temp.find('bpy'):]
         else:
-            Item.name = 'Untitled_{0:03d}'.format(len(CR_('List', Num)))
+            Item.cname = 'Untitled_{0:03d}'.format(len(CR_('List', Num)))
         CR_( len(CR_('List',Num))-1, Num )
 
 def Remove(Num):
@@ -207,7 +207,7 @@ def Remove(Num):
             CR_('List',Num_Loop).clear()
             for Num_Command in range(len(CR_('List',Num_Loop+1))) :
                 Item = CR_('List',Num_Loop).add()
-                Item.name = CR_('List',Num_Loop+1)[Num_Command].name
+                Item.cname = CR_('List',Num_Loop+1)[Num_Command].cname
             CR_(CR_('Index',Num_Loop+1),Num_Loop)
     if len(CR_('List',Num)):
         CR_('List',Num).remove(CR_('Index',Num))
@@ -236,19 +236,19 @@ def Move(Num , Mode) :
             #254にIndex2を逃がす
             for Num_Command in CR_('List',index2) :
                 Item = CR_('List',254).add()
-                Item.name = Num_Command.name
+                Item.cname = Num_Command.cname
             CR_(CR_('Index',index2),254)
             CR_('List',index2).clear()
             #Index1からIndex2へ
             for Num_Command in CR_('List',index1) :
                 Item = CR_('List',index2).add()
-                Item.name = Num_Command.name
+                Item.cname = Num_Command.cname
             CR_(CR_('Index',index1),index2)
             CR_('List',index1).clear()
             #254からIndex1へ
             for Num_Command in CR_('List',254) :
                 Item = CR_('List',index1).add()
-                Item.name = Num_Command.name
+                Item.cname = Num_Command.cname
             CR_(CR_('Index',254),index1)
             CR_('List',254).clear()
 
@@ -272,7 +272,7 @@ def Play(Commands) :
         if type(Command) == str :
             exec(Command)
         else :
-            exec(Command.name)
+            exec(Command.cname)
 
 def Clear(Num) :
     CR_('List',Num).clear()
@@ -444,10 +444,10 @@ def Load():
 def Recorder_to_Instance(panel):
     scene = bpy.context.scene
     i = panel.Instance_Start +  panel.Instance_length
-    CR_Prop.Instance_Name.insert(i, CR_('List',0)[CR_('Index',0)].name)
+    CR_Prop.Instance_Name.insert(i, CR_('List',0)[CR_('Index',0)].cname)
     Temp_Command = []
     for Command in CR_('List',CR_('Index',0)+1):
-        Temp_Command.append(Command.name)
+        Temp_Command.append(Command.cname)
     CR_Prop.Instance_Command.insert(i, Temp_Command)
     panel.Instance_length += 1
     new_e = scene.cr_enum.add()
@@ -463,10 +463,10 @@ def Recorder_to_Instance(panel):
 def Instance_to_Recorder():
     scene = bpy.context.scene
     Item = CR_('List' , 0 ).add()
-    Item.name = CR_Prop.Instance_Name[scene.CR_Var.Instance_Index]
+    Item.cname = CR_Prop.Instance_Name[scene.CR_Var.Instance_Index]
     for Command in CR_Prop.Instance_Command[scene.CR_Var.Instance_Index] :
         Item = CR_('List' , len(CR_('List',0)) ).add()
-        Item.name = Command
+        Item.cname = Command
     CR_( len(CR_('List',0))-1 , 0 )
 
 def Execute_Instance(Num):
@@ -589,7 +589,7 @@ class CR_PT_List(bpy.types.Panel):
         box_row = box.row()
         box_row.label(text = '', icon = 'SETTINGS')
         if len(CR_('List',0)) :
-            box_row.prop(CR_('List',0)[CR_('Index',0)] , 'name' , text='')
+            box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
         box_row = box.row()
         col = box_row.column()
         col.template_list('CR_List_Selector' , '' , scene.CR_Var , 'List_Command_000' , scene.CR_Var , 'List_Index_000', rows=4)
@@ -603,7 +603,7 @@ class CR_PT_List(bpy.types.Panel):
             box_row = box.row()
             box_row.label(text = '', icon = 'TEXT')
             if len(CR_('List',CR_('Index',0)+1)) :
-                box_row.prop(CR_('List',CR_('Index',0)+1)[CR_('Index',CR_('Index',0)+1)],'name' , text='')
+                box_row.prop(CR_('List',CR_('Index',0)+1)[CR_('Index',CR_('Index',0)+1)],'cname' , text='')
             box_row = box.row()
             col = box_row.column()
             col.template_list('CR_List_Command' , '' , scene.CR_Var , 'List_Command_{0:03d}'.format(CR_('Index',0)+1) , scene.CR_Var , 'List_Index_{0:03d}'.format(CR_('Index',0)+1), rows=4)
