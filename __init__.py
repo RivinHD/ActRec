@@ -15,7 +15,6 @@ bl_info = {
 "version": (3, 1, 6),# プラグインのバージョン
 "blender": (2, 80, 0),# プラグインが動作するBlenderのバージョン
 "location" : "View 3D",# Blender内部でのプラグインの位置づけ
-"description" : "Thank you for using our services",# プラグインの説明
 "warning" : "",
 "wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
 "tracker_url" : "https://twitter.com/Inamura_JIN",# Report Bug
