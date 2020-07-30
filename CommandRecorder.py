@@ -442,6 +442,7 @@ def Load():
 
 
 def Recorder_to_Instance(panel):
+    scene = bpy.context.scene
     i = panel.Instance_Start +  panel.Instance_length
     CR_Prop.Instance_Name.insert(i, CR_('List',0)[CR_('Index',0)].name)
     Temp_Command = []
@@ -449,12 +450,12 @@ def Recorder_to_Instance(panel):
         Temp_Command.append(Command.name)
     CR_Prop.Instance_Command.insert(i, Temp_Command)
     panel.Instance_length += 1
-    new_e = bpy.context.scene.cr_enum.add()
-    e_index = len(bpy.context.scene.cr_enum) - 1
+    new_e = scene.cr_enum.add()
+    e_index = len(scene.cr_enum) - 1
     new_e.name = str(e_index)
     new_e.Index = e_index
     p_i = GetPanelIndex(panel)
-    categories = bpy.context.scene.cr_categories
+    categories = scene.cr_categories
     if p_i < len(categories):
         for cat in categories[ p_i + 1: ]:
             cat.Instance_Start += 1
@@ -1223,7 +1224,10 @@ def Instance_Updater(self, context):
         elif e.Value and Ilastselected[0] != e.Index and Icurrentselected[0] != e.Index:
             Icurrentselected[0] = e.Index
             if Ilastselected[0] is not None:
-                enum[Ilastselected[0]].Value = False
+                try:
+                    enum[Ilastselected[0]].Value = False
+                except:
+                    Ilastselected[0] = None 
             Ilastselected[0] = e.Index
             context.scene.CR_Var.Instance_Index = e.Index
 
