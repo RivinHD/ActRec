@@ -591,7 +591,7 @@ class CR_PT_List(bpy.types.Panel):
             try:
                 box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
             except:
-                scene.CR_Var.List_Index_000 = 0
+                pass
         box_row = box.row()
         col = box_row.column()
         col.template_list('CR_List_Selector' , '' , scene.CR_Var , 'List_Command_000' , scene.CR_Var , 'List_Index_000', rows=4)
