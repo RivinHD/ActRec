@@ -450,7 +450,7 @@ def Recorder_to_Instance(panel):
     CR_Prop.Instance_Command.insert(i, Temp_Command)
     panel.Instance_length += 1
     new_e = bpy.context.scene.cr_enum.add()
-    e_index = len(cr_enum) - 1
+    e_index = len(bpy.context.scene.cr_enum) - 1
     new_e.name = str(e_index)
     new_e.Index = e_index
     p_i = GetPanelIndex(panel)
@@ -1100,7 +1100,6 @@ class ImportButton(Operator, ImportHelper):
                             mycat.Instance_Start = len(CR_Prop.Instance_Name)
                         else:
                             mycat = cr_categories[Index]
-                        
                         for dir_file in dirfileslist[i]:
                             inserti = mycat.Instance_Start + mycat.Instance_length
                             CR_Prop.Instance_Name.insert(inserti, os.path.splitext(os.path.basename(dir_file))[0])
