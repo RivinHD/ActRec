@@ -31,13 +31,12 @@ PropertyGroup
 from . import DefineCommon as Common
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
-#==============================================================
-#使用クラスの宣言
-#-------------------------------------------------------------------------------------------
+def TempNameUpdate(self, context):
+    print("Name Update")
+    TempUpdate()
+
 class CR_OT_String(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
-    Command : StringProperty(
-    default=''
-    ) #CR_Var.name
+    Command : StringProperty(default='', update= TempNameUpdate) #CR_Var.name
 
 class CR_List_Selector(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,active_propname, index):
@@ -400,8 +399,9 @@ def Save():
     for cat in bpy.context.scene.cr_categories:
         panelpath = path + "/" + f"{GetPanelIndex(cat)}~" + cat.pn_name
         os.mkdir(panelpath)
-        for cmd_i in range(cat.Instance_length):
-            with open(panelpath + "/" + f"{cmd_i}~" + CR_Prop.Instance_Name[cmd_i] + ".txt", 'w', encoding='utf8') as cmd_file:
+        start = cat.Instance_Start
+        for cmd_i in range(start, start + cat.Instance_length):
+            with open(panelpath + "/" + f"{cmd_i - start}~" + CR_Prop.Instance_Name[cmd_i] + ".txt", 'w', encoding='utf8') as cmd_file:
                 for cmd in CR_Prop.Instance_Command[cmd_i]:
                     cmd_file.write(cmd + "\n")
 
@@ -409,7 +409,7 @@ def Load():
     print('------------------Load-----------------')
     scene = bpy.context.scene
     scene.cr_categories.clear()
-    scene.cr_enum.clear() 
+    scene.cr_enum.clear()
     CR_Prop.Instance_Name.clear()
     CR_Prop.Instance_Command.clear()
     for folder in os.listdir(path):
@@ -426,16 +426,19 @@ def Load():
             sortedtxt = [None] * len(textfiles)
             for txt in textfiles:
                 sortedtxt[int(os.path.splitext(txt)[0].split('~')[0])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
-            for txt in sortedtxt:
-                scene.cr_enum.add()
+            for i in range(len(sortedtxt)):
+                txt = sortedtxt[i]
+                new_e = scene.cr_enum.add()
+                e_index = len(scene.cr_enum) - 1
+                new_e.name = str(e_index)
+                new_e.Index = e_index
                 CR_Prop.Instance_Name.append("".join(os.path.splitext(txt)[0].split('~')[1:]))
                 CmdList = []
                 with open(folderpath + "/" + txt, 'r', encoding='utf8') as text:
                     for line in text.readlines():
                         CmdList.append(line.strip())
                 CR_Prop.Instance_Command.append(CmdList)
-
-        SetEnumIndex()
+    SetEnumIndex()
 
 
 def Recorder_to_Instance(panel):
@@ -446,7 +449,10 @@ def Recorder_to_Instance(panel):
         Temp_Command.append(Command.name)
     CR_Prop.Instance_Command.insert(i, Temp_Command)
     panel.Instance_length += 1
-    bpy.context.scene.cr_enum.add()
+    new_e = bpy.context.scene.cr_enum.add()
+    e_index = len(cr_enum) - 1
+    new_e.name = str(e_index)
+    new_e.Index = e_index
     p_i = GetPanelIndex(panel)
     categories = bpy.context.scene.cr_categories
     if p_i < len(categories):
@@ -475,7 +481,7 @@ def I_Remove():
         Index = scene.CR_Var.Instance_Index
         CR_Prop.Instance_Name.pop(Index)
         CR_Prop.Instance_Command.pop(Index)
-        scene.cr_enum.remove(Index)
+        scene.cr_enum.remove(len(scene.cr_enum) - 1)
         categories = scene.cr_categories
         for cat in categories:
             if Index >= cat.Instance_Start and Index < cat.Instance_Start + cat.Instance_length:
@@ -487,6 +493,7 @@ def I_Remove():
                 break
         if len(CR_Prop.Instance_Name) and len(CR_Prop.Instance_Name)-1 < Index :
             scene.CR_Var.Instance_Index = len(CR_Prop.Instance_Name)-1
+    SetEnumIndex()
 
 def I_Move(Mode):
     scene = bpy.context.scene
@@ -499,7 +506,7 @@ def I_Move(Mode):
     if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
         CR_Prop.Instance_Name[index1] , CR_Prop.Instance_Name[index2] = CR_Prop.Instance_Name[index2] , CR_Prop.Instance_Name[index1]
         CR_Prop.Instance_Command[index1] , CR_Prop.Instance_Command[index2] = CR_Prop.Instance_Command[index2] , CR_Prop.Instance_Command[index1]
-        scene.cr_enum[index2].Index = True
+        scene.cr_enum[index2].Value = True
 
 class CR_OT_Instance(Operator):
     bl_idname = 'cr_instance.button'#大文字禁止
@@ -681,7 +688,7 @@ class CR_PT_Instance(bpy.types.Panel):
                 split = box.split(factor=0.2)
                 col = split.column(align= True)
                 for i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.prop(scene.cr_enum[i], 'Index' ,toggle = 1, text= str(i - cat.Instance_Start + 1))
+                    col.prop(scene.cr_enum[i], 'Value' ,toggle = 1, text= str(i - cat.Instance_Start + 1))
                 col = split.column()
                 col.scale_y = 0.9493
                 for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
@@ -720,9 +727,10 @@ def GetPanelIndex(cat):
 
 def SetEnumIndex():
     scene = bpy.context.scene
-    enumIndex = scene.CR_Var.Instance_Index * (scene.CR_Var.Instance_Index < len(scene.cr_enum))
-    scene.cr_enum[enumIndex].Index = True
-    scene.CR_Var.Instance_Index = enumIndex
+    if len(scene.cr_enum):
+        enumIndex = scene.CR_Var.Instance_Index * (scene.CR_Var.Instance_Index < len(scene.cr_enum))
+        scene.cr_enum[enumIndex].Value = True
+        scene.CR_Var.Instance_Index = enumIndex
 
 tempnotinited = [True]
 @persistent
@@ -764,23 +772,25 @@ def TempSaveCats():
         }
         json.dump(data, tempfile)
 
-
 @persistent
 def TempLoadCats(dummy):
     scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
+    scene.cr_enum.clear()
     scene.cr_categories.clear()
-    scene.cr_enum.clear() 
     CR_Prop.Instance_Name.clear()
     CR_Prop.Instance_Command.clear()
     with open(tcatpath, 'r', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         CR_Prop.Instance_Name = data["Instance_Name"]
         CR_Prop.Instance_Command = data["Instance_Command"]
-        for i in CR_Prop.Instance_Name:
-            scene.cr_enum.add()
-        scene.CR_Var.Instance_Index = data["Instance_Index"]
-        scene.cr_enum[data["Instance_Index"]].Index = True
+        index = data["Instance_Index"]
+        scene.CR_Var.Instance_Index = index
+        for i in range(len(CR_Prop.Instance_Name)):
+            new_e = scene.cr_enum.add()
+            new_e.name = str(i)
+            new_e.Index = i
+        scene.cr_enum[index].Value = True
         for cat in data["Categories"]:
             new = scene.cr_categories.add()
             new.name = cat["name"]
@@ -812,7 +822,7 @@ class AddCategory(bpy.types.Operator):
                     index = GetPanelIndex(cat)
                     start = cat.Instance_Start
                     for i in range(start, start + cat.Instance_length):
-                        scene.cr_enum.remove(start)
+                        scene.cr_enum.remove(len(scene.cr_enum) - 1)
                         CR_Prop.Instance_Name.pop(start)
                         CR_Prop.Instance_Command.pop(start)
                     for nextcat in categories[index + 1 :]:
@@ -862,7 +872,10 @@ class AddCategory(bpy.types.Operator):
                             filedisp[i].Index = True
                 for i in range(len(filedisp)):
                     if filedisp[i].Index:
-                        item = scene.cr_enum.add()
+                        new_e = scene.cr_enum.add()
+                        e_index = len(scene.cr_enum) - 1
+                        new_e.name = str(e_index)
+                        new_e.Index = e_index
                         CR_Prop.Instance_Name.append(CR_Prop.FileDisp_Name[i])
                         CR_Prop.Instance_Command.append(CR_Prop.FileDisp_Command[i])
                 new.Instance_length = len(CR_Prop.Instance_Name) - new.Instance_Start
@@ -882,7 +895,10 @@ class AddCategory(bpy.types.Operator):
                             new.Instance_Start = len(CR_Prop.Instance_Name)
                             new.Instance_length = filecat.FileDisp_length
                             for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
-                                item = scene.cr_enum.add()
+                                new_e = scene.cr_enum.add()
+                                e_index = len(scene.cr_enum) - 1
+                                new_e.name = str(e_index)
+                                new_e.Index = e_index
                                 CR_Prop.Instance_Name.append(CR_Prop.FileDisp_Name[i])
                                 CR_Prop.Instance_Command.append(CR_Prop.FileDisp_Command[i])
                         else:
@@ -891,7 +907,10 @@ class AddCategory(bpy.types.Operator):
                             categories[index].Instance_length += filecat.FileDisp_length
                             i_start = categories[index].Instance_Start + categories[index].Instance_length - filecat.FileDisp_length
                             for i in range(i_start, categories[index].Instance_Start + categories[index].Instance_length):
-                                scene.cr_enum.add()
+                                new_e = scene.cr_enum.add()
+                                e_index = len(scene.cr_enum) - 1
+                                new_e.name = str(e_index)
+                                new_e.Index = e_index
                                 i_file = filecat.FileDisp_Start + i - i_start
                                 CR_Prop.Instance_Name.insert(i , CR_Prop.FileDisp_Name[i_file])
                                 CR_Prop.Instance_Command.insert(i, CR_Prop.FileDisp_Command[i_file])
@@ -903,8 +922,9 @@ class AddCategory(bpy.types.Operator):
                             new.Instance_Start = len(CR_Prop.Instance_Name)
                             index = GetPanelIndex(new)
                         for i in range(filecat.FileDisp_Start, filecat.FileDisp_Start + filecat.FileDisp_length):
-                            if scene.cr_filedisp[i].Index:
-                                scene.cr_enum.add() # insert at i
+                            if scene.cr_filedisp[i].Index: # insert at i
+                                new_e = scene.cr_enum.add()
+                                new_e.name = str(len(scene.cr_enum) - 1)
                                 i_cat = categories[index].Instance_Start + categories[index].Instance_length
                                 CR_Prop.Instance_Name.insert(i_cat, CR_Prop.FileDisp_Name[i])
                                 CR_Prop.Instance_Command.insert(i_cat, CR_Prop.FileDisp_Command[i])
@@ -1044,7 +1064,10 @@ class ImportButton(Operator, ImportHelper):
                     for btn_file in filepaths:
                         CR_Prop.Instance_Name.append(os.path.splitext(os.path.basename(btn_file))[0])
                         CR_Prop.Instance_Command.append(zip_out.read(btn_file).decode("utf-8").splitlines())
-                        scene.cr_enum.add()
+                        new_e = scene.cr_enum.add()
+                        e_index = len(scene.cr_enum) - 1
+                        new_e.name = str(e_index)
+                        new_e.Index = e_index
                         mycat.Instance_length += 1
                 else:
                     dirlist = []
@@ -1082,7 +1105,10 @@ class ImportButton(Operator, ImportHelper):
                             inserti = mycat.Instance_Start + mycat.Instance_length
                             CR_Prop.Instance_Name.insert(inserti, os.path.splitext(os.path.basename(dir_file))[0])
                             CR_Prop.Instance_Command.insert(inserti, zip_out.read(dir_file).decode("utf-8").splitlines())
-                            scene.cr_enum.add()
+                            new_e = scene.cr_enum.add()
+                            e_index = len(scene.cr_enum) - 1
+                            new_e.name = str(e_index)
+                            new_e.Index = e_index
                             mycat.Instance_length += 1
                             if Index is not None:
                                 for cat in cr_categories[Index + 1:] :
@@ -1139,7 +1165,6 @@ class ExportButton(Operator, ExportHelper):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        box = layout.box()
         for cat in scene.cr_filecategories:
                 box = layout.box()
                 col = box.column()
@@ -1194,17 +1219,19 @@ Ilastselected = [None]
 def Instance_Updater(self, context):
     enum = context.scene.cr_enum
     for e in enum:
-        if not e.Index and Ilastselected[0] == e and Icurrentselected[0] == e:
-            e.Index = True
-        elif e.Index and Ilastselected[0] != e and Icurrentselected[0] != e: 
-            Icurrentselected[0] = e
+        if not e.Value and Ilastselected[0] == e.Index and Icurrentselected[0] == e.Index:
+            e.Value = True
+        elif e.Value and Ilastselected[0] != e.Index and Icurrentselected[0] != e.Index:
+            Icurrentselected[0] = e.Index
             if Ilastselected[0] is not None:
-                Ilastselected[0].Index = False
-            Ilastselected[0] = e
-            context.scene.CR_Var.Instance_Index = GetPanelIndex(e)
+                enum[Ilastselected[0]].Value = False
+            Ilastselected[0] = e.Index
+            context.scene.CR_Var.Instance_Index = e.Index
 
 class CR_Enum(PropertyGroup):
-    Index : BoolProperty(default= False, update= Instance_Updater)
+    Value : BoolProperty(default= False, update= Instance_Updater)
+    Index : IntProperty()
+    Init = True
 
 class CR_FileDisp(PropertyGroup):
     Index : BoolProperty(default= False)
