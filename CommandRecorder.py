@@ -192,10 +192,10 @@ def Add(Num):
         if Num:
             if Recent[-2].body.count('bpy'):
                 Name_Temp = Recent[-2].body
-                Item.name = Name_Temp[Name_Temp.find('bpy'):]
+                Item.cname = Name_Temp[Name_Temp.find('bpy'):]
             else:
                 Name_Temp = Recent[-3].body
-                Item.name = Name_Temp[Name_Temp.find('bpy'):]
+                Item.cname = Name_Temp[Name_Temp.find('bpy'):]
         else:
             Item.cname = 'Untitled_{0:03d}'.format(len(CR_('List', Num)))
         CR_( len(CR_('List',Num))-1, Num )
