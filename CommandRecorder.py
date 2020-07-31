@@ -594,7 +594,7 @@ class CR_PT_Panel(bpy.types.Panel):
             box = layout.box()
             row = box.row(align= True)
             row.operator(CR_OT_Instance.bl_idname , text='Button to Recorder' ).Mode = 'Instance_to_Recorder'
-            row.prop(scene.CR_Var, 'HideMenu', text= "", icon= 'COLLAPSEMENU')
+            row.prop(scene.CR_Var, 'HideMenu', icon= 'COLLAPSEMENU', text= "")
             col = box.column(align= True)
             if scene.CR_Var.HideMenu:
                 col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
@@ -1260,9 +1260,9 @@ class CR_Prop(PropertyGroup):#何かとプロパティを収納
     FileDisp_Index : IntProperty(default= 0)
 
     IgnoreUndo : BoolProperty(default=True, description="all records and changes are unaffected by undo", name= "Ignore Undo")
-    PanelType : EnumProperty(items= [("button","Button",""),("record","Record","")], default= "record")
-    HideMenu : BoolProperty(description= "shows an extra menu with import/export options", name= "Hide Menu")
-    ShowMacros : BoolProperty(description= "shows an extra menu with the macros", default= True, name= "Show Macros")
+    PanelType : EnumProperty(items= [("button","Button",""),("record","Record","")], default= "button")
+    HideMenu : BoolProperty(name= "Hide Menu", description= "Hide Menu")
+    ShowMacros : BoolProperty(name= "Show Macros" ,description= "Show Macros", default= True)
 
     Temp_Command = []
     Temp_Num = 0
