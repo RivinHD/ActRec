@@ -91,10 +91,10 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
 def Record(Num, Mode):
     Recent = Get_Recent('Reports_All')
     if Mode == 'Start':
-        CR_PT_List.Bool_Record = 1
+        CR_PT_Panel.Bool_Record = 1
         CR_Prop.Temp_Num = len(Recent)
     else:
-        CR_PT_List.Bool_Record = 0
+        CR_PT_Panel.Bool_Record = 0
         for i in range (CR_Prop.Temp_Num, len(Recent)):
             TempText = Recent[i-1].body
             if TempText.count('bpy'):
@@ -560,75 +560,8 @@ class CR_OT_Instance(Operator):
 
         bpy.context.area.tag_redraw()
         return{'FINISHED'}#UI系の関数の最後には必ず付ける
-
-
-#==============================================================
-#レイアウト
-#-------------------------------------------------------------------------------------------
-# メニュー
-class CR_PT_List(bpy.types.Panel):
-    bl_region_type = 'UI'# メニューを表示するリージョン
-    bl_category = 'CommandRecorder'# メニュータブのヘッダー名
-    bl_label = 'CommandRecorder'# タイトル
-    #変数の宣言
-    #-------------------------------------------------------------------------------------------
-    Bool_Record = 0
-    Bool_Recent = ''
-
-    #レイアウト
-    #-------------------------------------------------------------------------------------------
-    def draw_header(self, context):
-        self.layout.label(text = '', icon = 'REC')
-    #メニューの描画処理
-    def draw(self, context):
-        scene = bpy.context.scene
-        #-------------------------------------------------------------------------------------------
-        layout = self.layout
-        box = layout.box()
-        box_row = box.row()
-        box_row.label(text = '', icon = 'SETTINGS')
-        if len(CR_('List',0)) :
-            try:
-                box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
-            except:
-                pass
-        box_row = box.row()
-        col = box_row.column()
-        col.template_list('CR_List_Selector' , '' , scene.CR_Var , 'List_Command_000' , scene.CR_Var , 'List_Index_000', rows=4)
-        col = box_row.column()
-        col.operator(CR_OT_Selector.bl_idname , text='' , icon='ADD' ).Mode = 'Add'
-        col.operator(CR_OT_Selector.bl_idname , text='' , icon='REMOVE' ).Mode = 'Remove'
-        col.operator(CR_OT_Selector.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'Up'
-        col.operator(CR_OT_Selector.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'Down'
-        #
-        if len(CR_('List',0)) :
-            box_row = box.row()
-            box_row.label(text = '', icon = 'TEXT')
-            if len(CR_('List',CR_('Index',0)+1)) :
-                box_row.prop(CR_('List',CR_('Index',0)+1)[CR_('Index',CR_('Index',0)+1)],'cname' , text='')
-            box_row = box.row()
-            col = box_row.column()
-            col.template_list('CR_List_Command' , '' , scene.CR_Var , 'List_Command_{0:03d}'.format(CR_('Index',0)+1) , scene.CR_Var , 'List_Index_{0:03d}'.format(CR_('Index',0)+1), rows=4)
-            col = box_row.column()
-            if CR_PT_List.Bool_Record :
-                col.operator(CR_OT_Command.bl_idname , text='' , icon='PAUSE' ).Mode = 'Record_Stop'
-            else :
-                col.operator(CR_OT_Command.bl_idname , text='' , icon='REC' ).Mode = 'Record_Start'
-                col.operator(Command_OT_Add.bl_idname , text='' , icon='ADD' )
-                col.operator(CR_OT_Command.bl_idname , text='' , icon='REMOVE' ).Mode = 'Remove'
-                col.operator(CR_OT_Command.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'Up'
-                col.operator(CR_OT_Command.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'Down'
-            if len(CR_('List',CR_('Index',0)+1)) :
-                box.operator(Command_OT_Play.bl_idname , text='Play' )
-                box.operator(AddCategory.bl_idname , text='Recorder to Button' ).Mode = 'ToButton'
-                box.operator(CR_OT_Command.bl_idname , text='Clear').Mode = 'Clear'
-        box = layout.box()
-        box.label(text = 'Options', icon = 'PRESET_NEW')
-        box_row = box.row()
-        box_row.label(text = 'Ignore Undo')
-        box_row.prop(scene.CR_Var, 'IgnoreUndo', toggle = 1, text="Ignore")
         
-class CR_PT_Instance(bpy.types.Panel):
+class CR_PT_Panel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'# メニューを表示するエリア
     bl_region_type = 'UI'# メニューを表示するリージョン
     bl_category = 'CommandRecorder'# メニュータブのヘッダー名
@@ -636,66 +569,128 @@ class CR_PT_Instance(bpy.types.Panel):
     #変数の宣言
     #-------------------------------------------------------------------------------------------
     SelectedInctance = ''
+    Bool_Record = 0
+    Bool_Recent = ''
     #レイアウト
     #-------------------------------------------------------------------------------------------
     def draw_header(self, context):
-        self.layout.label(text = '', icon = 'PREFERENCES')
+        self.layout.label(text = '', icon = 'REC')
     #メニューの描画処理
     def draw(self, context):
         scene = bpy.context.scene
-        #-------------------------------------------------------------------------------------------
         layout = self.layout
-        #
-        box = layout.box()
-        box.operator(CR_OT_Instance.bl_idname , text='Button to Recorder' ).Mode = 'Instance_to_Recorder'
-        col = box.column(align= True)
-        col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
-        col.operator(CR_OT_Instance.bl_idname , text='Load from File' ).Mode = 'Load'
-        col.operator(AddCategory.bl_idname, text= "Add from File").Mode = 'AddFromFile'
-        col = box.column(align= True)
-        col.operator(ImportButton.bl_idname, text= 'Import')
-        col.operator(ExportButton.bl_idname, text= 'Export')
-        if len(CR_Prop.Instance_Name) :
-            box_row = box.row()
-            row2 = box_row.row(align= True)
-            row2.operator(CR_OT_Instance.bl_idname , text='' , icon='REMOVE' ).Mode = 'I_Remove'
-            row2.operator(CR_OT_Instance.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'I_Up'
-            row2.operator(CR_OT_Instance.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'I_Down'
-            box_row.prop(scene.CR_Var , 'Rename' , text='')
-            box_row.operator(CR_OT_Instance.bl_idname , text='Rename').Mode = 'Rename'
-        row = box.row()
-        col = row.column()
-        col.label(text= 'Category')
-        col = row.column()
-        row2 = col.row(align= True)
-        row2.scale_x = 1.15
-        row2.operator(AddCategory.bl_idname, text= '', icon= 'ADD').Mode = 'Add'
-        row2.operator(AddCategory.bl_idname, text= '', icon= 'TRASH').Mode = 'Delet'
-        row2.operator(AddCategory.bl_idname, text= '', icon= 'GREASEPENCIL').Mode = 'Rename'
-        row2.operator(AddCategory.bl_idname, text= '', icon= 'PRESET').Mode = 'Move'
-        categories = scene.cr_categories
-        for cat in categories:
+        layout.prop(scene.CR_Var, 'PanelType', text= scene.CR_Var.PanelType, expand= True)
+        if scene.CR_Var.PanelType == "button":
+            #Button --------------------------------------
             box = layout.box()
-            col = box.column()
-            row = col.row()
-            if cat.pn_show:
-                row.prop(cat, 'pn_show', icon="TRIA_DOWN", text= "", emboss= False)
+            row = box.row(align= True)
+            row.operator(CR_OT_Instance.bl_idname , text='Button to Recorder' ).Mode = 'Instance_to_Recorder'
+            row.prop(scene.CR_Var, 'ShowMenu', text= "", icon= 'COLLAPSEMENU')
+            col = box.column(align= True)
+            if scene.CR_Var.ShowMenu:
+                col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
+                col.operator(CR_OT_Instance.bl_idname , text='Load from File' ).Mode = 'Load'
+                col.operator(AddCategory.bl_idname, text= "Add from File").Mode = 'AddFromFile'
+                col = box.column(align= True)
+                col.operator(ImportButton.bl_idname, text= 'Import')
+                col.operator(ExportButton.bl_idname, text= 'Export')
             else:
-                row.prop(cat, 'pn_show', icon="TRIA_RIGHT", text= "", emboss= False)
-            row.label(text= cat.pn_name)
-            i = GetPanelIndex(cat)
+                col.operator(CR_OT_Instance.bl_idname , text='Save to File' ).Mode = 'Save'
+            row = box.row().split(factor= 0.4)
+            row.label(text= 'Category')
             row2 = row.row(align= True)
-            row2.operator(AddCategory.bl_idname, icon="TRIA_UP", text= "").Mode = f'Move_Up-{i}'
-            row2.operator(AddCategory.bl_idname, icon="TRIA_DOWN", text="").Mode = f'Move_Down-{i}'
-            if cat.pn_show:
-                split = box.split(factor=0.2)
-                col = split.column(align= True)
-                for i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.prop(scene.cr_enum[i], 'Value' ,toggle = 1, text= str(i - cat.Instance_Start + 1))
-                col = split.column()
-                col.scale_y = 0.9493
-                for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
-                    col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = str(Num_Loop)
+            row2.scale_x = 1.1737
+            row2.operator(AddCategory.bl_idname, text= '', icon= 'ADD').Mode = 'Add'
+            row2.operator(AddCategory.bl_idname, text= '', icon= 'TRASH').Mode = 'Delet'
+            row2.operator(AddCategory.bl_idname, text= '', icon= 'GREASEPENCIL').Mode = 'Rename'
+            if len(CR_Prop.Instance_Name) :
+                row = box.row().split(factor= 0.4)
+                row.label(text= 'Buttons')
+                row2 = row.row(align= True)
+                row2.operator(CR_OT_Instance.bl_idname , text='' , icon='REMOVE' ).Mode = 'I_Remove'
+                row2.operator(CR_OT_Instance.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'I_Up'
+                row2.operator(CR_OT_Instance.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'I_Down'
+                row2.operator(AddCategory.bl_idname, text= '', icon= 'PRESET').Mode = 'Move'
+            row = box.row()
+            row2 = row.split(factor= 0.7)
+            row2.prop(scene.CR_Var , 'Rename' , text='')
+            row2.operator(CR_OT_Instance.bl_idname , text='Rename').Mode = 'Rename'
+            categories = scene.cr_categories
+            for cat in categories:
+                box = layout.box()
+                col = box.column()
+                row = col.row()
+                if cat.pn_show:
+                    row.prop(cat, 'pn_show', icon="TRIA_DOWN", text= "", emboss= False)
+                else:
+                    row.prop(cat, 'pn_show', icon="TRIA_RIGHT", text= "", emboss= False)
+                row.label(text= cat.pn_name)
+                i = GetPanelIndex(cat)
+                row2 = row.row(align= True)
+                row2.operator(AddCategory.bl_idname, icon="TRIA_UP", text= "").Mode = f'Move_Up-{i}'
+                row2.operator(AddCategory.bl_idname, icon="TRIA_DOWN", text="").Mode = f'Move_Down-{i}'
+                if cat.pn_show:
+                    split = box.split(factor=0.2)
+                    col = split.column(align= True)
+                    for i in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
+                        col.prop(scene.cr_enum[i], 'Value' ,toggle = 1, text= str(i - cat.Instance_Start + 1))
+                    col = split.column()
+                    col.scale_y = 0.9493
+                    for Num_Loop in range(cat.Instance_Start, cat.Instance_Start + cat.Instance_length):
+                        col.operator(CR_OT_Instance.bl_idname , text=CR_Prop.Instance_Name[Num_Loop]).Mode = str(Num_Loop)
+        else:
+            #Record----------------------------------------------
+            box = layout.box()
+            box_row = box.row()
+            box_row.label(text = '', icon = 'SETTINGS')
+            if len(CR_('List',0)) :
+                try:
+                    box_row.prop(CR_('List',0)[CR_('Index',0)] , 'cname' , text='')
+                except:
+                    pass
+            box_row = box.row()
+            col = box_row.column()
+            col.template_list('CR_List_Selector' , '' , scene.CR_Var , 'List_Command_000' , scene.CR_Var , 'List_Index_000', rows=4)
+            col = box_row.column()
+            col.operator(CR_OT_Selector.bl_idname , text='' , icon='ADD' ).Mode = 'Add'
+            col.operator(CR_OT_Selector.bl_idname , text='' , icon='REMOVE' ).Mode = 'Remove'
+            col.operator(CR_OT_Selector.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'Up'
+            col.operator(CR_OT_Selector.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'Down'
+            #
+            if len(CR_('List',0)) :
+                box2 = box.box()
+                box_row = box2.row()
+                if scene.CR_Var.ShowMacros:
+                    box_row.prop(scene.CR_Var, 'ShowMacros', icon="TRIA_DOWN", text= "", emboss= False)
+                else:
+                    box_row.prop(scene.CR_Var, 'ShowMacros', icon="TRIA_RIGHT", text= "", emboss= False)
+                box_row.label(text = 'Edit Macro', icon = 'TEXT')
+                if scene.CR_Var.ShowMacros:
+                    box_row = box2.row()
+                    if len(CR_('List',CR_('Index',0)+1)) :
+                        box_row.prop(CR_('List',CR_('Index',0)+1)[CR_('Index',CR_('Index',0)+1)],'cname' , text='')
+                    box_row = box2.row()
+                    col = box_row.column()
+                    col.template_list('CR_List_Command' , '' , scene.CR_Var , 'List_Command_{0:03d}'.format(CR_('Index',0)+1) , scene.CR_Var , 'List_Index_{0:03d}'.format(CR_('Index',0)+1), rows=4)
+                    col = box_row.column()
+                    if not CR_PT_Panel.Bool_Record :
+                        col.operator(CR_OT_Command.bl_idname , text='' , icon='TRIA_UP' ).Mode = 'Up'
+                        col.operator(CR_OT_Command.bl_idname , text='' , icon='TRIA_DOWN' ).Mode = 'Down'
+                row = box.row()
+                if CR_PT_Panel.Bool_Record :
+                    row.operator(CR_OT_Command.bl_idname , text='' , icon='PAUSE' ).Mode = 'Record_Stop'
+                    row.prop(scene.CR_Var, 'IgnoreUndo', toggle = 1, text="Ignore Undo")
+                else :
+                    row2 = row.row(align= True)
+                    row2.operator(CR_OT_Command.bl_idname , text='' , icon='REC' ).Mode = 'Record_Start'
+                    row2.operator(Command_OT_Add.bl_idname , text='' , icon='ADD' )
+                    row2.operator(CR_OT_Command.bl_idname , text='' , icon='REMOVE' ).Mode = 'Remove'
+                    row.prop(scene.CR_Var, 'IgnoreUndo', toggle = 1, text="Ignore Undo")
+                if len(CR_('List',CR_('Index',0)+1)) :
+                    col = box.column(align= True)
+                    col.operator(Command_OT_Play.bl_idname , text='Play' )
+                    col.operator(AddCategory.bl_idname , text='Recorder to Button' ).Mode = 'ToButton'
+                    col.operator(CR_OT_Command.bl_idname , text='Clear').Mode = 'Clear'
 
 currentselected = [None]
 lastselected = [None]
@@ -1205,16 +1200,12 @@ class ExportButton(Operator, ExportHelper):
         return {'RUNNING_MODAL'}
 
 
-class CR_List_PT_VIEW_3D(CR_PT_List):
+class CR_PT_Panel_VIEW_3D(CR_PT_Panel):
     bl_space_type = 'VIEW_3D'# メニューを表示するエリア
-class CR_PT_Instance_VIEW_3D(CR_PT_Instance):
-    bl_space_type = 'VIEW_3D'# メニューを表示するエリア
-    bl_idname = 'command_list_view_3d'
-class CR_List_PT_IMAGE_EDITOR(CR_PT_List):
+    bl_idname = 'command_panel_view_3d'
+class CR_PT_Panel_IMAGE_EDITOR(CR_PT_Panel):
     bl_space_type = 'IMAGE_EDITOR'
-class CR_PT_Instance_IMAGE_EDITOR(CR_PT_Instance):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_idname = 'command_list_image_editor'
+    bl_idname = 'command_panel_image_editor'
 
 Icurrentselected = [None]
 Ilastselected = [None]
@@ -1249,8 +1240,7 @@ class CategorizeFileDisp(PropertyGroup):
     FileDisp_length : IntProperty(default= 0)
 
 class CR_Prop(PropertyGroup):#何かとプロパティを収納
-    Rename : StringProperty(
-    ) #CR_Var.name
+    Rename : StringProperty() #CR_Var.name
 
     Instance_Name = []
     Instance_Command = []
@@ -1261,6 +1251,9 @@ class CR_Prop(PropertyGroup):#何かとプロパティを収納
     FileDisp_Index : IntProperty(default= 0)
 
     IgnoreUndo : BoolProperty(default=True, description="all records and changes are unaffected by undo")
+    PanelType : EnumProperty(items= [("button","Button",""),("record","Record","")], default= "record")
+    ShowMenu : BoolProperty(description= "shows an extra menu with import/export options")
+    ShowMacros : BoolProperty(description= "shows an extra menu with the macros", default= True)
 
     Temp_Command = []
     Temp_Num = 0
@@ -1344,10 +1337,8 @@ Command_OT_Add,
 CR_OT_Command,
 CR_List_Instance,
 CR_OT_Instance,
-CR_List_PT_VIEW_3D,
-CR_PT_Instance_VIEW_3D,
-CR_List_PT_IMAGE_EDITOR,
-CR_PT_Instance_IMAGE_EDITOR,
+CR_PT_Panel_VIEW_3D,
+CR_PT_Panel_IMAGE_EDITOR,
 CategorizeProps,
 AddCategory,
 CR_Enum,
