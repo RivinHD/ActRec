@@ -24,7 +24,7 @@ class CR_UL_Selector(UIList):
 classes.append(CR_UL_Selector)
 class CR_UL_Command(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        layout.label(text= item.cname)
+        layout.label(text= item.macro)
 classes.append(CR_UL_Command)
 class CR_UL_Instance(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -71,6 +71,15 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
     elif Return_Bool == 'Reports_Length':
         return len(bpy.data.texts['Recent Reports'].lines)#操作履歴の要素数
 
+def GetMacro(name):
+    if name.startswith("bpy.ops"):
+        return bpy.data.window_managers['WinMan'].operators[eval(name.split("(")[0] + ".idname()")].name
+    elif name.startswith("bpy.context"):
+        cmd_t = name.split("=")
+        return cmd_t[0].split(".")[-1] + " = " + cmd_t[1]
+    else:
+        return name
+
 def Record(Num, Mode):
     Recent = Get_Recent('Reports_All')
     if Mode == 'Start':
@@ -82,7 +91,9 @@ def Record(Num, Mode):
             TempText = Recent[i-1].body
             if TempText.count('bpy'):
                 Item = CR_('List', Num).add()
-                Item.cname = TempText[TempText.find('bpy'):]
+                name = TempText[TempText.find('bpy'):]
+                Item.macro = GetMacro(name)
+                Item.cname = name
 
 def CreateTempFile():
     tpath = bpy.app.tempdir + "temp.json"
@@ -97,7 +108,7 @@ def TempSave(Num):  # write new command to temp.json file
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
-        data["0"].append(CR_('List', 0)[Num - 1]['cname'])
+        data["0"].append({"name":CR_('List', 0)[Num - 1].cname, "macro":CR_('List', 0)[Num - 1].macro})
         tempfile.seek(0)
         json.dump(data, tempfile)
 
@@ -108,14 +119,15 @@ def TempUpdate(): # update all commands in temp.json file
         tempfile.seek(0)
         data = {}
         for cmd in range(len(CR_('List', 0)) + 1):
-            data.update({str(cmd):[i.cname for i in CR_('List', cmd)]})
+            data.update({str(cmd):[{"name": i.cname, "macro": i.macro} for i in CR_('List', cmd)]})
+            print([{"name": i.cname, "macro": i.macro} for i in CR_('List', cmd)])
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
     tpath = CreateTempFile()
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
-        data[str(Key)] = [i.cname for i in CR_('List', int(Key))]
+        data[str(Key)] = [{"name": i.cname, "macro": i.macro} for i in CR_('List', int(Key))]
         tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
@@ -131,41 +143,19 @@ def TempLoad(dummy): # load commands after undo
         keys = list(data.keys())
         for i in range(1, len(data)):
             Item = command.add()
-            Item.cname = data["0"][i - 1]
+            Item.macro = data["0"][i - 1]["macro"]
+            Item.cname = data["0"][i - 1]["name"]
             record = CR_('List', i)
             record.clear()
             for j in range(len(data[keys[i]])):
                 Item = record.add()
-                Item.cname = data[keys[i]][j]
+                Item.macro = data[keys[i]][j]["macro"]
+                Item.cname = data[keys[i]][j]["name"]
 
 UndoRedoStack = []
 
 def GetCommand(index):
     return eval('bpy.context.scene.CR_Var.List_Command_{0:03d}'.format(index))
-
-@persistent
-def SaveUndoStep(dummy):
-    All = []
-    l = []
-    l.append([i.cname for i in list(GetCommand(0))])
-    for x in range(1, len(l[0]) + 1):
-        l.append([ i.cname for i in list(GetCommand(x))])
-    UndoRedoStack.append(l)
-
-@persistent
-def GetRedoStep(dummy):
-    command = CR_('List', 0)
-    command.clear()
-    l = UndoRedoStack[len(UndoRedoStack) - 1]
-    for i in range(1, len(l[0]) + 1):
-        item = command.add()
-        item.cname = l[0][i - 1]
-        record = CR_('List', i)
-        record.clear()
-        for j in range(len(l[i])):
-            item = record.add()
-            item.cname = l[i][j]
-    UndoRedoStack.pop()
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -174,10 +164,14 @@ def Add(Num):
         if Num:
             if Recent[-2].body.count('bpy'):
                 Name_Temp = Recent[-2].body
-                Item.cname = Name_Temp[Name_Temp.find('bpy'):]
+                name = Name_Temp[Name_Temp.find('bpy'):]
+                Item.macro = GetMacro(name)
+                Item.cname = name
             else:
                 Name_Temp = Recent[-3].body
-                Item.cname = Name_Temp[Name_Temp.find('bpy'):]
+                name = Name_Temp[Name_Temp.find('bpy'):]
+                Item.macro = GetMacro(name)
+                Item.cname = name
         else:
             Item.cname = 'Untitled_{0:03d}'.format(len(CR_('List', Num)))
         CR_( len(CR_('List',Num))-1, Num )
@@ -1230,7 +1224,8 @@ def TempNameUpdate(self, context):
     TempUpdate()
 
 class CR_OT_String(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
-    cname : StringProperty(default='', update= TempNameUpdate) #CR_Var.name
+    cname : StringProperty(update= TempNameUpdate) #CR_Var.name
+    macro : StringProperty()
 classes.append(CR_OT_String)
 
 currentselected = [None]
@@ -1330,8 +1325,6 @@ def Initialize_Props():# プロパティをセットする関数
     bpy.types.Scene.cr_filedisp = CollectionProperty(type= CR_FileDisp)
     bpy.app.handlers.load_factory_preferences_post.append(InitSavedPanel)
     bpy.app.handlers.load_post.append(InitSavedPanel)
-    bpy.app.handlers.undo_pre.append(SaveUndoStep)
-    bpy.app.handlers.redo_post.append(GetRedoStep)
     bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
     bpy.app.handlers.undo_post.append(TempLoadCats)
@@ -1351,8 +1344,6 @@ def Clear_Props():
     del bpy.types.Scene.cr_filecategories
     bpy.app.handlers.load_factory_preferences_post.remove(InitSavedPanel)
     bpy.app.handlers.load_post.remove(InitSavedPanel)
-    bpy.app.handlers.undo_pre.remove(SaveUndoStep)
-    bpy.app.handlers.redo_post.remove(GetRedoStep)
     bpy.app.handlers.undo_post.remove(TempLoad)
     bpy.app.handlers.redo_post.remove(TempLoad)
     bpy.app.handlers.undo_post.remove(TempLoadCats)
