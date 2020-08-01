@@ -12,7 +12,7 @@ from . import DefineCommon as Common
 bl_info = {
 "name" : "CommandRecorder",# プラグイン名
 "author" : "BuuGraphic",# 作者
-"version": (3, 2, 2),# プラグインのバージョン
+"version": (3, 2, 99),# プラグインのバージョン
 "blender": (2, 80, 0),# プラグインが動作するBlenderのバージョン
 "location" : "View 3D",# Blender内部でのプラグインの位置づけ
 "warning" : "",
@@ -41,24 +41,14 @@ class ComRec_UI(bpy.types.Panel):
     def draw(self, context):
         self.layout.label(text="") #文字列表示するだけ
 
-
-
-#==============================================================
-# blenderへ登録
-#==============================================================
-Class_List = [
-]
-#Class_List.insert(0,ComRec_UI)
-Class_List += CommandRecorder.Class_List
-
 def register():
-    for Temp in Class_List:
-        bpy.utils.register_class(Temp)
+    for cl in CommandRecorder.classes:
+        bpy.utils.register_class(cl)
     CommandRecorder.Initialize_Props()
     print("Register")
 
 def unregister():
-    for Temp in Class_List:
-        bpy.utils.unregister_class(Temp)
+    for cl in CommandRecorder.classes:
+        bpy.utils.unregister_class(cl)
     CommandRecorder.Clear_Props()
     print("UnRegister")
