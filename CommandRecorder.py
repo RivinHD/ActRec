@@ -73,7 +73,7 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
 
 def GetMacro(name):
     if name.startswith("bpy.ops"):
-        return bpy.data.window_managers['WinMan'].operators[eval(name.split("(")[0] + ".idname()")].name
+        return eval(name.split("(")[0] + ".get_rna_type().name")
     elif name.startswith("bpy.context"):
         cmd_t = name.split("=")
         return cmd_t[0].split(".")[-1] + " = " + cmd_t[1]
@@ -1103,7 +1103,7 @@ classes.append(CR_OT_Cmd)
 
 class CR_OT_Record_SelectorUp(Operator):
     bl_idname = 'cr.record_selector_up'
-    bl_label = 'Record_OT_Selection_Up'
+    bl_label = 'Command Recorder Selection Up'
 
     def execute(self, context):
         Select_Command('Up')
@@ -1113,7 +1113,7 @@ classes.append(CR_OT_Record_SelectorUp)
 
 class CR_OT_Record_SelectorDown(Operator):
     bl_idname = 'cr.record_selector_down'
-    bl_label = 'Record_OT_Selection_Down'
+    bl_label = 'Command Recorder Selection Down'
 
     def execute(self, context):
         Select_Command('Down')
@@ -1123,7 +1123,7 @@ classes.append(CR_OT_Record_SelectorDown)
 
 class CR_OT_Record_Play(Operator):
     bl_idname = 'cr.record_play'
-    bl_label = 'Command_OT_Play'
+    bl_label = 'Command Recorder Play'
 
     def execute(self, context):
         Play(CR_('List',CR_('Index',0)+1))
@@ -1157,7 +1157,7 @@ classes.append(CR_OT_Record_Stop)
 
 class CR_OT_Command_Add(Operator):
     bl_idname = "cr.command_add"
-    bl_label = "Add Command"
+    bl_label = "Command Recorder Add Command"
     bl_description = "Add a Command to the selected Record"
 
     def execute(self, context):
