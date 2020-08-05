@@ -421,12 +421,8 @@ def InitSavedPanel(dummy = None):
 
     if not os.path.exists(AR_Var.StorageFilePath):
         os.mkdir(AR_Var.StorageFilePath)
-    if len(bpy.context.scene.ar_enum):
-        catlength[0] = len(AR_Var.Categories)
-        RegisterCategories()
-    else: 
-        Load()
-        catlength[0] = len(AR_Var.Categories)
+    Load()
+    catlength[0] = len(AR_Var.Categories)
     TempSaveCats()
 
 def GetPanelIndex(cat): #Get Index of a Category
