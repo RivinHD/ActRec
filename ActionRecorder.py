@@ -1034,9 +1034,12 @@ class AR_OT_Import(Operator, ImportHelper):
                     RegisterUnregister_Category(GetPanelIndex(mycat))
                     for dirs in dirfileslist:
                         for btn_file in dirs:
-                            name = "".join(os.path.splitext(os.path.basename(btn_file))[0].split("~")[1:])
+                            name_icon = os.path.splitext(os.path.basename(btn_file))[0]
+                            name = "".join(name_icon.split("~")[1:-1])
+                            icon = name_icon.split("~")[-1]
                             inst = AR_Var.Instance_Coll.add()
                             inst.name = CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], name)
+                            inst.icon = icon
                             for line in zip_out.read(btn_file).decode("utf-8").splitlines():
                                 cmd = inst.command.add()
                                 cmd.name = line
@@ -1050,7 +1053,7 @@ class AR_OT_Import(Operator, ImportHelper):
                         Index = None
                         mycat = None
                         for cat in ar_categories:
-                            if cat.pn_name == "".join(sorteddirlist[i].split("~")[1:]):
+                            if cat.pn_name == "".join(sorteddirlist[i].split("~")[1:-1]):
                                 Index = GetPanelIndex(cat)
                                 break
                         if Index is None:
@@ -1065,10 +1068,12 @@ class AR_OT_Import(Operator, ImportHelper):
                         
                         for dir_file in dirfileslist[i]:
                             inserti = mycat.Instance_Start + mycat.Instance_length
-                            name = "".join(os.path.splitext(os.path.basename(dir_file))[0].split("~")[1:])
+                            name_icon = os.path.splitext(os.path.basename(btn_file))[0]
+                            name = "".join(name_icon.split("~")[1:-1])
+                            icon = name_icon.split("~")[-1]
                             data = {"name": CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], name),
                                     "command": zip_out.read(dir_file).decode("utf-8").splitlines(),
-                                    "icon": 'BLANK1'}
+                                    "icon": icon}
                             Inst_Coll_Insert(inserti, data, AR_Var.Instance_Coll)
                             new_e = scene.ar_enum.add()
                             e_index = len(scene.ar_enum) - 1
@@ -1099,6 +1104,7 @@ class AR_OT_Export(Operator, ExportHelper):
     filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
     filename_ext = ".zip"
     filepath : StringProperty (name = "File Path", maxlen = 1024, default = "ComandRecorderButtons")
+    allcats : BoolProperty(name= "All", description= "Export every Category")
 
     @classmethod
     def poll(cls, context):
@@ -1117,14 +1123,14 @@ class AR_OT_Export(Operator, ExportHelper):
                 folderpath = os.path.join(temppath, f"{catindex}~" + cat.pn_name)
                 if not os.path.exists(folderpath):
                     os.mkdir(folderpath)
-                if cat.pn_selected:
+                if cat.pn_selected or self.allcats:
                     written = True
                     for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                         path = os.path.join(folderpath, f"{i}~" + AR_Prop.FileDisp_Name[i] + ".py")
                         with open(path, 'w', encoding='utf8') as recfile:
                             for cmd in AR_Prop.FileDisp_Command[i]:
                                 recfile.write(cmd + '\n')
-                        zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_Prop.FileDisp_Name[i] + ".py"))
+                        zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
                         os.remove(path)
                 else:
                     index = 0
@@ -1135,7 +1141,7 @@ class AR_OT_Export(Operator, ExportHelper):
                             with open(path, 'w', encoding='utf8') as recfile:
                                 for cmd in AR_Prop.FileDisp_Command[i]:
                                     recfile.write(cmd + '\n')
-                            zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_Prop.FileDisp_Name[i] + ".py"))
+                            zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
                             os.remove(path)
                             index += 1
                 if written:
@@ -1147,6 +1153,8 @@ class AR_OT_Export(Operator, ExportHelper):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        box = layout.box()
+        box.prop(self, 'allcats', text= "All")
         for cat in scene.ar_filecategories:
                 box = layout.box()
                 col = box.column()
@@ -1159,8 +1167,7 @@ class AR_OT_Export(Operator, ExportHelper):
                 row.prop(cat, 'pn_selected', text= "")
                 if cat.pn_show:
                     col = box.column(align= False)
-                    if cat.pn_selected:
-                        row2 = col.row()
+                    if self.allcats or cat.pn_selected:
                         for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                             col.label(text= AR_Prop.FileDisp_Name[i], icon= 'CHECKBOX_HLT')
                     else:
@@ -1179,8 +1186,10 @@ class AR_OT_Export(Operator, ExportHelper):
             new.FileDisp_length = cat.Instance_length
         AR_Prop.FileDisp_Name.clear()
         AR_Prop.FileDisp_Command.clear()
+        AR_Prop.FileDisp_Icon.clear()
         for inst in AR_Var.Instance_Coll:
             AR_Prop.FileDisp_Name.append(inst.name)
+            AR_Prop.FileDisp_Icon.append(inst.icon)
             AR_Prop.FileDisp_Command.append([cmd.name for cmd in inst.command])
         scene.ar_filedisp.clear()
         for i in range(len(scene.ar_enum)):
@@ -1805,6 +1814,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
 
     FileDisp_Name = []
     FileDisp_Command = []
+    FileDisp_Icon = []
     FileDisp_Index : IntProperty(default= 0)
 
     HideMenu : BoolProperty(name= "Hide Menu", description= "Hide Menu")
