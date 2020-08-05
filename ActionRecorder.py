@@ -644,34 +644,20 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             scene = bpy.context.scene
             layout = self.layout
             if not AR_Var.HideMenu:
-                box = layout.box()
-                col = box.column(align= True)
-                if not AR_Var.Autosave:
-                    col.operator(AR_OT_Save.bl_idname , text='Save to File' )
-                    col.operator(AR_OT_Load.bl_idname , text='Load from File' )
-                col = box.column(align= True)
-                col.operator(AR_OT_Import.bl_idname, text= 'Import')
-                col.operator(AR_OT_Export.bl_idname, text= 'Export')
+                col = layout.column()
                 row = col.row()
                 row.scale_y = 2
                 row.operator(AR_OT_ButtonToRecord.bl_idname, text='Global to Local' )
                 row = col.row(align= True)
                 row.prop(AR_Var, 'BtnToRec_Mode', expand= True)
-                row = box.row().split(factor= 0.4)
-                row.label(text= 'Category')
-                row2 = row.row(align= True)
-                row2.scale_x = 1.1737
-                row2.operator(AR_OT_Category_Add.bl_idname, text= '', icon= 'ADD')
-                row2.operator(AR_OT_Category_Rename.bl_idname, text= '', icon= 'GREASEPENCIL')
-                row2.operator(AR_OT_Category_Delet.bl_idname, text= '', icon= 'TRASH')
-                row = box.row().split(factor= 0.4)
+                row = layout.row().split(factor= 0.4)
                 row.label(text= 'Buttons')
                 row2 = row.row(align= True)
                 row2.operator(AR_OT_Button_MoveUp.bl_idname , text='' , icon='TRIA_UP' )
                 row2.operator(AR_OT_Button_MoveDown.bl_idname , text='' , icon='TRIA_DOWN' )
                 row2.operator(AR_OT_Category_MoveButton.bl_idname, text= '', icon= 'PRESET')
                 row2.operator(AR_OT_Button_Remove.bl_idname, text='' , icon='TRASH' )
-                row = box.row()
+                row = layout.row()
                 row2 = row.split(factor= 0.7)
                 col = row2.column()
                 col.enabled = len(AR_Var.Instance_Coll) > 0
@@ -679,6 +665,32 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
                 row2.operator(AR_OT_Button_Rename.bl_idname , text='Rename')
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
     classes.append(AR_PT_Global)
+
+    class AR_PT_Advanced(Panel):
+        bl_space_type = spaceType
+        bl_region_type = 'UI'
+        bl_category = 'Action Recorder'
+        bl_label = 'Advanced'
+        bl_idname = "AR_PT_Advanced_%s" % spaceType
+        bl_parent_id = AR_PT_Global.bl_idname
+        bl_options = {'DEFAULT_CLOSED'}
+
+        def draw(self, context):
+            AR_Var = context.preferences.addons[__package__].preferences
+            layout = self.layout
+            col = layout.column()
+            col.label(text= "Category", icon= 'GROUP')
+            col.operator(AR_OT_Category_Add.bl_idname, text= 'Add')
+            col.operator(AR_OT_Category_Rename.bl_idname, text= 'Rename')
+            col.operator(AR_OT_Category_Delet.bl_idname, text= 'Remove')
+            col.label(text= "Data management", icon= 'FILE_FOLDER')
+            if not AR_Var.Autosave:
+                col.operator(AR_OT_Save.bl_idname , text='Save to File' )
+                col.operator(AR_OT_Load.bl_idname , text='Load from File' )
+            col.operator(AR_OT_Import.bl_idname, text= 'Import')
+            col.operator(AR_OT_Export.bl_idname, text= 'Export')
+    AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
+    classes.append(AR_PT_Advanced)
 
 def RegisterCategories(): #Register all Categories
     for i in range(catlength[0]):

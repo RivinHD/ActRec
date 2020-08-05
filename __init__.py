@@ -4,7 +4,7 @@ from . import ActionRecorder as ActionRecorder
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "BuuGraphic, Rivin",
-    "version": (0, 99, 1),
+    "version": (0, 99, 2),
     "blender": (2, 83, 0),
     "location" : "View 3D",
     "warning" : "",
