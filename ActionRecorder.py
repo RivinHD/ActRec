@@ -15,7 +15,6 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 classes = []
 categoriesclasses = []
-register = [False]
 catlength = [0]
 
 
@@ -269,13 +268,13 @@ def Clear(Num) : # Clear all Macros
 
 def Save(): #Save Buttons to Storage
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    for savedfolder in os.listdir(path):
-        folderpath = os.path.join(path, savedfolder)
+    for savedfolder in os.listdir(AR_Var.StorageFilePath):
+        folderpath = os.path.join(AR_Var.StorageFilePath, savedfolder)
         for savedfile in os.listdir(folderpath):
             os.remove(os.path.join(folderpath, savedfile))
         os.rmdir(folderpath)
     for cat in AR_Var.Categories:
-        panelpath = os.path.join(path, f"{GetPanelIndex(cat)}~" + cat.pn_name)
+        panelpath = os.path.join(AR_Var.StorageFilePath, f"{GetPanelIndex(cat)}~" + cat.pn_name)
         os.mkdir(panelpath)
         start = cat.Instance_Start
         for cmd_i in range(start, start + cat.Instance_length):
@@ -292,8 +291,8 @@ def Load():#Load Buttons from Storage
     AR_Var.Categories.clear()
     scene.ar_enum.clear()
     AR_Var.Instance_Coll.clear()
-    for folder in os.listdir(path):
-        folderpath = os.path.join(path, folder)
+    for folder in os.listdir(AR_Var.StorageFilePath):
+        folderpath = os.path.join(AR_Var.StorageFilePath, folder)
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
             new = AR_Var.Categories.add()
@@ -303,8 +302,7 @@ def Load():#Load Buttons from Storage
             new.Instance_Start = len(AR_Var.Instance_Coll)
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
-            if register[0]:
-                RegisterUnregister_Category(GetPanelIndex(new))
+            RegisterUnregister_Category(GetPanelIndex(new))
             for i in textfiles:
                 new_e = scene.ar_enum.add()
                 e_index = len(scene.ar_enum) - 1
@@ -412,12 +410,18 @@ path = os.path.join(os.path.dirname(__file__), "Storage")
 
 #Initalize Standert Button List
 @persistent
-def InitSavedPanel(scene):
+def InitSavedPanel(dummy = None):
+    try:
+        bpy.app.timers.unregister(InitSavedPanel)
+        bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
+    except:
+        print("Already Loaded")
+        return
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
-    if not os.path.exists(path):
-        os.mkdir(path)
-    if len(scene.ar_enum):
+
+    if not os.path.exists(AR_Var.StorageFilePath):
+        os.mkdir(AR_Var.StorageFilePath)
+    if len(bpy.context.scene.ar_enum):
         catlength[0] = len(AR_Var.Categories)
         RegisterCategories()
     else: 
@@ -1087,7 +1091,7 @@ class AR_OT_Import(Operator, ImportHelper):
             if AR_Var.Autosave:
                 Save()
         else:
-            self.report({'ERROR'}, "{ " + path + " } Select a .zip file")
+            self.report({'ERROR'}, "{ " + self.filepath + " } Select a .zip file")
         return {"FINISHED"}
     
     def draw(self, context):
@@ -1126,23 +1130,23 @@ class AR_OT_Export(Operator, ExportHelper):
                 if cat.pn_selected or self.allcats:
                     written = True
                     for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                        path = os.path.join(folderpath, f"{i}~" + AR_Prop.FileDisp_Name[i] + ".py")
-                        with open(path, 'w', encoding='utf8') as recfile:
+                        zip_path = os.path.join(folderpath, f"{i}~" + AR_Prop.FileDisp_Name[i] + ".py")
+                        with open(zip_path, 'w', encoding='utf8') as recfile:
                             for cmd in AR_Prop.FileDisp_Command[i]:
                                 recfile.write(cmd + '\n')
-                        zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
-                        os.remove(path)
+                        zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
+                        os.remove(zip_path)
                 else:
                     index = 0
                     for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                         if scene.ar_filedisp[i].Index:
                             written = True
-                            path = os.path.join(folderpath, f"{index}~" + AR_Prop.FileDisp_Name[i] + ".py")
-                            with open(path, 'w', encoding='utf8') as recfile:
+                            zip_path = os.path.join(folderpath, f"{index}~" + AR_Prop.FileDisp_Name[i] + ".py")
+                            with open(zip_path, 'w', encoding='utf8') as recfile:
                                 for cmd in AR_Prop.FileDisp_Command[i]:
                                     recfile.write(cmd + '\n')
-                            zip_it.write(path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
-                            os.remove(path)
+                            zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_Prop.FileDisp_Name[i] + f"~{AR_Prop.FileDisp_Icon[i]}" + ".py"))
+                            os.remove(zip_path)
                             index += 1
                 if written:
                     catindex += 1
@@ -1452,7 +1456,7 @@ classes.append(AR_OT_Category_Icon)
 
 class AR_OT_Record_SelectorUp(Operator):
     bl_idname = 'ar.record_selector_up'
-    bl_label = 'Action Recorder Selection Up'
+    bl_label = 'ActRec Selection Up'
 
     def execute(self, context):
         Select_Command('Up')
@@ -1462,7 +1466,7 @@ classes.append(AR_OT_Record_SelectorUp)
 
 class AR_OT_Record_SelectorDown(Operator):
     bl_idname = 'ar.record_selector_down'
-    bl_label = 'Action Recorder Selection Down'
+    bl_label = 'ActRec Selection Down'
 
     def execute(self, context):
         Select_Command('Down')
@@ -1472,7 +1476,7 @@ classes.append(AR_OT_Record_SelectorDown)
 
 class AR_OT_Record_Play(Operator):
     bl_idname = 'ar.record_play'
-    bl_label = 'Action Recorder Play'
+    bl_label = 'ActRec Play'
     bl_options = {'REGISTER','UNDO'}
 
     @classmethod
@@ -1527,7 +1531,7 @@ classes.append(AR_OT_Record_Stop)
 
 class AR_OT_Command_Add(Operator):
     bl_idname = "ar.command_add"
-    bl_label = "Action Recorder Add Command"
+    bl_label = "ActRec Add Command"
     bl_description = "Add a Command to the selected Record"
 
     @classmethod
@@ -1722,6 +1726,40 @@ class AR_OT_Record_Edit(bpy.types.Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Record_Edit)
 
+class AR_OT_Preferences_DirectorySelector(Operator, ExportHelper):
+    bl_idname = "ar.preferences_directoryselector"
+    bl_label = "Select Directory"
+    bl_description = " "
+    bl_options = {'REGISTER','INTERNAL'}
+
+    filename_ext = "."
+    use_filter_folder = True
+    filepath : StringProperty (name = "File Path", maxlen = 0, default = "")
+
+    def execute(self, context):
+        userpath = self.properties.filepath
+        if(not os.path.isdir(userpath)):
+            msg = "Please select a directory not a file\n" + userpath
+            self.report({'ERROR'}, msg)
+            return{'CANCELLED'}
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.StorageFilePath = os.path.join(userpath, "Storage")
+        return{'FINISHED'}
+classes.append(AR_OT_Preferences_DirectorySelector)
+
+class AR_OT_Preferences_RecoverDirectory(Operator):
+    bl_idname = "ar.preferences_recoverdirectory"
+    bl_label = "Recover Standart Directory"
+    bl_description = "Recover the standart Storage directory"
+    bl_options = {'REGISTER','INTERNAL'}
+
+    def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.StorageFilePath = os.path.join(os.path.dirname(__file__), "Storage")
+        return{'FINISHED'}
+classes.append(AR_OT_Preferences_RecoverDirectory)
+
+
 # PropertyGroups =======================================================================
 class AR_OT_String(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
     cname : StringProperty() #AR_Var.name
@@ -1827,6 +1865,8 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
         exec('List_Index_{0:03d} : IntProperty(default = 0)'.format(Num_Loop))
         exec('List_Command_{0:03d} : CollectionProperty(type = AR_OT_String)'.format(Num_Loop))
 
+    StorageFilePath : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(__file__), "Storage"))
+
     # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
     addon_keymaps = []
     key_assign_list = \
@@ -1836,6 +1876,14 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     (AR_OT_Record_SelectorUp.bl_idname, 'WHEELUPMOUSE','PRESS', False, False, True),
     (AR_OT_Record_SelectorDown.bl_idname, 'WHEELDOWNMOUSE','PRESS', False, False, True)
     ]
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.operator(AR_OT_Preferences_DirectorySelector.bl_idname, text= "Choose Directory", icon= 'FILEBROWSER')
+        row.operator(AR_OT_Preferences_RecoverDirectory.bl_idname, text= "Recover Standeart Directory", icon= 'FOLDER_REDIRECT')
+        box = layout.box()
+        box.label(text= self.StorageFilePath)
 classes.append(AR_Prop)
 
 # Registration ================================================================================================
@@ -1852,12 +1900,12 @@ def Initialize_Props():# プロパティをセットする関数
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
     bpy.app.handlers.undo_post.append(TempLoadCats)
     bpy.app.handlers.redo_post.append(TempLoadCats)
-    register[0] = True
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')#Nullとして登録
         AR_Prop.addon_keymaps.append(km)
         for (idname, key, event, ctrl, alt, shift) in AR_Prop.key_assign_list:
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)# ショートカットキーの登録
+    bpy.app.timers.register(InitSavedPanel, first_interval = 2.5)
 
 def Clear_Props():
     del bpy.types.Scene.ar_enum
@@ -1868,7 +1916,6 @@ def Clear_Props():
     bpy.app.handlers.undo_post.remove(TempLoadCats)
     bpy.app.handlers.redo_post.remove(TempLoadCats)
     bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
-    register[0] = False
     for km in AR_Prop.addon_keymaps:
         bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
     AR_Prop.addon_keymaps.clear()
