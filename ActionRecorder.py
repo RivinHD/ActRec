@@ -42,22 +42,15 @@ class AR_UL_Command(UIList):
 classes.append(AR_UL_Command)
 
 # Functions =====================================================================================
-def enableIconViewer():
-    addon = 'development_icon_get'
-    is_enabled, is_loaded = check(addon)
-    if not is_enabled:
-        enable(addon)
 
 def AR_(Data , Num):
-    scene = bpy.context.scene
-    
-    AR_Var = context.preferences.addons[__name__].preferences
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     if Data == 'List' :
-        return eval('scene.AR_Var.List_Command_{0:03d}'.format(Num))
+        return eval('AR_Var.List_Command_{0:03d}'.format(Num))
     elif Data == 'Index' :
-        return eval('scene.AR_Var.List_Index_{0:03d}'.format(Num))
+        return eval('AR_Var.List_Index_{0:03d}'.format(Num))
     else :
-        exec('scene.AR_Var.List_Index_{0:03d} = {1}'.format(Num,Data))
+        exec('AR_Var.List_Index_{0:03d} = {1}'.format(Num,Data))
 
 def Get_Recent(Return_Bool):#操作履歴にアクセス
     #remove other Recent Reports
@@ -172,7 +165,8 @@ def TempLoad(dummy): # load commands after undo
                 Item.cname = data[keys[i]][j]["name"]
 
 def GetCommand(index):
-    return eval('bpy.context.scene.AR_Var.List_Command_{0:03d}'.format(index))
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    return eval('AR_Var.List_Command_{0:03d}'.format(index))
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -253,16 +247,17 @@ def Move(Num , Mode) :
 def Select_Command(Mode):
     currentIndex = AR_('Index',0)
     listlen = len(AR_('List',0)) - 1
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     if Mode == 'Up':
         if currentIndex == 0:
-            bpy.context.scene.AR_Var.List_Index_000 = listlen
+            AR_Var.List_Index_000 = listlen
         else:
-            bpy.context.scene.AR_Var.List_Index_000 = currentIndex - 1
+            AR_Var.List_Index_000 = currentIndex - 1
     else:
         if currentIndex == listlen:
-            bpy.context.scene.AR_Var.List_Index_000 = 0
+            AR_Var.List_Index_000 = 0
         else:
-            bpy.context.scene.AR_Var.List_Index_000 = currentIndex + 1
+            AR_Var.List_Index_000 = currentIndex + 1
 
 def Play(Commands):
     for Command in Commands:
@@ -277,13 +272,13 @@ def Clear(Num) :
     AR_('List',Num).clear()
 
 def Save():
-    AR_Var = bpy.context.scene.AR_Var
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     for savedfolder in os.listdir(path):
         folderpath = os.path.join(path, savedfolder)
         for savedfile in os.listdir(folderpath):
             os.remove(os.path.join(folderpath, savedfile))
         os.rmdir(folderpath)
-    for cat in bpy.context.scene.ar_categories:
+    for cat in AR_Var.Categories:
         panelpath = os.path.join(path, f"{GetPanelIndex(cat)}~" + cat.pn_name)
         os.mkdir(panelpath)
         start = cat.Instance_Start
@@ -294,22 +289,22 @@ def Save():
 
 def Load():
     print('------------------Load-----------------')
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    if register[0]:
-        for cat in scene.ar_categories:
-            RegisterUnregister_Category(GetPanelIndex(cat), False)
-    scene.ar_categories.clear()
+    for cat in AR_Var.Categories:
+        RegisterUnregister_Category(GetPanelIndex(cat), False)
+    AR_Var.Categories.clear()
     scene.ar_enum.clear()
-    scene.AR_Var.Instance_Coll.clear()
+    AR_Var.Instance_Coll.clear()
     for folder in os.listdir(path):
         folderpath = os.path.join(path, folder)
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
-            new = scene.ar_categories.add()
+            new = AR_Var.Categories.add()
             name = "".join(folder.split('~')[1:])
             new.name = name
             new.pn_name = name
-            new.Instance_Start = len(scene.AR_Var.Instance_Coll)
+            new.Instance_Start = len(AR_Var.Instance_Coll)
             new.Instance_length = len(textfiles)
             sortedtxt = [None] * len(textfiles)
             if register[0]:
@@ -323,7 +318,7 @@ def Load():
                 sortedtxt[int(txt.split('~')[0])] = txt #remove the .txtending, join to string again, get the index ''.join(txt.split('.')[:-1])
             for i in range(len(sortedtxt)):
                 txt = sortedtxt[i]
-                inst = scene.AR_Var.Instance_Coll.add()
+                inst = AR_Var.Instance_Coll.add()
                 inst.name = "".join(txt.split('~')[1:-1])
                 inst.icon = os.path.splitext(txt)[0].split('~')[-1]
                 CmdList = []
@@ -334,51 +329,54 @@ def Load():
     SetEnumIndex()
     
 def Recorder_to_Instance(panel):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     i = panel.Instance_Start +  panel.Instance_length
-    data = {"name":CheckForDublicates([ele.name for ele in scene.AR_Var.Instance_Coll], AR_('List',0)[AR_('Index',0)].cname),
+    data = {"name":CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], AR_('List',0)[AR_('Index',0)].cname),
             "command": [Command.cname for Command in AR_('List',AR_('Index',0)+1)],
             "icon": 'BLANK1'}
-    Inst_Coll_Insert(i, data ,scene.AR_Var.Instance_Coll)
+    Inst_Coll_Insert(i, data , AR_Var.Instance_Coll)
     panel.Instance_length += 1
     new_e = scene.ar_enum.add()
     e_index = len(scene.ar_enum) - 1
     new_e.name = str(e_index)
     new_e.Index = e_index
     p_i = GetPanelIndex(panel)
-    categories = scene.ar_categories
+    categories = AR_Var.Categories
     if p_i < len(categories):
         for cat in categories[ p_i + 1: ]:
             cat.Instance_Start += 1
 
 def Instance_to_Recorder():
-    scene = bpy.context.scene
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     Item = AR_('List' , 0 ).add()
-    Item.cname = scene.AR_Var.Instance_Coll[scene.AR_Var.Instance_Index].name
-    for Command in scene.AR_Var.Instance_Coll[scene.AR_Var.Instance_Index].command:
+    Item.cname = AR_Var.Instance_Coll[AR_Var.Instance_Index].name
+    for Command in AR_Var.Instance_Coll[AR_Var.Instance_Index].command:
         Item = AR_('List' , len(AR_('List',0)) ).add()
         Item.macro = GetMacro(Command.name)
         Item.cname = Command.name
     AR_( len(AR_('List',0))-1 , 0 )
 
 def Execute_Instance(Num):
-    for cmd in scene.AR_Var.Instance_Coll[Num].command:
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    for cmd in AR_Var.Instance_Coll[Num].command:
         try:
             exec(cmd.name)
         except:
             return True # Alert
 
 def Rename_Instance():
-    scene = bpy.context.scene
-    scene.AR_Var.Instance_Coll[scene.AR_Var.Instance_Index].name = scene.AR_Var.Rename
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    AR_Var.Instance_Coll[AR_Var.Instance_Index].name = AR_Var.Rename
 
 def I_Remove():
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    if len(scene.AR_Var.Instance_Coll) :
-        Index = scene.AR_Var.Instance_Index
-        scene.AR_Var.Instance_Coll.remove(Index)
+    if len(AR_Var.Instance_Coll) :
+        Index = AR_Var.Instance_Index
+        AR_Var.Instance_Coll.remove(Index)
         scene.ar_enum.remove(len(scene.ar_enum) - 1)
-        categories = scene.ar_categories
+        categories = AR_Var.Categories
         for cat in categories:
             if Index >= cat.Instance_Start and Index < cat.Instance_Start + cat.Instance_length:
                 cat.Instance_length -= 1
@@ -387,30 +385,31 @@ def I_Remove():
                     for cat in categories[ p_i + 1: ]:
                         cat.Instance_Start -= 1
                 break
-        if len(scene.AR_Var.Instance_Coll) and len(scene.AR_Var.Instance_Coll)-1 < Index :
-            scene.AR_Var.Instance_Index = len(scene.AR_Var.Instance_Coll)-1
+        if len(AR_Var.Instance_Coll) and len(AR_Var.Instance_Coll)-1 < Index :
+            AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
     SetEnumIndex()
 
 def I_Move(Mode):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    index1 = scene.AR_Var.Instance_Index
+    index1 = AR_Var.Instance_Index
     if Mode == 'Up' :
-        index2 = scene.AR_Var.Instance_Index - 1
+        index2 = AR_Var.Instance_Index - 1
     else :
-        index2 = scene.AR_Var.Instance_Index + 1
-    LengthTemp = len(scene.AR_Var.Instance_Coll)
+        index2 = AR_Var.Instance_Index + 1
+    LengthTemp = len(AR_Var.Instance_Coll)
     if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
-        scene.AR_Var.Instance_Coll[index1].name , scene.AR_Var.Instance_Coll[index2].name = scene.AR_Var.Instance_Coll[index2].name , scene.AR_Var.Instance_Coll[index1].name
-        scene.AR_Var.Instance_Coll[index1].icon , scene.AR_Var.Instance_Coll[index2].icon = scene.AR_Var.Instance_Coll[index2].icon , scene.AR_Var.Instance_Coll[index1].icon
-        index1cmd = [cmd.name for cmd in scene.AR_Var.Instance_Coll[index1].command]
-        index2cmd = [cmd.name for cmd in scene.AR_Var.Instance_Coll[index2].command]
-        scene.AR_Var.Instance_Coll[index1].command.clear()
-        scene.AR_Var.Instance_Coll[index2].command.clear()
+        AR_Var.Instance_Coll[index1].name , AR_Var.Instance_Coll[index2].name = AR_Var.Instance_Coll[index2].name , AR_Var.Instance_Coll[index1].name
+        AR_Var.Instance_Coll[index1].icon , AR_Var.Instance_Coll[index2].icon = AR_Var.Instance_Coll[index2].icon , AR_Var.Instance_Coll[index1].icon
+        index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].command]
+        index2cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index2].command]
+        AR_Var.Instance_Coll[index1].command.clear()
+        AR_Var.Instance_Coll[index2].command.clear()
         for cmd in index1cmd:
-            new = scene.AR_Var.Instance_Coll[index1].command.add()
+            new = AR_Var.Instance_Coll[index1].command.add()
             new.name = cmd
         for cmd in index2cmd:
-            new = scene.AR_Var.Instance_Coll[index2].command.add()
+            new = AR_Var.Instance_Coll[index2].command.add()
             new.name = cmd
         scene.ar_enum[index2].Value = True
 
@@ -418,28 +417,32 @@ path = os.path.join(os.path.dirname(__file__), "Storage")
 #Initalize Standert Button List
 @persistent
 def InitSavedPanel(scene):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     if not os.path.exists(path):
         os.mkdir(path)
-    AR_Var = scene.AR_Var
-    if AR_Var.Loaded:
-        CollectionToList(scene)
+    if len(scene.ar_enum):
+        catlength[0] = len(AR_Var.Categories)
+        RegisterCategories()
     else: 
         Load()
-        catlength[0] = len(scene.ar_categories)
+        catlength[0] = len(AR_Var.Categories)
         AR_Var.Loaded = True
     TempSaveCats()
-    enableIconViewer()
 
 def GetPanelIndex(cat):
-    return int(cat.path_from_id().split("[")[1].split("]")[0])
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    for i in range(len(AR_Var.Categories)):
+        if AR_Var.Categories[i] == cat:
+            return i
 
 def SetEnumIndex():
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     if len(scene.ar_enum):
-        enumIndex = scene.AR_Var.Instance_Index * (scene.AR_Var.Instance_Index < len(scene.ar_enum))
+        enumIndex = AR_Var.Instance_Index * (AR_Var.Instance_Index < len(scene.ar_enum))
         scene.ar_enum[enumIndex].Value = True
-        scene.AR_Var.Instance_Index = enumIndex  
+        AR_Var.Instance_Index = enumIndex  
 
 def CreateTempCats():
     tcatpath = bpy.app.tempdir + "tempcats.json"
@@ -449,13 +452,14 @@ def CreateTempCats():
     return tcatpath
 
 def TempSaveCats():
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     tcatpath = CreateTempCats()
     with open(tcatpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
         cats = []
-        for cat in scene.ar_categories:
+        for cat in AR_Var.Categories:
             cats.append({
                 "name": cat.name,
                 "pn_name": cat.pn_name,
@@ -464,14 +468,14 @@ def TempSaveCats():
                 "Instance_length": cat.Instance_length
             })
         insts = []
-        for inst in scene.AR_Var.Instance_Coll:
+        for inst in AR_Var.Instance_Coll:
             insts.append({
                 "name": inst.name,
                 "icon": inst.icon,
                 "command": [cmd.name for cmd in inst.command]
             })
         data = {
-            "Instance_Index": scene.AR_Var.Instance_Index,
+            "Instance_Index": AR_Var.Instance_Index,
             "Categories": cats,
             "Instance_Coll": insts
         }
@@ -479,34 +483,35 @@ def TempSaveCats():
 
 @persistent
 def TempLoadCats(dummy):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
     scene.ar_enum.clear()
     reg = bpy.ops.screen.redo_last.poll()
     if reg:
-        for cat in scene.ar_categories:
+        for cat in AR_Var.Categories:
             RegisterUnregister_Category(GetPanelIndex(cat), False)
-    scene.ar_categories.clear()
-    scene.AR_Var.Instance_Coll.clear()
+    AR_Var.Categories.clear()
+    AR_Var.Instance_Coll.clear()
     with open(tcatpath, 'r', encoding='utf8') as tempfile:
         data = json.load(tempfile)
         inst_coll = data["Instance_Coll"]
         for i in range(len(inst_coll)):
-            inst = scene.AR_Var.Instance_Coll.add()
+            inst = AR_Var.Instance_Coll.add()
             inst.name = inst_coll[i]["name"]
             inst.icon = inst_coll[i]["icon"]
             for y in range(len(inst_coll[i]["command"])):
                 cmd = inst.command.add()
                 cmd.name = inst_coll[i]["command"][y]
         index = data["Instance_Index"]
-        scene.AR_Var.Instance_Index = index
-        for i in range(len(scene.AR_Var.Instance_Coll)):
+        AR_Var.Instance_Index = index
+        for i in range(len(AR_Var.Instance_Coll)):
             new_e = scene.ar_enum.add()
             new_e.name = str(i)
             new_e.Index = i
         scene.ar_enum[index].Value = True
         for cat in data["Categories"]:
-            new = scene.ar_categories.add()
+            new = AR_Var.Categories.add()
             new.name = cat["name"]
             new.pn_name = cat["pn_name"]
             new.pn_show = cat["pn_show"]
@@ -521,7 +526,8 @@ def CheckForDublicates(l, name, num = 1):
     return name
 
 def AlertTimerPlay():
-    btnlist = bpy.context.scene.AR_Var.List_Command_000
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    btnlist = AR_Var.List_Command_000
     for i in range(len(btnlist)):
         if btnlist[i].alert:
             btnlist[i].alert = False
@@ -551,19 +557,6 @@ def Inst_Coll_Insert(index, data, collection):
 
 # Panels ===================================================================================
 def panelFactory(spaceType):
-    '''
-    class AR_PT_ActionRecorder(bpy.types.Panel):
-        bl_space_type = spaceType
-        bl_region_type = 'UI'
-        bl_category = 'Action Recorder'
-        bl_label = 'Action Recorder'
-        bl_idname = "AR_PT_ActionRecorder_%s" % spaceType
-    
-        def draw(self, context):
-            scene = bpy.context.scene
-            layout = self.layout
-    AR_PT_ActionRecorder.__name__ = "AR_PT_ActionRecorder_%s" % spaceType
-    classes.append(AR_PT_ActionRecorder)'''
 
     class AR_PT_Local(Panel):
         bl_space_type = spaceType
@@ -576,12 +569,13 @@ def panelFactory(spaceType):
             self.layout.label(text = '', icon = 'REC')'''
         #メニューの描画処理
         def draw(self, context):
+            AR_Var = context.preferences.addons[__package__].preferences
             scene = bpy.context.scene
             layout = self.layout
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
-            col.template_list('AR_UL_Selector' , '' , scene.AR_Var , 'List_Command_000' , scene.AR_Var , 'List_Index_000', rows=4, sort_lock= True)
+            col.template_list('AR_UL_Selector' , '' , AR_Var , 'List_Command_000' , AR_Var , 'List_Index_000', rows=4, sort_lock= True)
             col = box_row.column()
             col.operator(AR_OT_Record_Add.bl_idname , text='' , icon='ADD' )
             col.operator(AR_OT_Record_Remove.bl_idname , text='' , icon='REMOVE' )
@@ -598,12 +592,13 @@ def panelFactory(spaceType):
         bl_idname = "AR_PT_MacroEditer_%s" % spaceType
 
         def draw(self, context):
+            AR_Var = context.preferences.addons[__package__].preferences
             scene = context.scene
             layout = self.layout
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
-            col.template_list('AR_UL_Command' , '' , scene.AR_Var , 'List_Command_{0:03d}'.format(AR_('Index',0)+1) , scene.AR_Var , 'List_Index_{0:03d}'.format(AR_('Index',0)+1), rows=4)
+            col.template_list('AR_UL_Command' , '' , AR_Var , 'List_Command_{0:03d}'.format(AR_('Index',0)+1) , AR_Var , 'List_Index_{0:03d}'.format(AR_('Index',0)+1), rows=4)
             col = box_row.column()
             if not AR_Prop.Record :
                 col2 = col.column(align= True)
@@ -627,7 +622,7 @@ def panelFactory(spaceType):
                 row.operator(AR_OT_Record_Play.bl_idname , text='Play' )
                 col.operator(AR_OT_RecordToButton.bl_idname , text='Local to Global' )
                 row = col.row(align= True)
-                row.prop(scene.AR_Var, 'RecToBtn_Mode', expand= True)
+                row.prop(AR_Var, 'RecToBtn_Mode', expand= True)
     AR_PT_MacroEditer.__name__ = "AR_PT_MacroEditer_%s" % spaceType
     classes.append(AR_PT_MacroEditer)
     
@@ -638,20 +633,22 @@ def panelFactory(spaceType):
         bl_label = 'Global'
         bl_idname = "AR_PT_Global_%s" % spaceType
 
+        def draw_header(self, context):
+            AR_Var = context.preferences.addons[__package__].preferences
+            layout = self.layout
+            row = layout.row(align= True)
+            row.prop(AR_Var, 'HideMenu', icon= 'COLLAPSEMENU', text= "", emboss= True)
+            row.operator(AR_OT_Global_Settings.bl_idname, text= "", icon= 'PREFERENCES', emboss= True)
+
         def draw(self, context):
+            AR_Var = context.preferences.addons[__package__].preferences
             scene = bpy.context.scene
             layout = self.layout
-            box = layout.box()
-            col = box.column(align= True)
-            row = col.row(align= True)
-            if not scene.AR_Var.Autosave:
-                row.operator(AR_OT_Save.bl_idname , text='Save to File' )
-            else:
-                row.scale_x = 5
-            row.prop(scene.AR_Var, 'HideMenu', icon= 'COLLAPSEMENU', text= "")
-            row.operator(AR_OT_Global_Settings.bl_idname, text= "", icon= 'PREFERENCES')
-            if not scene.AR_Var.HideMenu:
-                if not scene.AR_Var.Autosave:
+            if not AR_Var.HideMenu:
+                box = layout.box()
+                col = box.column(align= True)
+                if not AR_Var.Autosave:
+                    col.operator(AR_OT_Save.bl_idname , text='Save to File' )
                     col.operator(AR_OT_Load.bl_idname , text='Load from File' )
                 col = box.column(align= True)
                 col.operator(AR_OT_Import.bl_idname, text= 'Import')
@@ -660,7 +657,7 @@ def panelFactory(spaceType):
                 row.scale_y = 2
                 row.operator(AR_OT_ButtonToRecord.bl_idname, text='Global to Local' )
                 row = col.row(align= True)
-                row.prop(scene.AR_Var, 'BtnToRec_Mode', expand= True)
+                row.prop(AR_Var, 'BtnToRec_Mode', expand= True)
                 row = box.row().split(factor= 0.4)
                 row.label(text= 'Category')
                 row2 = row.row(align= True)
@@ -678,8 +675,8 @@ def panelFactory(spaceType):
                 row = box.row()
                 row2 = row.split(factor= 0.7)
                 col = row2.column()
-                col.enabled = len(scene.AR_Var.Instance_Coll) > 0
-                col.prop(scene.AR_Var , 'Rename' , text='')
+                col.enabled = len(AR_Var.Instance_Coll) > 0
+                col.prop(AR_Var , 'Rename' , text='')
                 row2.operator(AR_OT_Button_Rename.bl_idname , text='Rename')
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
     classes.append(AR_PT_Global)
@@ -700,8 +697,9 @@ def RegisterUnregister_Category(index, register = True):
             bl_order = index + 1
 
             def draw_header(self, context):
+                AR_Var = context.preferences.addons[__package__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                category = context.scene.ar_categories[index]
+                category = AR_Var.Categories[index]
                 layout = self.layout
                 row = layout.row()
                 row.alignment = 'LEFT'
@@ -711,25 +709,29 @@ def RegisterUnregister_Category(index, register = True):
                 row2.operator(AR_OT_Category_MoveDown.bl_idname, icon="TRIA_DOWN", text="").Index = index
 
             def draw(self, context):
+                AR_Var = context.preferences.addons[__package__].preferences
                 scene = context.scene
                 index = int(self.bl_idname.split("_")[3])
-                category = scene.ar_categories[index]
+                category = AR_Var.Categories[index]
                 layout = self.layout
                 col = layout.column()
                 for i in range(category.Instance_Start, category.Instance_Start + category.Instance_length):
                     row = col.row(align=True)
                     row.alert = alert_index[0] == i
                     row.prop(scene.ar_enum[i], 'Value' ,toggle = 1, icon= 'DECORATE_KEYFRAME' if scene.ar_enum[i].Value else 'DECORATE_ANIMATE', text= "")
-                    row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon= scene.AR_Var.Instance_Coll[i].icon).index = i
-                    row.operator(AR_OT_Category_Cmd.bl_idname , text=scene.AR_Var.Instance_Coll[i].name).Index = i
+                    row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon= AR_Var.Instance_Coll[i].icon).index = i
+                    row.operator(AR_OT_Category_Cmd.bl_idname , text= AR_Var.Instance_Coll[i].name).Index = i
         AR_PT_Category.__name__ = "AR_PT_Category_%s_%s" %(index, spaceType)
         if register:
             bpy.utils.register_class(AR_PT_Category)
             categoriesclasses.append(AR_PT_Category)
         else:
-            panel = eval("bpy.types." + AR_PT_Category.__name__)
-            bpy.utils.unregister_class(panel)
-            categoriesclasses.remove(panel)
+            try:
+                panel = eval("bpy.types." + AR_PT_Category.__name__)
+                bpy.utils.unregister_class(panel)
+                categoriesclasses.remove(panel)
+            except:
+                pass
 
 # Opertators ===============================================================================
 class AR_OT_Category_Add(Operator):
@@ -739,16 +741,17 @@ class AR_OT_Category_Add(Operator):
     Name : StringProperty(name = "Name", default="")
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         scene = context.scene
-        new = scene.ar_categories.add()
+        new = AR_Var.Categories.add()
         new.name = self.Name
         new.pn_name = self.Name
-        new.Instance_Start = len(scene.AR_Var.Instance_Coll)
+        new.Instance_Start = len(AR_Var.Instance_Coll)
         new.Instance_length = 0
         bpy.context.area.tag_redraw()
         TempSaveCats()
         RegisterUnregister_Category(GetPanelIndex(new))
-        if scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 
@@ -767,10 +770,12 @@ class AR_OT_Category_Delet(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.ar_categories)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Categories)
 
     def execute(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         scene = context.scene
         for cat in categories:
             if cat.pn_selected:
@@ -778,7 +783,7 @@ class AR_OT_Category_Delet(Operator):
                 start = cat.Instance_Start
                 for i in range(start, start + cat.Instance_length):
                     scene.ar_enum.remove(len(scene.ar_enum) - 1)
-                    scene.AR_Var.Instance_Coll.remove(start)
+                    AR_Var.Instance_Coll.remove(start)
                 for nextcat in categories[index + 1 :]:
                     nextcat.Instance_Start -= cat.Instance_length
                 categories.remove(index)
@@ -787,13 +792,14 @@ class AR_OT_Category_Delet(Operator):
                 break
         bpy.context.area.tag_redraw()
         TempSaveCats()
-        if scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
     
-    def draw(self, context):        
+    def draw(self, context):    
+        AR_Var = context.preferences.addons[__package__].preferences    
         layout = self.layout
-        categories = context.scene.ar_categories
+        categories = AR_Var.Categories
         for cat in categories:
             layout.prop(cat, 'pn_selected', text= cat.pn_name)
 
@@ -810,10 +816,12 @@ class AR_OT_Category_Rename(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.ar_categories)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Categories)
 
     def execute(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         for cat in categories:
             if cat.pn_selected:
                 cat.name = self.PanelName
@@ -821,13 +829,14 @@ class AR_OT_Category_Rename(Operator):
                 break
         bpy.context.area.tag_redraw()
         TempSaveCats()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 
     def draw(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         layout = self.layout
-        categories = context.scene.ar_categories
+        categories = AR_Var.Categories
         for cat in categories:
             layout.prop(cat, 'pn_selected', text= cat.pn_name)
         layout.prop(self, 'PanelName')
@@ -843,14 +852,16 @@ class AR_OT_Category_MoveButton(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         scene = context.scene
         for cat in categories:
             if cat.pn_selected:
-                Index = scene.AR_Var.Instance_Index
+                Index = AR_Var.Instance_Index
                 catendl = cat.Instance_Start + cat.Instance_length
                 for curcat in categories:
                     if Index >= curcat.Instance_Start and Index < curcat.Instance_Start + curcat.Instance_length:
@@ -859,12 +870,12 @@ class AR_OT_Category_MoveButton(Operator):
                             nextcat.Instance_Start -= 1
                         break
                 data ={
-                    "name": scene.AR_Var.Instance_Coll[Index].name,
-                    "icon": scene.AR_Var.Instance_Coll[Index].icon,
-                    "command": [cmd.name for cmd in scene.AR_Var.Instance_Coll[Index].command]
+                    "name": AR_Var.Instance_Coll[Index].name,
+                    "icon": AR_Var.Instance_Coll[Index].icon,
+                    "command": [cmd.name for cmd in AR_Var.Instance_Coll[Index].command]
                 }
-                scene.AR_Var.Instance_Coll.remove(Index)
-                Inst_Coll_Insert(catendl -1 * (Index < catendl), data, scene.AR_Var.Instance_Coll)
+                AR_Var.Instance_Coll.remove(Index)
+                Inst_Coll_Insert(catendl -1 * (Index < catendl), data, AR_Var.Instance_Coll)
                 for nextcat in categories[GetPanelIndex(cat) + 1:]:
                     nextcat.Instance_Start += 1
                 cat.Instance_length += 1
@@ -872,12 +883,13 @@ class AR_OT_Category_MoveButton(Operator):
                 break
         bpy.context.area.tag_redraw()
         TempSaveCats()
-        if scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 
     def draw(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         layout = self.layout
         for cat in categories:
             layout.prop(cat, 'pn_selected', text= cat.pn_name)
@@ -894,8 +906,9 @@ class AR_OT_Category_MoveUp(Operator):
     Index : IntProperty()
 
     def invoke(self, context, event):
+        AR_Var = context.preferences.addons[__package__].preferences
         i = self.Index
-        categories = context.scene.ar_categories
+        categories = AR_Var.Categories
         if i - 1 >= 0:
             cat1 = categories[i]
             cat2 = categories[i - 1]
@@ -907,7 +920,7 @@ class AR_OT_Category_MoveUp(Operator):
             cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         bpy.context.area.tag_redraw()
         TempSaveCats()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 classes.append(AR_OT_Category_MoveUp)
@@ -920,8 +933,9 @@ class AR_OT_Category_MoveDown(Operator):
     Index : IntProperty()
 
     def invoke(self, context, event):
+        AR_Var = context.preferences.addons[__package__].preferences
         i = self.Index
-        categories = context.scene.ar_categories
+        categories = AR_Var.Categories
         if i + 1 < len(categories):
             cat1 = categories[i]
             cat2 = categories[i + 1]
@@ -933,7 +947,7 @@ class AR_OT_Category_MoveDown(Operator):
             cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
         bpy.context.area.tag_redraw()
         TempSaveCats()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 classes.append(AR_OT_Category_MoveDown)
@@ -945,25 +959,28 @@ class AR_OT_RecordToButton(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
 
     def execute(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         for cat in categories:
             if cat.pn_selected:
                 Recorder_to_Instance(cat)
                 break
-        if context.scene.AR_Var.RecToBtn_Mode == 'move':
+        if AR_Var.RecToBtn_Mode == 'move':
             Remove(0)
             TempUpdate()
         TempSaveCats()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         bpy.context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context):
-        categories = context.scene.ar_categories
+        AR_Var = context.preferences.addons[__package__].preferences
+        categories = AR_Var.Categories
         layout = self.layout
         for cat in categories:
             layout.prop(cat, 'pn_selected', text= cat.pn_name)
@@ -983,8 +1000,9 @@ class AR_OT_Import(Operator, ImportHelper):
     AddNewCategory : BoolProperty(default= False)
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         scene = context.scene
-        ar_categories = scene.ar_categories
+        ar_categories = AR_Var.Categories
         if self.filepath.endswith(".zip"):
             with zipfile.ZipFile(self.filepath, 'r') as zip_out:
                 filepaths = sorted(zip_out.namelist())
@@ -1017,13 +1035,13 @@ class AR_OT_Import(Operator, ImportHelper):
                     mycat = ar_categories.add()
                     mycat.name = self.Category
                     mycat.pn_name = self.Category
-                    mycat.Instance_Start = len(scene.AR_Var.Instance_Coll)
+                    mycat.Instance_Start = len(AR_Var.Instance_Coll)
                     RegisterUnregister_Category(GetPanelIndex(mycat))
                     for dirs in dirfileslist:
                         for btn_file in dirs:
                             name = "".join(os.path.splitext(os.path.basename(btn_file))[0].split("~")[1:])
-                            inst = scene.AR_Var.Instance_Coll.add()
-                            inst.name = CheckForDublicates([ele.name for ele in scene.AR_Var.Instance_Coll], name)
+                            inst = AR_Var.Instance_Coll.add()
+                            inst.name = CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], name)
                             for line in zip_out.read(btn_file).decode("utf-8").splitlines():
                                 cmd = inst.command.add()
                                 cmd.name = line
@@ -1045,7 +1063,7 @@ class AR_OT_Import(Operator, ImportHelper):
                             name = "".join(sorteddirlist[i].split("~")[1:])
                             mycat.name = name
                             mycat.pn_name = name
-                            mycat.Instance_Start = len(scene.AR_Var.Instance_Coll)
+                            mycat.Instance_Start = len(AR_Var.Instance_Coll)
                             RegisterUnregister_Category(GetPanelIndex(mycat))
                         else:
                             mycat = ar_categories[Index]
@@ -1053,10 +1071,10 @@ class AR_OT_Import(Operator, ImportHelper):
                         for dir_file in dirfileslist[i]:
                             inserti = mycat.Instance_Start + mycat.Instance_length
                             name = "".join(os.path.splitext(os.path.basename(dir_file))[0].split("~")[1:])
-                            data = {"name": CheckForDublicates([ele.name for ele in scene.AR_Var.Instance_Coll], name),
+                            data = {"name": CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], name),
                                     "command": zip_out.read(dir_file).decode("utf-8").splitlines(),
                                     "icon": 'BLANK1'}
-                            Inst_Coll_Insert(inserti, data, scene.AR_Var.Instance_Coll)
+                            Inst_Coll_Insert(inserti, data, AR_Var.Instance_Coll)
                             new_e = scene.ar_enum.add()
                             e_index = len(scene.ar_enum) - 1
                             new_e.name = str(e_index)
@@ -1066,7 +1084,7 @@ class AR_OT_Import(Operator, ImportHelper):
                                 for cat in ar_categories[Index + 1:] :
                                     cat.Instance_Start += 1
             SetEnumIndex()
-            if scene.AR_Var.Autosave:
+            if AR_Var.Autosave:
                 Save()
         else:
             self.report({'ERROR'}, "{ " + path + " } Select a .zip file")
@@ -1089,7 +1107,8 @@ class AR_OT_Export(Operator, ExportHelper):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
         scene = context.scene
@@ -1154,9 +1173,10 @@ class AR_OT_Export(Operator, ExportHelper):
                             col.prop(scene.ar_filedisp[i], 'Index' , text= AR_Prop.FileDisp_Name[i])
     
     def invoke(self, context, event):
+        AR_Var = context.preferences.addons[__package__].preferences
         scene = context.scene
         scene.ar_filecategories.clear()
-        for cat in scene.ar_categories:
+        for cat in AR_Var.Categories:
             new = scene.ar_filecategories.add()
             new.name = cat.name
             new.pn_name = cat.pn_name
@@ -1164,7 +1184,7 @@ class AR_OT_Export(Operator, ExportHelper):
             new.FileDisp_length = cat.Instance_length
         AR_Prop.FileDisp_Name.clear()
         AR_Prop.FileDisp_Command.clear()
-        for inst in scene.AR_Var.Instance_Coll:
+        for inst in AR_Var.Instance_Coll:
             AR_Prop.FileDisp_Name.append(inst.name)
             AR_Prop.FileDisp_Command.append([cmd.name for cmd in inst.command])
         scene.ar_filedisp.clear()
@@ -1194,7 +1214,8 @@ class AR_OT_Record_Remove(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
 
     def execute(self, context):
         scene = context.scene
@@ -1211,7 +1232,8 @@ class AR_OT_Record_MoveUp(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
 
     def execute(self, context):
         scene = context.scene
@@ -1229,7 +1251,8 @@ class AR_OT_Record_MoveDown(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
         
     def execute(self, context):
         scene = context.scene
@@ -1268,14 +1291,16 @@ class AR_OT_ButtonToRecord(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         Instance_to_Recorder()
-        if context.scene.AR_Var.BtnToRec_Mode == 'move':
+        if AR_Var.BtnToRec_Mode == 'move':
             I_Remove()
             TempSaveCats()
-            if context.scene.AR_Var.Autosave:
+            if AR_Var.Autosave:
                 Save()
         TempUpdate()
         bpy.context.area.tag_redraw()
@@ -1289,13 +1314,15 @@ class AR_OT_Button_Remove(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         I_Remove()
         TempSaveCats()
         bpy.context.area.tag_redraw()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 
@@ -1310,13 +1337,15 @@ class AR_OT_Button_MoveUp(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         I_Move('Up')
         TempSaveCats()
         bpy.context.area.tag_redraw()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 classes.append(AR_OT_Button_MoveUp)
@@ -1328,13 +1357,15 @@ class AR_OT_Button_MoveDown(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
         
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         I_Move('Down')
         TempSaveCats()
         bpy.context.area.tag_redraw()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 classes.append(AR_OT_Button_MoveDown)
@@ -1346,13 +1377,15 @@ class AR_OT_Button_Rename(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.Instance_Coll)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.Instance_Coll)
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         Rename_Instance()
         TempSaveCats()
         bpy.context.area.tag_redraw()
-        if context.scene.AR_Var.Autosave:
+        if AR_Var.Autosave:
             Save()
         return {"FINISHED"}
 classes.append(AR_OT_Button_Rename)
@@ -1380,7 +1413,8 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
     index : IntProperty()
 
     def execute(self, context):
-        context.scene.AR_Var.Instance_Coll[self.index].icon = AR_Prop.SelectedIcon
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.Instance_Coll[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = "BLANK1"
         return {"FINISHED"}
     
@@ -1439,14 +1473,15 @@ class AR_OT_Record_Play(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         return len(eval("AR_Var.List_Command_{0:03d}".format(AR_Var.List_Index_000 + 1)))
 
     def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
         index = AR_('Index',0)
         alert = Play(AR_('List', index + 1))
         if alert:
-            context.scene.AR_Var.List_Command_000[index].alert = True
+            AR_Var.List_Command_000[index].alert = True
             bpy.app.timers.register(AlertTimerPlay, first_interval = 2)
         return{'FINISHED'}
 classes.append(AR_OT_Record_Play)
@@ -1458,7 +1493,8 @@ class AR_OT_Record_Start(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
 
     def execute(self, context):
         scene = bpy.context.scene
@@ -1492,7 +1528,8 @@ class AR_OT_Command_Add(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.scene.AR_Var.List_Command_000)
+        AR_Var = context.preferences.addons[__package__].preferences
+        return len(AR_Var.List_Command_000)
 
     def execute(self, context):
         scene = context.scene
@@ -1513,7 +1550,7 @@ class AR_OT_Command_Remove(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         return len(eval("AR_Var.List_Command_{0:03d}".format(AR_Var.List_Index_000 + 1)))
 
     def execute(self, context):
@@ -1531,7 +1568,7 @@ class AR_OT_Command_MoveUp(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         return len(eval("AR_Var.List_Command_{0:03d}".format(AR_Var.List_Index_000 + 1)))
 
     def execute(self, context):
@@ -1549,7 +1586,7 @@ class AR_OT_Command_MoveDown(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         return len(eval("AR_Var.List_Command_{0:03d}".format(AR_Var.List_Index_000 + 1)))
 
     def execute(self, context):
@@ -1567,7 +1604,7 @@ class AR_OT_Command_Clear(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         return len(eval("AR_Var.List_Command_{0:03d}".format(AR_Var.List_Index_000 + 1)))
 
     def execute(self, context):
@@ -1587,10 +1624,10 @@ class AR_OT_Global_Settings(bpy.types.Operator):
         return {'FINISHED'}
 
     def draw(self, context):
-        scene = context.scene
+        AR_Var = context.preferences.addons[__package__].preferences
         layout = self.layout
-        layout.prop(scene.AR_Var, 'Autosave')
-        if scene.AR_Var.Autosave:
+        layout.prop(AR_Var, 'Autosave')
+        if AR_Var.Autosave:
             layout.operator(AR_OT_Load.bl_idname, text= "Load from File")
 
     def invoke(self, context, event):
@@ -1623,7 +1660,7 @@ class AR_OT_Command_Edit(bpy.types.Operator):
         layout.prop(self, 'Command', text= "")
 
     def invoke(self, context, event):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         index_btn = AR_('Index',0)+1
         macro = AR_('List',index_btn)[self.index]
         mlast = f"{index_btn}.{self.index}" 
@@ -1664,7 +1701,7 @@ class AR_OT_Record_Edit(bpy.types.Operator):
         layout.prop(self, 'Name', text= "Name")
 
     def invoke(self, context, event):
-        AR_Var = context.scene.AR_Var
+        AR_Var = context.preferences.addons[__package__].preferences
         index_btn = AR_('Index',0)
         record =  AR_('List',0)[index_btn]
         mlast = f"{index_btn}"
@@ -1692,7 +1729,8 @@ classes.append(AR_OT_String)
 currentselected = [None]
 lastselected = [None]
 def UseRadioButtons(self, context):
-    categories = context.scene.ar_categories
+    AR_Var = context.preferences.addons[__package__].preferences
+    categories = AR_Var.Categories
     for cat in categories:
         if not cat.pn_selected and lastselected[0] == cat and currentselected[0] == cat:
             cat.pn_selected = True
@@ -1713,6 +1751,7 @@ classes.append(AR_CategorizeProps)
 Icurrentselected = [None]
 Ilastselected = [None]
 def Instance_Updater(self, context):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
     enum = context.scene.ar_enum
     for e in enum:
         if not e.Value and Ilastselected[0] == e.Index and Icurrentselected[0] == e.Index:
@@ -1725,7 +1764,7 @@ def Instance_Updater(self, context):
                 except:
                     Ilastselected[0] = None 
             Ilastselected[0] = e.Index
-            context.scene.AR_Var.Instance_Index = e.Index
+            AR_Var.Instance_Index = e.Index
 
 class AR_Enum(PropertyGroup):
     Value : BoolProperty(default= False, update= Instance_Updater)
@@ -1756,7 +1795,7 @@ class AR_Struct(PropertyGroup):
 classes.append(AR_Struct)
 
 class AR_Prop(AddonPreferences):#何かとプロパティを収納
-    bl_idname = __name__
+    bl_idname = __package__
 
     Rename : StringProperty() #AR_Var.name
     Loaded : BoolProperty(default= False)
@@ -1767,6 +1806,8 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
 
     Instance_Coll : CollectionProperty(type= AR_Struct)
     Instance_Index : IntProperty(default= 0)
+
+    Categories : CollectionProperty(type= AR_CategorizeProps)
 
     FileDisp_Name = []
     FileDisp_Command = []
@@ -1799,8 +1840,6 @@ for spaceType in spaceTypes:
     panelFactory( spaceType )
 
 def Initialize_Props():# プロパティをセットする関数
-    bpy.types.Scene.ar_categories = CollectionProperty(type= AR_CategorizeProps)
-    bpy.types.Scene.AR_Var = PointerProperty(type=AR_Prop)
     bpy.types.Scene.ar_enum = CollectionProperty(type= AR_Enum)
     bpy.types.Scene.ar_filecategories = CollectionProperty(type= AR_CategorizeFileDisp)
     bpy.types.Scene.ar_filedisp = CollectionProperty(type= AR_FileDisp)
@@ -1810,7 +1849,6 @@ def Initialize_Props():# プロパティをセットする関数
     bpy.app.handlers.undo_post.append(TempLoadCats)
     bpy.app.handlers.redo_post.append(TempLoadCats)
     register[0] = True
-    RegisterCategories()
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')#Nullとして登録
         AR_Prop.addon_keymaps.append(km)
@@ -1818,8 +1856,6 @@ def Initialize_Props():# プロパティをセットする関数
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)# ショートカットキーの登録
 
 def Clear_Props():
-    del bpy.types.Scene.ar_categories
-    del bpy.types.Scene.AR_Var
     del bpy.types.Scene.ar_enum
     del bpy.types.Scene.ar_filedisp
     del bpy.types.Scene.ar_filecategories
