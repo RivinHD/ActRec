@@ -1,24 +1,17 @@
-﻿#==============================================================
-#スタートアップ
-#-------------------------------------------------------------------------------------------
-import bpy #Blender内部のデータ構造にアクセスするために必要
-
+﻿import bpy
 from . import ActionRecorder as ActionRecorder
 
-#==============================================================
-# プラグインに関する情報    
-#==============================================================
 bl_info = {
-"name" : "ActionRecorder",
-"author" : "BuuGraphic",
-"version": (0, 9, 0),
-"blender": (2, 80, 0),
-"location" : "View 3D",
-"warning" : "",
-"wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
-"tracker_url" : "https://twitter.com/Inamura_JIN",# Report Bug
-'link': 'https://twitter.com/Inamura_JIN',
-"category" : "System"
+    "name" : "ActionRecorder",
+    "author" : "BuuGraphic",
+    "version": (0, 9, 0),
+    "blender": (2, 83, 0),
+    "location" : "View 3D",
+    "warning" : "",
+    "wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
+    "tracker_url" : "https://twitter.com/Inamura_JIN",# Report Bug
+    'link': 'https://twitter.com/Inamura_JIN',
+    "category" : "System"
 }
 
 def register():
