@@ -200,6 +200,7 @@ def Remove(Num): # Remove Record or Macro
                 Item = AR_Var.Record_Coll[CheckCommand(Num_Loop)].Command.add()
                 Item2 = AR_Var.Record_Coll[CheckCommand(Num_Loop + 1)].Command[Num_Command]
                 Item.cname = Item2.cname
+                Item.macro = Item2.macro
                 Item.icon = Item2.icon
                 Item.active = Item2.active
             AR_Var.Record_Coll[CheckCommand(Num_Loop)].Index = AR_Var.Record_Coll[CheckCommand(Num_Loop + 1)].Index
