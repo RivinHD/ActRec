@@ -259,7 +259,7 @@ def Play(Commands): #Execute the Macro
     for Command in Commands:
         if Command.active:
             try:
-                exec(Commands.cname)
+                exec(Command.cname)
             except:
                 Command.alert = True
                 return True # Alert
