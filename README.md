@@ -1,6 +1,6 @@
-# CommandRecorder
+# ActionRecorder
 
-■CommandRecorder</br>
+■ActionRecorder</br>
 <p><span style="font-size:1.96em;">This add-on</span> is under <span style="font-size:1.96em;">Development</span>.<br>
 <span style="font-size:1.96em;">This is</span> a relatively stable <span style="font-size:1.96em;">Daily Build</span></p>
 <p>&nbsp;</p>
