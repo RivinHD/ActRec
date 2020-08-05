@@ -1,7 +1,4 @@
-﻿#==============================================================
-#スタートアップ
-#-------------------------------------------------------------------------------------------
-import bpy #Blender内部のデータ構造にアクセスするために必要
+﻿import bpy
 from bpy.app.handlers import persistent
 import os
 import shutil
@@ -52,7 +49,7 @@ def AR_(Data , Num):
     else :
         exec('AR_Var.List_Index_{0:03d} = {1}'.format(Num,Data))
 
-def Get_Recent(Return_Bool):#操作履歴にアクセス
+def Get_Recent(Return_Bool):
     #remove other Recent Reports
     reports = \
     [
@@ -77,9 +74,9 @@ def Get_Recent(Return_Bool):#操作履歴にアクセス
     bpy.data.texts['Recent Reports'].write(clipboard)
     # print the report
     if Return_Bool == 'Reports_All':
-        return bpy.data.texts['Recent Reports'].lines#操作履歴全ての行
+        return bpy.data.texts['Recent Reports'].lines
     elif Return_Bool == 'Reports_Length':
-        return len(bpy.data.texts['Recent Reports'].lines)#操作履歴の要素数
+        return len(bpy.data.texts['Recent Reports'].lines)
 
 def GetMacro(name):
     if name.startswith("bpy.ops"):
@@ -172,7 +169,7 @@ def Add(Num):
     Recent = Get_Recent('Reports_All')
     if Num or len(AR_('List', 0)) < 250:
         if Num:
-            try:
+            try: #Add Macro
                 if Recent[-2].body.count('bpy'):
                     Name_Temp = Recent[-2].body
                 else:
@@ -189,12 +186,12 @@ def Add(Num):
                 return notadded
             except:
                 return True
-        else:
+        else: # Add Record
             Item = AR_('List', Num).add()
             Item.cname = 'Untitled_{0:03d}'.format(len(AR_('List', Num)))
         AR_( len(AR_('List',Num))-1, Num )
 
-def Remove(Num):
+def Remove(Num): # Remove Record or Macro
     if not Num:
         for Num_Loop in range(AR_('Index',0)+1 , len(AR_('List',0))+1) :
             AR_('List',Num_Loop).clear()
@@ -209,7 +206,7 @@ def Remove(Num):
             if AR_('Index',Num) < 0:
                 AR_(0,Num)
 
-def Move(Num , Mode) :
+def Move(Num , Mode) :# Move Record or Macro
     index1 = AR_('Index',Num)
     if Mode == 'Up' :
         index2 = AR_('Index',Num) - 1
@@ -220,31 +217,30 @@ def Move(Num , Mode) :
         AR_('List',Num).move(index1, index2)
         AR_(index2 , Num)
 
-        #コマンドの入れ替え処理
         if not Num :
             index1 += 1
             index2 += 1
             AR_('List',254).clear()
-            #254にIndex2を逃がす
+            #Missing Index 2 on 254.
             for Num_Command in AR_('List',index2) :
                 Item = AR_('List',254).add()
                 Item.cname = Num_Command.cname
             AR_(AR_('Index',index2),254)
             AR_('List',index2).clear()
-            #Index1からIndex2へ
+            #Index1 to Index2
             for Num_Command in AR_('List',index1) :
                 Item = AR_('List',index2).add()
                 Item.cname = Num_Command.cname
             AR_(AR_('Index',index1),index2)
             AR_('List',index1).clear()
-            #254からIndex1へ
+            #254 to Index 1.
             for Num_Command in AR_('List',254) :
                 Item = AR_('List',index1).add()
                 Item.cname = Num_Command.cname
             AR_(AR_('Index',254),index1)
             AR_('List',254).clear()
 
-def Select_Command(Mode):
+def Select_Command(Mode): # Select the upper/lower Record
     currentIndex = AR_('Index',0)
     listlen = len(AR_('List',0)) - 1
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -259,7 +255,7 @@ def Select_Command(Mode):
         else:
             AR_Var.List_Index_000 = currentIndex + 1
 
-def Play(Commands):
+def Play(Commands): #Execute the Macro
     for Command in Commands:
         if Command.active:
             try:
@@ -268,10 +264,10 @@ def Play(Commands):
                 Command.alert = True
                 return True # Alert
 
-def Clear(Num) :
+def Clear(Num) : # Clear all Macros
     AR_('List',Num).clear()
 
-def Save():
+def Save(): #Save Buttons to Storage
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     for savedfolder in os.listdir(path):
         folderpath = os.path.join(path, savedfolder)
@@ -287,7 +283,7 @@ def Save():
                 for cmd in AR_Var.Instance_Coll[cmd_i].command:
                     cmd_file.write(cmd.name + "\n")
 
-def Load():
+def Load():#Load Buttons from Storage
     print('------------------Load-----------------')
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
@@ -328,7 +324,7 @@ def Load():
                         cmd.name = line.strip()
     SetEnumIndex()
     
-def Recorder_to_Instance(panel):
+def Recorder_to_Instance(panel): #Convert Record to Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     i = panel.Instance_Start +  panel.Instance_length
@@ -347,7 +343,7 @@ def Recorder_to_Instance(panel):
         for cat in categories[ p_i + 1: ]:
             cat.Instance_Start += 1
 
-def Instance_to_Recorder():
+def Instance_to_Recorder():#Convert Button to Record
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     Item = AR_('List' , 0 ).add()
     Item.cname = AR_Var.Instance_Coll[AR_Var.Instance_Index].name
@@ -357,7 +353,7 @@ def Instance_to_Recorder():
         Item.cname = Command.name
     AR_( len(AR_('List',0))-1 , 0 )
 
-def Execute_Instance(Num):
+def Execute_Instance(Num): #Execute a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     for cmd in AR_Var.Instance_Coll[Num].command:
         try:
@@ -365,11 +361,11 @@ def Execute_Instance(Num):
         except:
             return True # Alert
 
-def Rename_Instance():
+def Rename_Instance(): #Renam a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     AR_Var.Instance_Coll[AR_Var.Instance_Index].name = AR_Var.Rename
 
-def I_Remove():
+def I_Remove(): # Remove a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     if len(AR_Var.Instance_Coll) :
@@ -389,7 +385,7 @@ def I_Remove():
             AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
     SetEnumIndex()
 
-def I_Move(Mode):
+def I_Move(Mode): # Move a Button to the upper/lower
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     index1 = AR_Var.Instance_Index
@@ -412,8 +408,8 @@ def I_Move(Mode):
             new = AR_Var.Instance_Coll[index2].command.add()
             new.name = cmd
         scene.ar_enum[index2].Value = True
-
 path = os.path.join(os.path.dirname(__file__), "Storage")
+
 #Initalize Standert Button List
 @persistent
 def InitSavedPanel(scene):
@@ -427,16 +423,15 @@ def InitSavedPanel(scene):
     else: 
         Load()
         catlength[0] = len(AR_Var.Categories)
-        AR_Var.Loaded = True
     TempSaveCats()
 
-def GetPanelIndex(cat):
+def GetPanelIndex(cat): #Get Index of a Category
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     for i in range(len(AR_Var.Categories)):
         if AR_Var.Categories[i] == cat:
             return i
 
-def SetEnumIndex():
+def SetEnumIndex(): #Set enum, if out of range to the first enum
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     if len(scene.ar_enum):
@@ -444,14 +439,14 @@ def SetEnumIndex():
         scene.ar_enum[enumIndex].Value = True
         AR_Var.Instance_Index = enumIndex  
 
-def CreateTempCats():
+def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
     tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
         with open(tcatpath, 'x', encoding='utf8') as tempfile:
             print(tcatpath)
     return tcatpath
 
-def TempSaveCats():
+def TempSaveCats(): # save to the create Tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     tcatpath = CreateTempCats()
@@ -482,7 +477,7 @@ def TempSaveCats():
         json.dump(data, tempfile)
 
 @persistent
-def TempLoadCats(dummy):
+def TempLoadCats(dummy): #Load the Created tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
@@ -520,12 +515,12 @@ def TempLoadCats(dummy):
             if reg:
                 RegisterUnregister_Category(GetPanelIndex(new))
 
-def CheckForDublicates(l, name, num = 1):
+def CheckForDublicates(l, name, num = 1): #Check for name dublicates and appen .001, .002 etc.
     if name in l:
         return CheckForDublicates(l, name.split(".")[0] +".{0:03d}".format(num), num + 1)
     return name
 
-def AlertTimerPlay():
+def AlertTimerPlay(): #Remove alert after time passed for Recored
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     btnlist = AR_Var.List_Command_000
     for i in range(len(btnlist)):
@@ -536,10 +531,10 @@ def AlertTimerPlay():
                     ele.alert = False
                     return 
 
-def AlertTimerCmd():
+def AlertTimerCmd(): #Remove alert after time passed for Buttons
     alert_index[0] = None
 
-def Inst_Coll_Insert(index, data, collection):
+def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collection
     collection.add()
     for x in range(len(collection) - 1, index, -1):# go the array backwards
         collection[x].name = collection[x - 1].name
@@ -556,7 +551,7 @@ def Inst_Coll_Insert(index, data, collection):
         cmd.name = command
 
 # Panels ===================================================================================
-def panelFactory(spaceType):
+def panelFactory(spaceType): #Create Panels for every spacetype with UI
 
     class AR_PT_Local(Panel):
         bl_space_type = spaceType
@@ -681,11 +676,11 @@ def panelFactory(spaceType):
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
     classes.append(AR_PT_Global)
 
-def RegisterCategories():
+def RegisterCategories(): #Register all Categories
     for i in range(catlength[0]):
         RegisterUnregister_Category(i)
 
-def RegisterUnregister_Category(index, register = True):
+def RegisterUnregister_Category(index, register = True): #Register/Unregister one Category
     for spaceType in spaceTypes:
         class AR_PT_Category(Panel):
             bl_space_type = spaceType
@@ -1798,8 +1793,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     bl_idname = __package__
 
     Rename : StringProperty() #AR_Var.name
-    Loaded : BoolProperty(default= False)
-    Autosave : BoolProperty(default= False, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
+    Autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     RecToBtn_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and delete it from Local")], name= "Mode")
     BtnToRec_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Local"), ("move", "Move", "Move the Action over to local and delete it from Global")], name= "Mode")
     SelectedIcon = "BLANK1"
