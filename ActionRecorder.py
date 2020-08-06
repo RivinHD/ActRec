@@ -336,7 +336,7 @@ def Instance_to_Recorder():#Convert Button to Record
         Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
         Item.macro = GetMacro(Command.name)
         Item.cname = Command.name
-    AR_Var.Record_Coll[CheckCommand(0)].Index = AR_Var.Record_Coll[CheckCommand(0)].Command
+    AR_Var.Record_Coll[CheckCommand(0)].Index = len(AR_Var.Record_Coll[CheckCommand(0)].Command) - 1
 
 def Execute_Instance(Num): #Execute a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
