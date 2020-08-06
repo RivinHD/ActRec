@@ -121,7 +121,8 @@ def TempSave(Num):  # write new command to temp.json file
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
-        data["0"] = [{"name": i.cname, "macro": i.macro} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
+        data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
+        tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
 
@@ -133,7 +134,7 @@ def TempUpdate(): # update all commands in temp.json file
         tempfile.seek(0)
         data = {}
         for cmd in range(len(AR_Var.Record_Coll[CheckCommand(0)].Command) + 1):
-            data.update({str(cmd):[{"name": i.cname, "macro": i.macro} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
+            data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
@@ -141,7 +142,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
-        data[str(Key)] = [{"name": i.cname, "macro": i.macro} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
+        data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
         tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
@@ -160,12 +161,14 @@ def TempLoad(dummy): # load commands after undo
             Item = command.add()
             Item.macro = data["0"][i - 1]["macro"]
             Item.cname = data["0"][i - 1]["name"]
+            Item.icon = data["0"][i - 1]["icon"]
             record = AR_Var.Record_Coll[CheckCommand(i)].Command
             record.clear()
             for j in range(len(data[keys[i]])):
                 Item = record.add()
                 Item.macro = data[keys[i]][j]["macro"]
                 Item.cname = data[keys[i]][j]["name"]
+                Item.icon = data[keys[i]][j]["icon"]
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -411,6 +414,7 @@ def InitSavedPanel(dummy = None):
     Load()
     catlength[0] = len(AR_Var.Categories)
     TempSaveCats()
+    TempUpdate()
 
 def GetPanelIndex(cat): #Get Index of a Category
     AR_Var = bpy.context.preferences.addons[__package__].preferences
