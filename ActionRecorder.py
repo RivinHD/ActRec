@@ -30,6 +30,7 @@ class AR_UL_Selector(UIList):
         row = layout.row()
         row.alert = item.alert
         row.operator(AR_OT_Record_Icon.bl_idname, text= "", icon= AR_Var.Record_Coll[0].Command[index].icon, emboss= False).index = index
+        row.alignment = 'LEFT'
         row.operator(AR_OT_Record_Edit.bl_idname, text= item.cname, emboss= False).index = index
 classes.append(AR_UL_Selector)
 class AR_UL_Command(UIList):
@@ -82,6 +83,8 @@ def Get_Recent(Return_Bool):
 def GetMacro(name):
     if name.startswith("bpy.ops"):
         return eval(name.split("(")[0] + ".get_rna_type().name")
+    elif name.startswith('bpy.data.window_managers["WinMan"].(null)'):
+        return True
     else:
         return None
 
@@ -99,7 +102,7 @@ def Record(Num, Mode):
             if TempText.count('bpy'):
                 name = TempText[TempText.find('bpy'):]
                 macro = GetMacro(name)
-                if macro is None:
+                if macro is None or macro is True:
                     notadded.append(name)
                 else:
                     AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
@@ -177,12 +180,23 @@ def Add(Num):
         try: #Add Macro
             if Recent[-2].body.count('bpy'):
                 Name_Temp = Recent[-2].body
+                name = Name_Temp[Name_Temp.find('bpy'):]
+                macro = GetMacro(name)
+                if macro is True:
+                    Name_Temp = Recent[-3].body
+                    name = Name_Temp[Name_Temp.find('bpy'):]
+                    macro = GetMacro(name)
+
             else:
                 Name_Temp = Recent[-3].body
-            name = Name_Temp[Name_Temp.find('bpy'):]
-            macro = GetMacro(name)
+                name = Name_Temp[Name_Temp.find('bpy'):]
+                macro = GetMacro(name)
+                if macro is True:
+                    Name_Temp = Recent[-4].body
+                    name = Name_Temp[Name_Temp.find('bpy'):]
+                    macro = GetMacro(name)
             notadded = False
-            if macro is None:
+            if macro is None or macro is True:
                 notadded = name
             else:
                 Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
@@ -351,7 +365,7 @@ def Execute_Instance(Num): #Execute a Button
         except:
             return True # Alert
 
-def Rename_Instance(): #Renam a Button
+def Rename_Instance(): #Rename a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     AR_Var.Instance_Coll[AR_Var.Instance_Index].name = AR_Var.Rename
 
