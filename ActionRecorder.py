@@ -212,23 +212,11 @@ def Add(Num):
 
 def Remove(Num): # Remove Record or Macro
     AR_Var = bpy.context.preferences.addons[__package__].preferences
+    index = AR_Var.Record_Coll[Num].Index
+    AR_Var.Record_Coll[Num].Command.remove(index)
     if not Num:
-        for Num_Loop in range(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , len(AR_Var.Record_Coll[CheckCommand(0)].Command)+1) :
-            AR_Var.Record_Coll[CheckCommand(Num_Loop)].Command.clear()
-            for Num_Command in range(len(AR_Var.Record_Coll[CheckCommand(Num_Loop + 1)].Command)) :
-                Item = AR_Var.Record_Coll[CheckCommand(Num_Loop)].Command.add()
-                Item2 = AR_Var.Record_Coll[CheckCommand(Num_Loop + 1)].Command[Num_Command]
-                Item.cname = Item2.cname
-                Item.macro = Item2.macro
-                Item.icon = Item2.icon
-                Item.active = Item2.active
-            AR_Var.Record_Coll[CheckCommand(Num_Loop)].Index = AR_Var.Record_Coll[CheckCommand(Num_Loop + 1)].Index
-    if len(AR_Var.Record_Coll[CheckCommand(Num)].Command):
-        AR_Var.Record_Coll[CheckCommand(Num)].Command.remove(AR_Var.Record_Coll[CheckCommand(Num)].Index)
-        if len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1 < AR_Var.Record_Coll[CheckCommand(Num)].Index:
-            AR_Var.Record_Coll[CheckCommand(Num)].Index = len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1
-            if AR_Var.Record_Coll[CheckCommand(Num)].Index < 0:
-                AR_Var.Record_Coll[CheckCommand(Num)].Index = 0
+        AR_Var.Record_Coll.remove(index + 1)
+    AR_Var.Record_Coll[Num].Index = (index - 1) * (index - 1 > 0)
 
 def Move(Num , Mode) :# Move Record or Macro
     AR_Var = bpy.context.preferences.addons[__package__].preferences
