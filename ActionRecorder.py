@@ -1856,18 +1856,18 @@ class AR_Record_Merge(PropertyGroup):
 classes.append(AR_Record_Merge)
 
 currentselected = [None]
-lastselected = [None]
+lastselected = [0]
 def UseRadioButtons(self, context):
     AR_Var = context.preferences.addons[__package__].preferences
     categories = AR_Var.Categories
-    for cat in categories:
-        if not cat.pn_selected and lastselected[0] == cat and currentselected[0] == cat:
-            cat.pn_selected = True
-        elif cat.pn_selected and lastselected[0] != cat and currentselected[0] != cat:
-            currentselected[0] = cat
-            if lastselected[0] is not None:
-                lastselected[0].pn_selected = False
-            lastselected[0] = cat
+    index = GetPanelIndex(self)
+    if self.pn_selected and currentselected[0] != index:
+        currentselected[0] = index
+        if lastselected[0] != index:
+            categories[lastselected[0]].pn_selected = False
+        lastselected[0] = index
+    elif not self.pn_selected and index == lastselected[0] and currentselected[0] == index:
+        self.pn_selected = True
 
 class AR_CategorizeProps(PropertyGroup):
     pn_name : StringProperty()
@@ -1878,22 +1878,18 @@ class AR_CategorizeProps(PropertyGroup):
 classes.append(AR_CategorizeProps)
 
 Icurrentselected = [None]
-Ilastselected = [None]
+Ilastselected = [0]
 def Instance_Updater(self, context):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     enum = context.scene.ar_enum
-    for e in enum:
-        if not e.Value and Ilastselected[0] == e.Index and Icurrentselected[0] == e.Index:
-            e.Value = True
-        elif e.Value and Ilastselected[0] != e.Index and Icurrentselected[0] != e.Index:
-            Icurrentselected[0] = e.Index
-            if Ilastselected[0] is not None:
-                try:
-                    enum[Ilastselected[0]].Value = False
-                except:
-                    Ilastselected[0] = None 
-            Ilastselected[0] = e.Index
-            AR_Var.Instance_Index = e.Index
+    if self.Value and Icurrentselected[0] != self.Index:
+        Icurrentselected[0] = self.Index
+        if Ilastselected[0] != self.Index:
+            enum[Ilastselected[0]].Value = False
+        Ilastselected[0] = self.Index
+        AR_Var.Instance_Index = self.Index
+    if not self.Value and Ilastselected[0] == self.Index and Icurrentselected[0] == self.Index:
+        self.Value = True
 
 class AR_Enum(PropertyGroup):
     Value : BoolProperty(default= False, update= Instance_Updater)
