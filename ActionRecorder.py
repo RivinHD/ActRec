@@ -670,13 +670,13 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
     classes.append(AR_PT_Global)
 
-    class AR_PT_Addbanced(Panel):
+    class AR_PT_Advanced(Panel):
         bl_space_type = spaceType
         bl_region_type = 'UI'
         bl_category = 'Action Recorder'
-        bl_label = 'Addbanced'
-        bl_idname = "AR_PT_Addbanced_%s" % spaceType
-        bl_parent_id = AR_PT_Global.bl_idname
+        bl_label = 'Advanced'
+        bl_idname = "AR_PT_Advanced_%s" % spaceType
+        #bl_parent_id = AR_PT_Global.bl_idname
         bl_options = {'DEFAULT_CLOSED'}
 
         def draw(self, context):
@@ -693,11 +693,11 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             col.label(text= "Strage File Settings", icon= "FOLDER_REDIRECT")
             row = col.row()
             row.label(text= "Autsave")
-            row.prop(AR_Var, 'Autosave', expand= True, text= "On" if AR_Var.Autosave else "Off")
+            row.prop(AR_Var, 'Autosave', toggle= True, text= "On" if AR_Var.Autosave else "Off")
             col.operator(AR_OT_Save.bl_idname , text='Save to File' )
             col.operator(AR_OT_Load.bl_idname , text='Load from File' )
-    AR_PT_Addbanced.__name__ = "AR_PT_Addbanced_%s" % spaceType
-    classes.append(AR_PT_Addbanced)
+    AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
+    classes.append(AR_PT_Advanced)
 
     class AR_PT_Help(Panel):
         bl_space_type = spaceType
