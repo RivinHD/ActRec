@@ -10,6 +10,7 @@ import webbrowser
 from addon_utils import check, paths, enable
 from .IconList import Icons as IconList
 from .config import config
+import atexit
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -38,6 +39,7 @@ class AR_UL_Command(UIList):
         row = layout.row(align= True)
         row.alert = item.alert
         row.prop(item, 'active', text= "")
+        row.alignment = 'LEFT'
         row.operator(AR_OT_Command_Edit.bl_idname, text= item.macro, emboss= False).index = index
 classes.append(AR_UL_Command)
 
@@ -393,7 +395,6 @@ def I_Move(Mode): # Move a Button to the upper/lower
             new = AR_Var.Instance_Coll[index2].command.add()
             new.name = cmd
         scene.ar_enum[index2].Value = True
-path = os.path.join(os.path.dirname(__file__), "Storage")
 
 #Initalize Standert Button List
 @persistent
@@ -1233,6 +1234,7 @@ class AR_OT_Record_Add(Operator):
         Add(0)
         TempSave(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Record_Add)
 
@@ -1251,6 +1253,7 @@ class AR_OT_Record_Remove(Operator):
         Remove(0)
         TempUpdate()
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Record_Remove)
 
@@ -1269,6 +1272,7 @@ class AR_OT_Record_MoveUp(Operator):
         Move(0 , 'Up')
         TempUpdate()
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveUp)
 
@@ -1288,6 +1292,7 @@ class AR_OT_Record_MoveDown(Operator):
         Move(0 , 'Down')
         TempUpdate()
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveDown)
 
@@ -1333,6 +1338,7 @@ class AR_OT_ButtonToRecord(Operator):
                 Save()
         TempUpdate()
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_ButtonToRecord)
 
@@ -1445,6 +1451,7 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
         AR_Var = context.preferences.addons[__package__].preferences
         AR_Var.Instance_Coll[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = "BLANK1"
+        bpy.context.area.tag_redraw()
         return {"FINISHED"}
     
     def draw(self, execute):
@@ -1549,6 +1556,7 @@ class AR_OT_Record_Stop(Operator):
             self.report({'ERROR'}, "Not all actions were added because they are not of type Operator: %s" % mess)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Record_Stop)
 
@@ -1563,6 +1571,8 @@ class AR_OT_Record_Icon(bpy.types.Operator):
         AR_Var = context.preferences.addons[__package__].preferences
         AR_Var.Record_Coll[0].Command[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = "BLANK1"
+        bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
     
     def draw(self, execute):
@@ -1601,6 +1611,7 @@ class AR_OT_Command_Add(Operator):
             self.report({'ERROR'}, "No Action could be added")
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Add)
 
@@ -1620,6 +1631,7 @@ class AR_OT_Command_Remove(Operator):
         Remove(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Remove)
 
@@ -1639,6 +1651,7 @@ class AR_OT_Command_MoveUp(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Up')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveUp)
 
@@ -1658,6 +1671,7 @@ class AR_OT_Command_MoveDown(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Down')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveDown)
 
@@ -1677,6 +1691,7 @@ class AR_OT_Command_Clear(Operator):
         Clear(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Clear)
 
@@ -1699,6 +1714,8 @@ class AR_OT_Command_Edit(bpy.types.Operator):
         macro.macro = self.Name
         macro.cname = self.Command
         TempUpdateCommand(index_btn)
+        bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -1742,6 +1759,8 @@ class AR_OT_Record_Edit(bpy.types.Operator):
         record = AR_Var.Record_Coll[CheckCommand(0)].Command[index_btn]
         record.cname = self.Name
         TempUpdateCommand(index_btn)
+        bpy.context.area.tag_redraw()
+        bpy.ops.wm.save_userpref()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -1814,10 +1833,13 @@ classes.append(AR_OT_Help_OpenURL)
 
 
 # PropertyGroups =======================================================================
-class AR_Record_Struct(PropertyGroup):#リストデータを保持するためのプロパティグループを作成
+def SavePrefs(self, context):
+    bpy.ops.wm.save_userpref()
+    
+class AR_Record_Struct(PropertyGroup):
     cname : StringProperty() #AR_Var.name
     macro : StringProperty()
-    active : BoolProperty(default= True)
+    active : BoolProperty(default= True, update= SavePrefs)
     alert : BoolProperty()
     icon : StringProperty(default= 'BLANK1')
 classes.append(AR_Record_Struct)
@@ -1959,10 +1981,10 @@ def Initialize_Props():# プロパティをセットする関数
     bpy.app.handlers.undo_post.append(TempLoadCats)
     bpy.app.handlers.redo_post.append(TempLoadCats)
     if bpy.context.window_manager.keyconfigs.addon:
-        km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')#Nullとして登録
+        km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
         AR_Prop.addon_keymaps.append(km)
         for (idname, key, event, ctrl, alt, shift) in AR_Prop.key_assign_list:
-            kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)# ショートカットキーの登録
+            kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
     bpy.app.timers.register(InitSavedPanel, first_interval = 2.5)
 
 def Clear_Props():
