@@ -1583,8 +1583,8 @@ classes.append(AR_OT_Record_Icon)
 
 class AR_OT_Command_Add(Operator):
     bl_idname = "ar.command_add"
-    bl_label = "ActRec Add Command"
-    bl_description = "Add a Command to the selected Record"
+    bl_label = "ActRec Add Macro"
+    bl_description = "Add a Macro to the selected Record"
 
     @classmethod
     def poll(cls, context):
@@ -1625,8 +1625,8 @@ classes.append(AR_OT_Command_Remove)
 
 class AR_OT_Command_MoveUp(Operator):
     bl_idname = "ar.command_move_up"
-    bl_label = "Move Command Up"
-    bl_description = "Move the selected Command up"
+    bl_label = "Move Macro Up"
+    bl_description = "Move the selected Macro up"
 
     @classmethod
     def poll(cls, context):
@@ -1644,8 +1644,8 @@ classes.append(AR_OT_Command_MoveUp)
 
 class AR_OT_Command_MoveDown(Operator):
     bl_idname = "ar.command_move_down"
-    bl_label = "Move Command Down"
-    bl_description = "Move the selected Command down"
+    bl_label = "Move Macro Down"
+    bl_description = "Move the selected Macro down"
 
     @classmethod
     def poll(cls, context):
