@@ -4,7 +4,7 @@ from . import ActionRecorder as ActionRecorder
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "BuuGraphic, Rivin",
-    "version": (0, 99, 14),
+    "version": (0, 99, 15),
     "blender": (2, 83, 0),
     "location" : "View 3D",
     "warning" : "",
@@ -17,6 +17,8 @@ bl_info = {
 def register():
     for cls in ActionRecorder.classes:
         bpy.utils.register_class(cls)
+    for cls in ActionRecorder.classespanel:
+        bpy.utils.register_class(cls)
     ActionRecorder.Initialize_Props()
     print("Register")
 
@@ -24,6 +26,8 @@ def unregister():
     for cls in ActionRecorder.classes:
         bpy.utils.unregister_class(cls)
     for cls in ActionRecorder.categoriesclasses:
+        bpy.utils.unregister_class(cls)
+    for cls in ActionRecorder.classespanel:
         bpy.utils.unregister_class(cls)
     ActionRecorder.Clear_Props()
     print("UnRegister")
