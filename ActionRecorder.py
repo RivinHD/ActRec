@@ -92,7 +92,7 @@ def GetMacro(name):
         if len(split) > 1:
             return split[0].split('.')[-1] + " = " + split[1]
         else:
-            return ".".join(split[0].split('')[-2:])
+            return ".".join(split[0].split('.')[-2:])
     else:
         return None
 
