@@ -1256,7 +1256,7 @@ class AR_OT_Export(Operator, ExportHelper):
 
     filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
     filename_ext = ".zip"
-    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "ComandRecorderButtons")
+    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "ActionRecorderButtons")
     allcats : BoolProperty(name= "All", description= "Export every Category")
 
     @classmethod
