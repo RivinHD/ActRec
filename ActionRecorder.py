@@ -29,10 +29,9 @@ class AR_UL_Selector(UIList):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         self.use_filter_show = False
         self.use_filter_sort_lock = True
-        row = layout.row()
+        row = layout.row(align= True)
         row.alert = item.alert
         row.operator(AR_OT_Record_Icon.bl_idname, text= "", icon= AR_Var.Record_Coll[0].Command[index].icon, emboss= False).index = index
-        row.alignment = 'LEFT'
         row.operator(AR_OT_Record_Edit.bl_idname, text= item.cname, emboss= False).index = index
 classes.append(AR_UL_Selector)
 class AR_UL_Command(UIList):
@@ -42,7 +41,6 @@ class AR_UL_Command(UIList):
         row = layout.row(align= True)
         row.alert = item.alert
         row.prop(item, 'active', text= "")
-        row.alignment = 'LEFT'
         row.operator(AR_OT_Command_Edit.bl_idname, text= item.macro, emboss= False).index = index
 classes.append(AR_UL_Command)
 
@@ -57,7 +55,7 @@ def Get_Recent(Return_Bool):
     #remove other Recent Reports
     reports = \
     [
-    bpy.data.texts.remove(t, do_unlink=True)
+    bpy.data.texts.remove(t)
     for t in bpy.data.texts
         if t.name.startswith('Recent Reports')
     ]
@@ -102,6 +100,7 @@ def Record(Num, Mode):
     if Mode == 'Start':
         AR_Prop.Record = True
         AR_Prop.Temp_Num = len(Recent)
+        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
     else:
         AR_Prop.Record = False
         notadded = []
@@ -112,10 +111,14 @@ def Record(Num, Mode):
                 macro = GetMacro(name)
                 if macro is None or macro is True:
                     notadded.append(name)
+                    if macro is None and AR_Var.CreateEmpty:
+                        Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                 else:
                     Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                     Item.macro = macro
                     Item.cname = name
+        UpdateRecordText(Num)
+        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
         return notadded
 
 def CreateTempFile():
@@ -206,21 +209,38 @@ def Add(Num):
             notadded = False
             if macro is None or macro is True:
                 notadded = name
+                if macro is None and AR_Var.CreateEmpty:
+                    Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
             else:
                 Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                 Item.macro = macro
                 Item.cname = name
+            UpdateRecordText(Num)
+            bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return notadded
         except:
+            bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return True
     else: # Add Record
         Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
         Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], 'Untitled.001')
+        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
     AR_Var.Record_Coll[CheckCommand(Num)].Index = len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1
+    bpy.data.texts.new(Item.cname)
+
+def UpdateRecordText(Num):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    RecName = AR_Var.Record_Coll[CheckCommand(0)].Command[Num - 1].cname
+    bpy.data.texts[RecName].clear()
+    bpy.data.texts[RecName].write("".join([cmd.cname + "\n" for cmd in AR_Var.Record_Coll[CheckCommand(Num)].Command]))
 
 def Remove(Num): # Remove Record or Macro
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    index = AR_Var.Record_Coll[Num].Index
+    index = AR_Var.Record_Coll[CheckCommand(Num)].Index
+    if Num:
+        UpdateRecordText(Num)
+    else:
+        bpy.data.texts.remove(bpy.data.texts[AR_Var.Record_Coll[CheckCommand(Num)].Command[index].cname])
     AR_Var.Record_Coll[Num].Command.remove(index)
     if not Num:
         AR_Var.Record_Coll.remove(index + 1)
@@ -267,6 +287,7 @@ def Play(Commands): #Execute the Macro
 def Clear(Num) : # Clear all Macros
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     AR_Var.Record_Coll[CheckCommand(Num)].Command.clear()
+    UpdateRecordText(Num)
 
 def Save(): #Save Buttons to Storage
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -755,6 +776,8 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row.prop(AR_Var, 'Autosave', toggle= True, text= "On" if AR_Var.Autosave else "Off")
             col.operator(AR_OT_Save.bl_idname , text='Save to File' )
             col.operator(AR_OT_Load.bl_idname , text='Load from File' )
+            col.label(text= "Local Settings")
+            col.prop(AR_Var, 'CreateEmpty', text= "Create Empty Macro on Error")
     AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
     classes.append(AR_PT_Advanced)
 
@@ -2002,18 +2025,18 @@ class AR_CategorizeProps(PropertyGroup):
     Instance_length : IntProperty(default= 0)
 classes.append(AR_CategorizeProps)
 
-Icurrentselected = [None]
-Ilastselected = [0]
+InstanceCurrentselected = [None]
+InstanceLastselected = [0]
 def Instance_Updater(self, context):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     enum = context.scene.ar_enum
-    if self.Value and Icurrentselected[0] != self.Index:
-        Icurrentselected[0] = self.Index
-        if Ilastselected[0] != self.Index and lastselected[0] < len(enum):
-            enum[Ilastselected[0]].Value = False
-        Ilastselected[0] = self.Index
+    if self.Value and InstanceCurrentselected[0] != self.Index:
+        InstanceCurrentselected[0] = self.Index
+        if InstanceLastselected[0] != self.Index and InstanceLastselected[0] < len(enum):
+            enum[InstanceLastselected[0]].Value = False
+        InstanceLastselected[0] = self.Index
         AR_Var.Instance_Index = self.Index
-    if not self.Value and Ilastselected[0] == self.Index and Icurrentselected[0] == self.Index:
+    if not self.Value and InstanceLastselected[0] == self.Index and InstanceCurrentselected[0] == self.Index:
         self.Value = True
 
 class AR_Enum(PropertyGroup):
@@ -2085,6 +2108,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     Temp_Num = 0
 
     Record_Coll : CollectionProperty(type= AR_Record_Merge)
+    CreateEmpty : BoolProperty()
 
     StorageFilePath : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(__file__), "Storage"))
 
