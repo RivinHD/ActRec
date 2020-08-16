@@ -21,6 +21,7 @@ classespanel = []
 categoriesclasses = []
 catlength = [0]
 activeareas = []
+ontempload = [False]
 
 
 # UIList ======================================================================================
@@ -135,7 +136,7 @@ def TempSave(Num):  # write new command to temp.json file
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
-        data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
+        data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
         tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
@@ -148,7 +149,7 @@ def TempUpdate(): # update all commands in temp.json file
         tempfile.seek(0)
         data = {}
         for cmd in range(len(AR_Var.Record_Coll[CheckCommand(0)].Command) + 1):
-            data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
+            data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
         json.dump(data, tempfile)
 
 def TempUpdateCommand(Key): # update one command in temp.json file
@@ -156,7 +157,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:
         data = json.load(tempfile)
-        data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
+        data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
         tempfile.truncate(0)
         tempfile.seek(0)
         json.dump(data, tempfile)
@@ -164,6 +165,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
 @persistent
 def TempLoad(dummy): # load commands after undo
     tpath = bpy.app.tempdir + "temp.json"
+    ontempload[0] = True
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if os.path.exists(tpath):
         with open(tpath, 'r', encoding='utf8') as tempfile:
@@ -183,6 +185,8 @@ def TempLoad(dummy): # load commands after undo
                 Item.macro = data[keys[i]][j]["macro"]
                 Item.cname = data[keys[i]][j]["name"]
                 Item.icon = data[keys[i]][j]["icon"]
+                Item.active = data[keys[i]][j]["active"]
+    ontempload[0] = False
 
 def Add(Num):
     Recent = Get_Recent('Reports_All')
@@ -231,6 +235,8 @@ def Add(Num):
 def UpdateRecordText(Num):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     RecName = AR_Var.Record_Coll[CheckCommand(0)].Command[Num - 1].cname
+    if bpy.data.texts.find(RecName) == -1:
+        bpy.data.texts.new(RecName)
     bpy.data.texts[RecName].clear()
     bpy.data.texts[RecName].write("".join([cmd.cname + "\n" for cmd in AR_Var.Record_Coll[CheckCommand(Num)].Command]))
 
@@ -240,7 +246,9 @@ def Remove(Num): # Remove Record or Macro
     if Num:
         UpdateRecordText(Num)
     else:
-        bpy.data.texts.remove(bpy.data.texts[AR_Var.Record_Coll[CheckCommand(Num)].Command[index].cname])
+        txtname = AR_Var.Record_Coll[CheckCommand(Num)].Command[index].cname
+        if bpy.data.texts.find(txtname) != -1:
+            bpy.data.texts.remove(bpy.data.texts[txtname])
     AR_Var.Record_Coll[Num].Command.remove(index)
     if not Num:
         AR_Var.Record_Coll.remove(index + 1)
@@ -254,7 +262,7 @@ def Move(Num , Mode) :# Move Record or Macro
     else :
         index2 = AR_Var.Record_Coll[CheckCommand(Num)].Index + 1
     LengthTemp = len(AR_Var.Record_Coll[CheckCommand(Num)].Command)
-    if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
+    if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 < LengthTemp):
         AR_Var.Record_Coll[CheckCommand(Num)].Command.move(index1, index2)
         AR_Var.Record_Coll[CheckCommand(Num)].Index = index2
         if not Num:
@@ -351,7 +359,7 @@ def Recorder_to_Instance(panel): #Convert Record to Button
     i = panel.Instance_Start +  panel.Instance_length
     data = {"name":CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].cname),
             "command": [Command.cname for Command in AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command],
-            "icon": 'BLANK1'}
+            "icon": AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].icon}
     Inst_Coll_Insert(i, data , AR_Var.Instance_Coll)
     panel.Instance_length += 1
     new_e = scene.ar_enum.add()
@@ -368,11 +376,13 @@ def Instance_to_Recorder():#Convert Button to Record
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     Item = AR_Var.Record_Coll[CheckCommand(0)].Command.add()
     Item.cname = AR_Var.Instance_Coll[AR_Var.Instance_Index].name
+    Item.icon = AR_Var.Instance_Coll[AR_Var.Instance_Index].icon
     for Command in AR_Var.Instance_Coll[AR_Var.Instance_Index].command:
         Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
         Item.macro = GetMacro(Command.name)
         Item.cname = Command.name
     AR_Var.Record_Coll[CheckCommand(0)].Index = len(AR_Var.Record_Coll[CheckCommand(0)].Command) - 1
+    UpdateRecordText(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
 
 def Execute_Instance(Num): #Execute a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -1988,7 +1998,10 @@ classes.append(AR_OT_Help_OpenURL)
 
 # PropertyGroups =======================================================================
 def SavePrefs(self, context):
-    SaveToPrefs()
+    if not ontempload[0]:
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        SaveToPrefs()
+        TempUpdateCommand(AR_Var.Record_Coll[0].Index + 1)
     
 class AR_Record_Struct(PropertyGroup):
     cname : StringProperty() #AR_Var.name
