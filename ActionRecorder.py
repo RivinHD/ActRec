@@ -12,6 +12,7 @@ from .IconList import Icons as IconList
 from .config import config
 import atexit
 from urllib import request
+from io import BytesIO
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -623,8 +624,8 @@ def ImportSortedZip(filepath):
 
 def CheckForUpdate():
     updateSource = request.urlopen(config["checkSource_URL"])
-    updateContent = updateSource.read()
-    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'w+') as currentFile:
+    updateContent = updateSource.read().decode("utf-8") 
+    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'r') as currentFile:
         currentContext = currentFile.read()
         lines = currentContext.splitlines()
         for i in range(15):
@@ -632,7 +633,7 @@ def CheckForUpdate():
                 currentVersion = GetVersion(lines[i])
                 lines = updateContent.splitlines()
                 for j in range(15):
-                    if lines[i].strip().startswith('"version"'):
+                    if lines[j].strip().startswith('"version"'):
                         updateVersion = GetVersion(lines[j])
                         if updateVersion[0] > currentVersion[0] or updateVersion[1] > currentVersion[1] or updateVersion[2] > currentVersion[2]:
                             return (True, updateVersion)
@@ -640,7 +641,7 @@ def CheckForUpdate():
                             return (False, currentVersion)
 
 def GetVersion(line):
-    return eval(line.split(":")[1].split[","])
+    return eval("(%s)" %line.split("(")[1].split(")")[0])
 
 def Update():
     source = request.urlopen(os.path.join(config["repoSource_URL"], "archive/master.zip"))
@@ -2037,7 +2038,7 @@ class AR_OT_CheckUpdate(bpy.types.Operator):
         update = CheckForUpdate()
         AR_Var = context.preferences.addons[__package__].preferences
         AR_Var.Update = update[0]
-        AR_Var.Version = ".".join(update[1])
+        AR_Var.Version = ".".join([str(i) for i in update[1]])
         return {"FINISHED"}
 classes.append(AR_OT_CheckUpdate)
 
