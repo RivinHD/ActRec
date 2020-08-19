@@ -2094,7 +2094,7 @@ class AR_OT_Restart(Operator):
     def execute(self, context):
         path = bpy.data.filepath
         if path == '':
-            os.execl(bpy.app.binary_path, os.sys.argv)
+            os.execl(os.sys.executable, os.sys.executable)
         else:
             bpy.ops.wm.save_mainfile(path)
             os.startfile(path)
