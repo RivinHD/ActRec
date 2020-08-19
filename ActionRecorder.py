@@ -644,7 +644,8 @@ def GetVersion(line):
     return eval("(%s)" %line.split("(")[1].split(")")[0])
 
 def Update():
-    source = request.urlopen(os.path.join(config["repoSource_URL"], "archive/master.zip"))
+    path = os.path.join(config["repoSource_URL"], "archive/master.zip")
+    source = request.urlopen(path)
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
@@ -2219,7 +2220,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
             col.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
         if AR_Var.Version != '':
             if AR_Var.Update:
-                col.bl_label(text= "A new Version is available (" + AR_Var.Version + ")")
+                col.label(text= "A new Version is available (" + AR_Var.Version + ")")
             else:
                 col.label(text= "You are using the latest Vesion (" + AR_Var.Version + ")")
         row = col.row()
