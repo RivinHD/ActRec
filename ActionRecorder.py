@@ -2094,11 +2094,11 @@ class AR_OT_Restart(Operator):
     def execute(self, context):
         path = bpy.data.filepath
         if path == '':
-            os.system(bpy.app.binary_path)
+            os.execv(bpy.app.binary_path)
         else:
             bpy.ops.wm.save_mainfile(path)
             os.startfile(path)
-        bpy.ops.wm.quit_blender()
+            bpy.ops.wm.quit_blender()
         return {"FINISHED"}
 classes.append(AR_OT_Restart)
 
