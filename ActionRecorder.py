@@ -649,19 +649,27 @@ def Update():
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
-            temppath = os.path.join(bpy.app.tempdir, "AR_Update")
+            dirpath = os.path.join(bpy.app.tempdir, "AR_Update")
+            if not os.path.exists(dirpath):
+                os.mkdir(dirpath)
+            temppath = os.path.join(dirpath, __package__)
             if not os.path.exists(temppath):
                 os.mkdir(temppath)
             if len(tail.split('/')) == 1 and head.endswith(".py"):
                 with open(os.path.join(temppath, head), 'w', encoding= 'utf8') as tempfile:
                     tempfile.write(extract.read(exct).decode("utf-8"))
-        zippath = os.path.join(temppath, "Update.zip")
+        zippath = os.path.join(bpy.app.tempdir, "AR_Update/" + __package__ +".zip")
         with zipfile.ZipFile(zippath, 'w') as zip_it:
             for tempfile in os.listdir(temppath):
-                zip_it.write(os.path.join(temppath, tempfile), tempfile)
+                if tempfile.endswith(".py"):
+                    currentpath = os.path.join(temppath, tempfile)
+                    zip_it.write(currentpath, os.path.join(__package__, tempfile))
+                    os.remove(currentpath)
             else:
                 os.rmdir(temppath)
         bpy.ops.preferences.addon_install(filepath= zippath)
+        os.remove(zippath)
+        os.rmdir(dirpath)
 
 # Panels ===================================================================================
 def panelFactory(spaceType): #Create Panels for every spacetype with UI
