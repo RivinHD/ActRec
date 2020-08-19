@@ -455,6 +455,9 @@ def InitSavedPanel(dummy = None):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if bpy.data.filepath == '':
         AR_Var.Record_Coll.clear()
+    AR_Var.Update = False
+    AR_Var.Version = ''
+    AR_Var.Restart = False
     if not os.path.exists(AR_Var.StorageFilePath):
         os.mkdir(AR_Var.StorageFilePath)
     Load()
@@ -2068,6 +2071,7 @@ class AR_OT_Update(bpy.types.Operator):
     def execute(self, context):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         AR_Var.Update = False
+        AR_Var.Restart = True
         Update()
         return {"FINISHED"}
 classes.append(AR_OT_Update)
@@ -2081,6 +2085,22 @@ class AR_OT_ReleaseNotes(bpy.types.Operator):
         webbrowser.open(config['releasNotes_URL'])
         return {"FINISHED"}
 classes.append(AR_OT_ReleaseNotes)
+
+class AR_OT_Restart(Operator):
+    bl_idname = "ar.restart"
+    bl_label = "Restart Blender"
+    bl_description = "Restart Blender"
+
+    def execute(self, context):
+        path = bpy.data.filepath
+        if path == '':
+            os.system(bpy.app.binary_path)
+        else:
+            bpy.ops.wm.save_mainfile(path)
+            os.startfile(path)
+        bpy.ops.wm.quit_blender()
+        return {"FINISHED"}
+classes.append(AR_OT_Restart)
 
 # PropertyGroups =======================================================================
 def SavePrefs(self, context):
@@ -2214,6 +2234,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     Importsettings : CollectionProperty(type= AR_ImportCategory)
     Update : BoolProperty()
     Version : StringProperty()
+    Restart : BoolProperty()
 
     # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
     addon_keymaps = []
@@ -2231,7 +2252,10 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
         col = layout.column()
         if AR_Var.Update:
             row = col.row()
-            row.operator(AR_OT_Update.bl_idname, text= "Update")
+            if AR_Var.Restart:
+                row.operator(AR_OT_Restart.bl_idname, text= "Restart")
+            else:
+                row.operator(AR_OT_Update.bl_idname, text= "Update")
             row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
         else:
             col.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
