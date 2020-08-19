@@ -14,6 +14,7 @@ import atexit
 from urllib import request
 from io import BytesIO
 from . import __init__ as init
+import importlib
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -647,15 +648,17 @@ def GetVersion(line):
 def Update():
     path = config["repoSource_URL"] + "/archive/master.zip"
     source = request.urlopen(path)
-    init.unregister()
+    mod = __import__(__package__)
+    mod.register()
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
             if len(tail.split('/')) == 1 and head.endswith(".py"):
                 with open(os.path.join(os.path.dirname(__file__), head), 'w', encoding= 'utf8') as realfile:
                     realfile.write(extract.read(exct).decode("utf-8"))
-        init.register()
-        bpy.ops.script.reload()
+        importlib.reload(mod)
+        mod.register() 
+        bpy.ops.preferences.addon_enable(module= __package__)
 
 # Panels ===================================================================================
 def panelFactory(spaceType): #Create Panels for every spacetype with UI
