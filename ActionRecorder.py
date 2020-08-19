@@ -11,6 +11,7 @@ from addon_utils import check, paths, enable
 from .IconList import Icons as IconList
 from .config import config
 import atexit
+from urllib import request
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -145,7 +146,7 @@ def TempUpdate(): # update all commands in temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:
-        tempfile.truncate(0)
+        tempfile.truncate(0)    
         tempfile.seek(0)
         data = {}
         for cmd in range(len(AR_Var.Record_Coll[CheckCommand(0)].Command) + 1):
@@ -619,6 +620,37 @@ def ImportSortedZip(filepath):
                 sortedfilelist[int(os.path.basename(fil).split("~")[0])] = fil
             dirfileslist[new_i] = sortedfilelist
         return (dirfileslist, sorteddirlist)
+
+def CheckForUpdate():
+    updateSource = request.urlopen(config["checkSource_URL"])
+    updateContent = updateSource.read()
+    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'w+') as currentFile:
+        currentContext = currentFile.read()
+        lines = currentContext.splitlines()
+        for i in range(15):
+            if lines[i].strip().startswith('"version"'):
+                currentVersion = GetVersion(lines[i])
+                lines = updateContent.splitlines()
+                for j in range(15):
+                    if lines[i].strip().startswith('"version"'):
+                        updateVersion = GetVersion(lines[j])
+                        if updateVersion[0] > currentVersion[0] or updateVersion[1] > currentVersion[1] or updateVersion[2] > currentVersion[2]:
+                            return (True, updateVersion)
+                        else:
+                            return (False, currentVersion)
+
+def GetVersion(line):
+    return eval(line.split(":")[1].split[","])
+
+def Update():
+    source = request.urlopen(os.path.join(config["repoSource_URL"], "archive/master.zip"))
+    with zipfile.ZipFile(BytesIO(source.read())) as extract:
+        for exct in extract.namelist():
+            tail, head = os.path.split(exct)
+            if len(tail.split('/')) == 1 and head.endswith(".py"):
+                with open(os.path.join(os.path.dirname(__file__), head), 'w', encoding= 'utf8') as realfile:
+                    realfile.write(extract.read(exct).decode("utf-8"))
+        bpy.ops.script.reload()
 
 # Panels ===================================================================================
 def panelFactory(spaceType): #Create Panels for every spacetype with UI
@@ -1996,6 +2028,41 @@ class AR_OT_Help_OpenURL(bpy.types.Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Help_OpenURL)
 
+class AR_OT_CheckUpdate(bpy.types.Operator):
+    bl_idname = "ar.check_update"
+    bl_label = "Check for Update"
+    bl_description = "check for available update"
+
+    def execute(self, context):
+        update = CheckForUpdate()
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.Update = update[0]
+        AR_Var.Version = ".".join(update[1])
+        return {"FINISHED"}
+classes.append(AR_OT_CheckUpdate)
+
+class AR_OT_Update(bpy.types.Operator):
+    bl_idname = "ar.update"
+    bl_label = "Update"
+    bl_description = "install the new version"
+
+    def execute(self, context):
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        AR_Var.Update = False
+        Update()
+        return {"FINISHED"}
+classes.append(AR_OT_Update)
+
+class AR_OT_ReleaseNotes(bpy.types.Operator):
+    bl_idname = "ar.releasenotes"
+    bl_label = "Releas Notes"
+    bl_description = "open the Releas Notes in the Web-Browser"
+
+    def execute(self, context):
+        webbrowser.open(config['releasNotes_URL'])
+        return {"FINISHED"}
+classes.append(AR_OT_ReleaseNotes)
+
 # PropertyGroups =======================================================================
 def SavePrefs(self, context):
     if not ontempload[0]:
@@ -2126,6 +2193,8 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     StorageFilePath : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(__file__), "Storage"))
 
     Importsettings : CollectionProperty(type= AR_ImportCategory)
+    Update : BoolProperty()
+    Version : StringProperty()
 
     # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
     addon_keymaps = []
@@ -2138,11 +2207,24 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     ]
 
     def draw(self, context):
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
         layout = self.layout
-        row = layout.row()
+        col = layout.column()
+        if AR_Var.Update:
+            row = col.row()
+            row.operator(AR_OT_Update.bl_idname, text= "Update")
+            row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
+        else:
+            col.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
+        if AR_Var.Version != '':
+            if AR_Var.Update:
+                col.bl_label(text= "A new Version is available (" + AR_Var.Version + ")")
+            else:
+                col.label(text= "You are using the latest Vesion (" + AR_Var.Version + ")")
+        row = col.row()
         row.operator(AR_OT_Preferences_DirectorySelector.bl_idname, text= "Select Strage Folder", icon= 'FILEBROWSER')
         row.operator(AR_OT_Preferences_RecoverDirectory.bl_idname, text= "Recover Default Directory", icon= 'FOLDER_REDIRECT')
-        box = layout.box()
+        box = col.box()
         box.label(text= self.StorageFilePath)
 classes.append(AR_Prop)
 
