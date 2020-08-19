@@ -2096,7 +2096,7 @@ class AR_OT_Restart(Operator):
         if path == '':
             os.execl(bpy.app.binary_path, bpy.app.binary_path)
         else:
-            bpy.ops.wm.save_mainfile(path)
+            bpy.ops.wm.save_mainfile(filepath= path)
             os.startfile(path)
         bpy.ops.wm.quit_blender()
         return {"FINISHED"}
