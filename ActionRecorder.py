@@ -14,6 +14,7 @@ import atexit
 from urllib import request
 from io import BytesIO
 from . import __init__ as init
+import sys
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
