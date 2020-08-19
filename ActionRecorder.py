@@ -2250,15 +2250,14 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         layout = self.layout
         col = layout.column()
+        row = col.row()
         if AR_Var.Update:
-            row = col.row()
-            if AR_Var.Restart:
-                row.operator(AR_OT_Restart.bl_idname, text= "Restart")
-            else:
-                row.operator(AR_OT_Update.bl_idname, text= "Update")
+            row.operator(AR_OT_Update.bl_idname, text= "Update")
             row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
         else:
-            col.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
+            row.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
+            if AR_Var.Restart:
+                row.operator(AR_OT_Restart.bl_idname, text= "Restart to Finsih")
         if AR_Var.Version != '':
             if AR_Var.Update:
                 col.label(text= "A new Version is available (" + AR_Var.Version + ")")
