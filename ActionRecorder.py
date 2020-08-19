@@ -14,7 +14,6 @@ import atexit
 from urllib import request
 from io import BytesIO
 from . import __init__ as init
-import sys
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -2095,11 +2094,11 @@ class AR_OT_Restart(Operator):
     def execute(self, context):
         path = bpy.data.filepath
         if path == '':
-            os.execv(bpy.app.binary_path, sys.argv)
+            os.execl(bpy.app.binary_path, os.sys.argv)
         else:
             bpy.ops.wm.save_mainfile(path)
             os.startfile(path)
-            bpy.ops.wm.quit_blender()
+        bpy.ops.wm.quit_blender()
         return {"FINISHED"}
 classes.append(AR_OT_Restart)
 
