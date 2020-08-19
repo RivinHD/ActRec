@@ -644,7 +644,7 @@ def GetVersion(line):
     return eval("(%s)" %line.split("(")[1].split(")")[0])
 
 def Update():
-    path = os.path.join(config["repoSource_URL"], "archive/master.zip")
+    path = config["repoSource_URL"] + "/archive/master.zip"
     source = request.urlopen(path)
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
