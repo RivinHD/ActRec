@@ -646,14 +646,22 @@ def GetVersion(line):
 
 def Update():
     source = request.urlopen(config["repoSource_URL"] + "/archive/master.zip")
-    bpy.ops.preferences.addon_disable(module= __package__)
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
+            temppath = os.path.join(bpy.app.tempdir, "AR_Update")
+            if not os.path.exists(temppath):
+                os.mkdir(temppath)
             if len(tail.split('/')) == 1 and head.endswith(".py"):
-                with open(os.path.join(os.path.dirname(__file__), head), 'w', encoding= 'utf8') as realfile:
-                    realfile.write(extract.read(exct).decode("utf-8"))
-        bpy.ops.preferences.addon_enable(module= __package__)
+                with open(os.path.join(temppath, head), 'w', encoding= 'utf8') as tempfile:
+                    tempfile.write(extract.read(exct).decode("utf-8"))
+        zippath = os.path.join(temppath, "Update.zip")
+        with zipfile.ZipFile(zippath, 'w') as zip_it:
+            for tempfile in os.listdir(temppath):
+                zip_it.write(os.path.join(temppath, tempfile), tempfile)
+            else:
+                os.rmdir(temppath)
+        bpy.ops.preferences.addon_install(filepath= zippath)
 
 # Panels ===================================================================================
 def panelFactory(spaceType): #Create Panels for every spacetype with UI
