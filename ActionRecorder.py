@@ -649,7 +649,7 @@ def Update():
     path = config["repoSource_URL"] + "/archive/master.zip"
     source = request.urlopen(path)
     mod = __import__(__package__)
-    mod.register()
+    mod.unregister()
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
@@ -657,7 +657,8 @@ def Update():
                 with open(os.path.join(os.path.dirname(__file__), head), 'w', encoding= 'utf8') as realfile:
                     realfile.write(extract.read(exct).decode("utf-8"))
         importlib.reload(mod)
-        mod.register() 
+        mod.register()
+        print("register")
         bpy.ops.preferences.addon_enable(module= __package__)
 
 # Panels ===================================================================================
