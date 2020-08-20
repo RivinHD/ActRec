@@ -15,7 +15,6 @@ from urllib import request
 from io import BytesIO
 from . import __init__ as init
 import base64
-import locale
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
@@ -632,7 +631,7 @@ def CheckForUpdate():
     updateSource = request.urlopen(config["checkSource_URL"])
     data = json.loads(updateSource.read().decode("utf-8"))
     updateContent = base64.b64decode(data["content"]).decode("utf-8")
-    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'r', encoding= locale.getpreferredencoding()) as currentFile:
+    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'r', encoding= "utf-8", errors='ignore') as currentFile:
         currentContext = currentFile.read()
         lines = currentContext.splitlines()
         for i in range(15):
