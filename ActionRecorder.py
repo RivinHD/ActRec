@@ -631,7 +631,7 @@ def CheckForUpdate():
     updateSource = request.urlopen(config["checkSource_URL"])
     data = json.loads(updateSource.read().decode("utf-8"))
     updateContent = base64.b64decode(data["content"]).decode("utf-8")
-    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'r') as currentFile:
+    with open(os.path.join(os.path.dirname(__file__),"__init__.py"), 'r', encoding= "utf-8") as currentFile:
         currentContext = currentFile.read()
         lines = currentContext.splitlines()
         for i in range(15):
