@@ -15,9 +15,10 @@ from urllib import request
 from io import BytesIO
 from . import __init__ as init
 import base64
+import random
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
-from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences
+from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences, Menu
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 classes = []
@@ -26,7 +27,8 @@ categoriesclasses = []
 catlength = [0]
 activeareas = []
 ontempload = [False]
-
+multiselection_buttons = [False, True]
+oninit = [False]
 
 # UIList ======================================================================================
 class AR_UL_Selector(UIList):
@@ -324,8 +326,9 @@ def Load():#Load Buttons from Storage
     for cat in AR_Var.Categories:
         RegisterUnregister_Category(GetPanelIndex(cat), False)
     AR_Var.Categories.clear()
-    scene.ar_enum.clear()
+    AR_Var.ar_enum.clear()
     AR_Var.Instance_Coll.clear()
+    AR_Var.Instance_Index = 0
     for folder in os.listdir(AR_Var.StorageFilePath):
         folderpath = os.path.join(AR_Var.StorageFilePath, folder)
         if os.path.isdir(folderpath):
@@ -339,10 +342,11 @@ def Load():#Load Buttons from Storage
             sortedtxt = [None] * len(textfiles)
             RegisterUnregister_Category(GetPanelIndex(new))
             for i in textfiles:
-                new_e = scene.ar_enum.add()
-                e_index = len(scene.ar_enum) - 1
+                new_e = AR_Var.ar_enum.add()
+                e_index = len(AR_Var.ar_enum) - 1
                 new_e.name = str(e_index)
                 new_e.Index = e_index
+                new_e.Value = False
             for txt in textfiles:
                 sortedtxt[int(txt.split('~')[0])] = txt #get the index 
             for i in range(len(sortedtxt)):
@@ -361,13 +365,13 @@ def Recorder_to_Instance(panel): #Convert Record to Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     i = panel.Instance_Start +  panel.Instance_length
-    data = {"name":CheckForDublicates([ele.name for ele in AR_Var.Instance_Coll], AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].cname),
+    data = {"name":CheckForDublicates([AR_Var.Instance_Coll[j].name for j in range(panel.Instance_Start, i)], AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].cname),
             "command": [Command.cname for Command in AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command],
             "icon": AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].icon}
     Inst_Coll_Insert(i, data , AR_Var.Instance_Coll)
     panel.Instance_length += 1
-    new_e = scene.ar_enum.add()
-    e_index = len(scene.ar_enum) - 1
+    new_e = AR_Var.ar_enum.add()
+    e_index = len(AR_Var.ar_enum) - 1
     new_e.name = str(e_index)
     new_e.Index = e_index
     p_i = GetPanelIndex(panel)
@@ -378,15 +382,24 @@ def Recorder_to_Instance(panel): #Convert Record to Button
 
 def Instance_to_Recorder():#Convert Button to Record
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    Item = AR_Var.Record_Coll[CheckCommand(0)].Command.add()
-    Item.cname = AR_Var.Instance_Coll[AR_Var.Instance_Index].name
-    Item.icon = AR_Var.Instance_Coll[AR_Var.Instance_Index].icon
-    for Command in AR_Var.Instance_Coll[AR_Var.Instance_Index].command:
-        Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
-        Item.macro = GetMacro(Command.name)
-        Item.cname = Command.name
-    AR_Var.Record_Coll[CheckCommand(0)].Index = len(AR_Var.Record_Coll[CheckCommand(0)].Command) - 1
-    UpdateRecordText(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
+    scene = bpy.context.scene
+    l = []
+    if multiselection_buttons[0]:
+        for i in range(len(AR_Var.ar_enum)):
+            if AR_Var.ar_enum[i].Value:
+                l.append(i)
+    else:
+        l.append(AR_Var.Instance_Index)
+    for Index in l:
+        Item = AR_Var.Record_Coll[CheckCommand(0)].Command.add()
+        Item.cname = AR_Var.Instance_Coll[Index].name
+        Item.icon = AR_Var.Instance_Coll[Index].icon
+        for Command in AR_Var.Instance_Coll[Index].command:
+            Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
+            Item.macro = GetMacro(Command.name)
+            Item.cname = Command.name
+        AR_Var.Record_Coll[CheckCommand(0)].Index = len(AR_Var.Record_Coll[CheckCommand(0)].Command) - 1
+        UpdateRecordText(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
 
 def Execute_Instance(Num): #Execute a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -403,46 +416,71 @@ def Rename_Instance(): #Rename a Button
 def I_Remove(): # Remove a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    if len(AR_Var.Instance_Coll) :
-        Index = AR_Var.Instance_Index
-        AR_Var.Instance_Coll.remove(Index)
-        scene.ar_enum.remove(len(scene.ar_enum) - 1)
-        categories = AR_Var.Categories
-        for cat in categories:
-            if Index >= cat.Instance_Start and Index < cat.Instance_Start + cat.Instance_length:
-                cat.Instance_length -= 1
-                p_i = GetPanelIndex(cat)
-                if p_i < len(categories):
-                    for cat in categories[ p_i + 1: ]:
-                        cat.Instance_Start -= 1
-                break
-        if len(AR_Var.Instance_Coll) and len(AR_Var.Instance_Coll)-1 < Index :
-            AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
+    l = []
+    if multiselection_buttons[0]:
+        for i in range(len(AR_Var.ar_enum)):
+            if AR_Var.ar_enum[i].Value:
+                l.append(i)
+    else:
+        l.append(AR_Var.Instance_Index)
+    offset = 0
+    for Index in l:
+        if len(AR_Var.Instance_Coll) :
+            Index = Index - offset
+            AR_Var.Instance_Coll.remove(Index)
+            AR_Var.ar_enum.remove(len(AR_Var.ar_enum) - 1)
+            categories = AR_Var.Categories
+            for cat in categories:
+                if Index >= cat.Instance_Start and Index < cat.Instance_Start + cat.Instance_length:
+                    cat.Instance_length -= 1
+                    p_i = GetPanelIndex(cat)
+                    if p_i < len(categories):
+                        for cat in categories[ p_i + 1: ]:
+                            cat.Instance_Start -= 1
+                    break
+            if len(AR_Var.Instance_Coll) and len(AR_Var.Instance_Coll)-1 < Index :
+                AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
+            offset += 1
     SetEnumIndex()
 
 def I_Move(Mode): # Move a Button to the upper/lower
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    index1 = AR_Var.Instance_Index
-    if Mode == 'Up' :
-        index2 = AR_Var.Instance_Index - 1
-    else :
-        index2 = AR_Var.Instance_Index + 1
-    LengthTemp = len(AR_Var.Instance_Coll)
-    if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
-        AR_Var.Instance_Coll[index1].name , AR_Var.Instance_Coll[index2].name = AR_Var.Instance_Coll[index2].name , AR_Var.Instance_Coll[index1].name
-        AR_Var.Instance_Coll[index1].icon , AR_Var.Instance_Coll[index2].icon = AR_Var.Instance_Coll[index2].icon , AR_Var.Instance_Coll[index1].icon
-        index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].command]
-        index2cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index2].command]
-        AR_Var.Instance_Coll[index1].command.clear()
-        AR_Var.Instance_Coll[index2].command.clear()
-        for cmd in index1cmd:
-            new = AR_Var.Instance_Coll[index1].command.add()
-            new.name = cmd
-        for cmd in index2cmd:
-            new = AR_Var.Instance_Coll[index2].command.add()
-            new.name = cmd
-        scene.ar_enum[index2].Value = True
+    l = []
+    if multiselection_buttons[0]:
+        multiselection_buttons[1] = False
+        for i in range(len(AR_Var.ar_enum)):
+            if AR_Var.ar_enum[i].Value:
+                l.append(i)
+    else:
+        l.append(AR_Var.Instance_Index)
+    if Mode == 'Down':
+        l.reverse()
+    for index1 in l:
+        if Mode == 'Up' :
+            index2 = index1 - 1
+        else :
+            index2 = index1 + 1
+        LengthTemp = len(AR_Var.Instance_Coll)
+        if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
+            AR_Var.Instance_Coll[index1].name , AR_Var.Instance_Coll[index2].name = AR_Var.Instance_Coll[index2].name , AR_Var.Instance_Coll[index1].name
+            AR_Var.Instance_Coll[index1].icon , AR_Var.Instance_Coll[index2].icon = AR_Var.Instance_Coll[index2].icon , AR_Var.Instance_Coll[index1].icon
+            index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].command]
+            index2cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index2].command]
+            AR_Var.Instance_Coll[index1].command.clear()
+            AR_Var.Instance_Coll[index2].command.clear()
+            for cmd in index2cmd:
+                new = AR_Var.Instance_Coll[index1].command.add()
+                new.name = cmd
+            for cmd in index1cmd:
+                new = AR_Var.Instance_Coll[index2].command.add()
+                new.name = cmd
+            AR_Var.ar_enum[index1].Value = False
+            AR_Var.ar_enum[index2].Value = True
+        else:
+            break
+    if multiselection_buttons[0]:
+        multiselection_buttons[1] = True
 
 #Initalize Standert Button List
 @persistent
@@ -451,20 +489,23 @@ def InitSavedPanel(dummy = None):
         bpy.app.timers.unregister(InitSavedPanel)
         bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     except:
-        print("Already Loaded")
         return
+    oninit[0] = True
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if bpy.data.filepath == '':
         AR_Var.Record_Coll.clear()
     AR_Var.Update = False
     AR_Var.Version = ''
     AR_Var.Restart = False
+    if AR_Var.AutoUpdate:
+        bpy.ops.ar.check_update('EXEC_DEFAULT')
     if not os.path.exists(AR_Var.StorageFilePath):
         os.mkdir(AR_Var.StorageFilePath)
     Load()
     catlength[0] = len(AR_Var.Categories)
     TempSaveCats()
     TempUpdate()
+    oninit[0] = False
 
 def GetPanelIndex(cat): #Get Index of a Category
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -473,9 +514,9 @@ def GetPanelIndex(cat): #Get Index of a Category
 def SetEnumIndex(): #Set enum, if out of range to the first enum
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    if len(scene.ar_enum):
-        enumIndex = AR_Var.Instance_Index * (AR_Var.Instance_Index < len(scene.ar_enum))
-        scene.ar_enum[enumIndex].Value = True
+    if len(AR_Var.ar_enum):
+        enumIndex = AR_Var.Instance_Index * (AR_Var.Instance_Index < len(AR_Var.ar_enum))
+        AR_Var.ar_enum[enumIndex].Value = True
         AR_Var.Instance_Index = enumIndex  
 
 def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
@@ -520,7 +561,7 @@ def TempLoadCats(dummy): #Load the Created tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
-    scene.ar_enum.clear()
+    AR_Var.ar_enum.clear()
     reg = bpy.ops.screen.redo_last.poll()
     if reg:
         for cat in AR_Var.Categories:
@@ -540,10 +581,10 @@ def TempLoadCats(dummy): #Load the Created tempfile
         index = data["Instance_Index"]
         AR_Var.Instance_Index = index
         for i in range(len(AR_Var.Instance_Coll)):
-            new_e = scene.ar_enum.add()
+            new_e = AR_Var.ar_enum.add()
             new_e.name = str(i)
             new_e.Index = i
-        scene.ar_enum[index].Value = True
+        AR_Var.ar_enum[index].Value = True
         for cat in data["Categories"]:
             new = AR_Var.Categories.add()
             new.name = cat["name"]
@@ -694,6 +735,9 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             AR_Var = context.preferences.addons[__package__].preferences
             scene = bpy.context.scene
             layout = self.layout
+            if AR_Var.AutoUpdate and AR_Var.Update:
+                box = layout.box()
+                box.label(text= "A new Version is available (" + AR_Var.Version + ")")
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
@@ -788,11 +832,11 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
                 row = layout.row()
                 row2 = row.split(factor= 0.7)
                 col = row2.column()
-                col.enabled = len(AR_Var.Instance_Coll) > 0
+                col.enabled = len(AR_Var.Instance_Coll) > 0 and not multiselection_buttons[0]
                 col.prop(AR_Var , 'Rename' , text='')
-                row2.operator(AR_OT_Button_Rename.bl_idname , text='Rename')
+                row2.operator(AR_OT_Button_Rename.bl_idname , text='ReName')
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
-    classes.append(AR_PT_Global)
+    classespanel.append(AR_PT_Global)
 
     class AR_PT_Help(Panel):
         bl_space_type = spaceType
@@ -809,11 +853,25 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
 
         def draw(self, context):
             layout = self.layout
+            AR_Var = context.preferences.addons[__package__].preferences
             layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Manual", icon= 'ASSET_MANAGER').url = config["Manual_URL"]
             layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Hint", icon= 'HELP').url = config["Hint_URL"]
             layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Bug Report", icon= 'URL').url = config["BugReport_URL"]
+            row = layout.row()
+            if AR_Var.Update:
+                row.operator(AR_OT_Update.bl_idname, text= "Update")
+                row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
+            else:
+                row.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
+                if AR_Var.Restart:
+                    row.operator(AR_OT_Restart.bl_idname, text= "Restart to Finsih")
+            if AR_Var.Version != '':
+                if AR_Var.Update:
+                    layout.label(text= "new Version available (" + AR_Var.Version + ")")
+                else:
+                    layout.label(text= "latest Vesion installed (" + AR_Var.Version + ")")
     AR_PT_Help.__name__ = "AR_PT_Help_%s" % spaceType
-    classes.append(AR_PT_Help)
+    classespanel.append(AR_PT_Help)
 
     class AR_PT_Advanced(Panel):
         bl_space_type = spaceType
@@ -845,7 +903,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             col.label(text= "Local Settings")
             col.prop(AR_Var, 'CreateEmpty', text= "Create Empty Macro on Error")
     AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
-    classes.append(AR_PT_Advanced)
+    classespanel.append(AR_PT_Advanced)
 
 def RegisterCategories(): #Register all Categories
     for i in range(catlength[0]):
@@ -867,12 +925,16 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 index = int(self.bl_idname.split("_")[3])
                 category = AR_Var.Categories[index]
                 layout = self.layout
-                row = layout.row()
-                row.alignment = 'LEFT'
-                row.label(text= category.pn_name)
+                row = layout.row(align= True)
+                row.scale_x = 1.2
+                row2 = row.row()
+                row2.ui_units_x = 5
+                row2.label(text= category.pn_name)
                 row2 = row.row(align= True)
+                row2.ui_units_x = 1.6
                 row2.operator(AR_OT_Category_MoveUp.bl_idname, icon="TRIA_UP", text= "").Index = index
                 row2.operator(AR_OT_Category_MoveDown.bl_idname, icon="TRIA_DOWN", text="").Index = index
+                #self.bl_label = category.pn_name
 
             def draw(self, context):
                 AR_Var = context.preferences.addons[__package__].preferences
@@ -884,7 +946,7 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 for i in range(category.Instance_Start, category.Instance_Start + category.Instance_length):
                     row = col.row(align=True)
                     row.alert = alert_index[0] == i
-                    row.prop(scene.ar_enum[i], 'Value' ,toggle = 1, icon= 'LAYER_ACTIVE' if scene.ar_enum[i].Value else 'LAYER_USED', text= "")
+                    row.prop(AR_Var.ar_enum[i], 'Value' ,toggle = 1, icon= 'LAYER_ACTIVE' if AR_Var.ar_enum[i].Value else 'LAYER_USED', text= "", event= True)
                     row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon= AR_Var.Instance_Coll[i].icon).index = i
                     row.operator(AR_OT_Category_Cmd.bl_idname , text= AR_Var.Instance_Coll[i].name).Index = i
         AR_PT_Category.__name__ = "AR_PT_Category_%s_%s" %(index, spaceType)
@@ -949,7 +1011,7 @@ class AR_OT_Category_Delet(Operator):
                 index = GetPanelIndex(cat)
                 start = cat.Instance_Start
                 for i in range(start, start + cat.Instance_length):
-                    scene.ar_enum.remove(len(scene.ar_enum) - 1)
+                    AR_Var.ar_enum.remove(len(AR_Var.ar_enum) - 1)
                     AR_Var.Instance_Coll.remove(start)
                 for nextcat in categories[index + 1 :]:
                     nextcat.Instance_Start -= cat.Instance_length
@@ -967,6 +1029,8 @@ class AR_OT_Category_Delet(Operator):
         AR_Var = context.preferences.addons[__package__].preferences    
         layout = self.layout
         categories = AR_Var.Categories
+        box = layout.box()
+        box.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
         for cat in categories:
             layout.prop(cat, 'pn_selected', text= cat.pn_name)
 
@@ -1028,24 +1092,34 @@ class AR_OT_Category_MoveButton(Operator):
         scene = context.scene
         for cat in categories:
             if cat.pn_selected:
-                Index = AR_Var.Instance_Index
-                catendl = cat.Instance_Start + cat.Instance_length
-                for curcat in categories:
-                    if Index >= curcat.Instance_Start and Index < curcat.Instance_Start + curcat.Instance_length:
-                        curcat.Instance_length -= 1
-                        for nextcat in categories[GetPanelIndex(curcat) + 1 :]:
-                            nextcat.Instance_Start -= 1
-                        break
-                data ={
-                    "name": AR_Var.Instance_Coll[Index].name,
-                    "icon": AR_Var.Instance_Coll[Index].icon,
-                    "command": [cmd.name for cmd in AR_Var.Instance_Coll[Index].command]
-                }
-                AR_Var.Instance_Coll.remove(Index)
-                Inst_Coll_Insert(catendl -1 * (Index < catendl), data, AR_Var.Instance_Coll)
-                for nextcat in categories[GetPanelIndex(cat) + 1:]:
-                    nextcat.Instance_Start += 1
-                cat.Instance_length += 1
+                l = []
+                if multiselection_buttons[0]:
+                    for i in range(len(AR_Var.ar_enum)):
+                        if AR_Var.ar_enum[i].Value:
+                            l.append(i)
+                else:
+                    l.append(AR_Var.Instance_Index)
+                offset = 0
+                for Index in l:
+                    Index = Index - offset
+                    catendl = cat.Instance_Start + cat.Instance_length
+                    for curcat in categories:
+                        if Index >= curcat.Instance_Start and Index < curcat.Instance_Start + curcat.Instance_length:
+                            curcat.Instance_length -= 1
+                            for nextcat in categories[GetPanelIndex(curcat) + 1 :]:
+                                nextcat.Instance_Start -= 1
+                            break
+                    data ={
+                        "name": AR_Var.Instance_Coll[Index].name,
+                        "icon": AR_Var.Instance_Coll[Index].icon,
+                        "command": [cmd.name for cmd in AR_Var.Instance_Coll[Index].command]
+                    }
+                    AR_Var.Instance_Coll.remove(Index)
+                    Inst_Coll_Insert(catendl - 1 * (Index < catendl), data, AR_Var.Instance_Coll)
+                    offset += 1 * (Index < catendl)
+                    for nextcat in categories[GetPanelIndex(cat) + 1:]:
+                        nextcat.Instance_Start += 1
+                    cat.Instance_length += 1
                 SetEnumIndex()
                 break
         bpy.context.area.tag_redraw()
@@ -1178,7 +1252,7 @@ class AR_OT_Import(Operator, ImportHelper):
                 ar_categories.clear()
                 AR_Var.Instance_Coll.clear()
                 AR_Var.Instance_Index = 0
-                scene.ar_enum()
+                AR_Var.ar_enum()
                 with zipfile.ZipFile(self.filepath, 'r') as zip_out:
                     for i in range(len(sorteddirlist)):
                         cat = AR_Var.Importsettings.add()
@@ -1217,8 +1291,8 @@ class AR_OT_Import(Operator, ImportHelper):
                                 for line in zip_out.read(btn_file).decode("utf-8").splitlines():
                                     cmd = inst.command.add()
                                     cmd.name = line
-                                new_e = scene.ar_enum.add()
-                                e_index = len(scene.ar_enum) - 1
+                                new_e = AR_Var.ar_enum.add()
+                                e_index = len(AR_Var.ar_enum) - 1
                                 new_e.name = str(e_index)
                                 new_e.Index = e_index
                                 mycat.Instance_length += 1
@@ -1263,8 +1337,8 @@ class AR_OT_Import(Operator, ImportHelper):
                                     "command": btn.command.splitlines(),
                                     "icon": icon}
                             Inst_Coll_Insert(inserti, data, AR_Var.Instance_Coll)
-                            new_e = scene.ar_enum.add()
-                            e_index = len(scene.ar_enum) - 1
+                            new_e = AR_Var.ar_enum.add()
+                            e_index = len(AR_Var.ar_enum) - 1
                             new_e.name = str(e_index)
                             new_e.Index = e_index
                             mycat.Instance_length += 1
@@ -1434,7 +1508,7 @@ class AR_OT_Export(Operator, ExportHelper):
             AR_Prop.FileDisp_Icon.append(inst.icon)
             AR_Prop.FileDisp_Command.append([cmd.name for cmd in inst.command])
         scene.ar_filedisp.clear()
-        for i in range(len(scene.ar_enum)):
+        for i in range(len(AR_Var.ar_enum)):
             scene.ar_filedisp.add()
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -1547,6 +1621,7 @@ class AR_OT_ButtonToRecord(Operator):
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
+        
         Instance_to_Recorder()
         if AR_Var.BtnToRec_Mode == 'move':
             I_Remove()
@@ -1630,7 +1705,7 @@ class AR_OT_Button_Rename(Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Instance_Coll)
+        return len(AR_Var.Instance_Coll) and not multiselection_buttons[0]
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -1663,6 +1738,7 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
     bl_description = "Press to select an Icon"
 
     index : IntProperty()
+    search : StringProperty(name= "Icon Search", description= "search Icon by name")
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -1677,11 +1753,14 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
         row = box.row()
         row.label(text= "Selected Icon:")
         row.label(text=" ", icon= AR_Prop.SelectedIcon)
+        row.prop(self, 'search', text= 'Search:')
         row.operator(AR_OT_Selector_Icon.bl_idname, text= "Clear Icon").icon = "BLANK1"
         box = layout.box()
-        gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True,  even_rows= True, align= True)
+        gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
         for ic in IconList:
-            gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
+            normalname = ic.lower().replace("_"," ")
+            if self.search == '' or self.search in normalname:
+                gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=1000)
@@ -1788,6 +1867,7 @@ class AR_OT_Record_Icon(bpy.types.Operator):
     bl_description = "Press to select an Icon"
 
     index : IntProperty()
+    search : StringProperty(name= "Icon Search", description= "search Icon by name")
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -1803,15 +1883,30 @@ class AR_OT_Record_Icon(bpy.types.Operator):
         row = box.row()
         row.label(text= "Selected Icon:")
         row.label(text=" ", icon= AR_Prop.SelectedIcon)
+        row.prop(self, 'search', text= 'Search:')
         row.operator(AR_OT_Selector_Icon.bl_idname, text= "Clear Icon").icon = "BLANK1"
         box = layout.box()
         gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True,  even_rows= True, align= True)
         for ic in IconList:
-            gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
+            normalname = ic.lower().replace("_"," ")
+            if self.search == '' or self.search in normalname:
+                gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=1000)
 classes.append(AR_OT_Record_Icon)
+
+class AR_OT_Record_Execute(Operator):
+    bl_idname = "ar.record_execute"
+    bl_label = "Execute Action"
+
+    index : IntProperty()
+
+    def execute(self, content):
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        Play(AR_Var.Record_Coll[CheckCommand(self.index)].Command)
+        return {"FINISHED"}
+classes.append(AR_OT_Record_Execute)
 
 class AR_OT_Command_Add(Operator):
     bl_idname = "ar.command_add"
@@ -2102,7 +2197,43 @@ class AR_OT_Restart(Operator):
             os.startfile(path)
         bpy.ops.wm.quit_blender()
         return {"FINISHED"}
+    
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        box.label(text= "You need to restart Blender to complete the Update")
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_Restart)
+
+class AR_OT_CheckCtrl(bpy.types.Operator):
+    bl_idname = "ar.check_ctrl"
+    bl_label = "Check Ctrl"
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        multiselection_buttons[0] = event.ctrl
+        return {"FINISHED"}
+classes.append(AR_OT_CheckCtrl)
+
+# Menus ================================================================================
+class AR_MT_Action_Pie(Menu):
+    bl_idname = "view3d.menuname"
+    bl_label = "ActRec Actions"
+    bl_idname = "AR_MT_Action_Pie"
+
+    def draw(self, context):
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        pie = self.layout.menu_pie()
+        actions = AR_Var.Record_Coll[CheckCommand(0)].Command
+        for i in range(len(actions)):
+            if i >= 8:
+                break
+            ops = pie.operator(AR_OT_Record_Execute.bl_idname, text= actions[i].cname).index = i + 1
+classes.append(AR_MT_Action_Pie)
 
 # PropertyGroups =======================================================================
 def SavePrefs(self, context):
@@ -2149,16 +2280,36 @@ classes.append(AR_CategorizeProps)
 InstanceCurrentselected = [None]
 InstanceLastselected = [0]
 def Instance_Updater(self, context):
+    if oninit[0]:
+        return
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    enum = context.scene.ar_enum
-    if self.Value and InstanceCurrentselected[0] != self.Index:
+    enum = AR_Var.ar_enum
+    if multiselection_buttons[1]:
+        bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
+    if multiselection_buttons[0]:
+        if self.Value:
+            InstanceLastselected.insert(0, self.Index)
+        else:
+            InstanceLastselected.remove(self.Index)
         InstanceCurrentselected[0] = self.Index
-        if InstanceLastselected[0] != self.Index and InstanceLastselected[0] < len(enum):
-            enum[InstanceLastselected[0]].Value = False
-        InstanceLastselected[0] = self.Index
-        AR_Var.Instance_Index = self.Index
-    if not self.Value and InstanceLastselected[0] == self.Index and InstanceCurrentselected[0] == self.Index:
-        self.Value = True
+    else:
+        if len(InstanceLastselected) > 1:
+            lastcopy = InstanceLastselected[:]
+            InstanceLastselected.clear()
+            InstanceLastselected.append(0)
+            for lasti in lastcopy:
+                if lasti == self.Index:
+                    self.Value = True
+                else:
+                    enum[lasti].Value = False
+        if self.Value and InstanceCurrentselected[0] != self.Index:
+            InstanceCurrentselected[0] = self.Index
+            if InstanceLastselected[0] != self.Index and InstanceLastselected[0] < len(enum):
+                enum[InstanceLastselected[0]].Value = False
+            InstanceLastselected[0] = self.Index
+            AR_Var.Instance_Index = self.Index
+        if not self.Value and InstanceLastselected[0] == self.Index and InstanceCurrentselected[0] == self.Index:
+            self.Value = True
 
 class AR_Enum(PropertyGroup):
     Value : BoolProperty(default= False, update= Instance_Updater)
@@ -2213,6 +2364,7 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
 
     Instance_Coll : CollectionProperty(type= AR_Struct)
     Instance_Index : IntProperty(default= 0)
+    ar_enum : CollectionProperty(type= AR_Enum)
 
     Categories : CollectionProperty(type= AR_CategorizeProps)
 
@@ -2237,15 +2389,17 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     Update : BoolProperty()
     Version : StringProperty()
     Restart : BoolProperty()
+    AutoUpdate : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
 
     # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
     addon_keymaps = []
     key_assign_list = \
     [
-    (AR_OT_Command_Add.bl_idname, 'COMMA', 'PRESS', False, False, True),
-    (AR_OT_Record_Play.bl_idname, 'PERIOD', 'PRESS', False, False, True),
-    (AR_OT_Record_SelectorUp.bl_idname, 'WHEELUPMOUSE','PRESS', False, False, True),
-    (AR_OT_Record_SelectorDown.bl_idname, 'WHEELDOWNMOUSE','PRESS', False, False, True)
+    (AR_OT_Command_Add.bl_idname, 'COMMA', 'PRESS', False, False, True, None),
+    (AR_OT_Record_Play.bl_idname, 'PERIOD', 'PRESS', False, False, True, None),
+    (AR_OT_Record_SelectorUp.bl_idname, 'WHEELUPMOUSE','PRESS', False, False, True, None),
+    (AR_OT_Record_SelectorDown.bl_idname, 'WHEELDOWNMOUSE','PRESS', False, False, True, None),
+    ("wm.call_menu_pie", 'A', 'PRESS', False, True, True, AR_MT_Action_Pie.bl_idname),
     ]
 
     def draw(self, context):
@@ -2278,7 +2432,6 @@ for spaceType in spaceTypes:
     panelFactory( spaceType )
 
 def Initialize_Props():# プロパティをセットする関数
-    bpy.types.Scene.ar_enum = CollectionProperty(type= AR_Enum)
     bpy.types.Scene.ar_filecategories = CollectionProperty(type= AR_CategorizeFileDisp)
     bpy.types.Scene.ar_filedisp = CollectionProperty(type= AR_FileDisp)
     bpy.app.handlers.depsgraph_update_pre.append(InitSavedPanel)
@@ -2289,12 +2442,13 @@ def Initialize_Props():# プロパティをセットする関数
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
         AR_Prop.addon_keymaps.append(km)
-        for (idname, key, event, ctrl, alt, shift) in AR_Prop.key_assign_list:
+        for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
-    bpy.app.timers.register(InitSavedPanel, first_interval = 2.5)
+            if not name is None:
+                kmi.properties.name = name
+    bpy.app.timers.register(InitSavedPanel, first_interval = 1)
 
 def Clear_Props():
-    del bpy.types.Scene.ar_enum
     del bpy.types.Scene.ar_filedisp
     del bpy.types.Scene.ar_filecategories
     bpy.app.handlers.undo_post.remove(TempLoad)
