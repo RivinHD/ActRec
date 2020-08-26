@@ -717,6 +717,11 @@ def Update():
         os.remove(zippath)
         os.rmdir(dirpath)
 
+def GetCatRadioIndex(selections):
+    for sel in selections:
+        if sel.selected:
+            return sel.index
+
 # Panels ===================================================================================
 def panelFactory(spaceType): #Create Panels for every spacetype with UI
 
@@ -888,9 +893,19 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             layout = self.layout
             col = layout.column()
             col.label(text= "Category", icon= 'GROUP')
-            col.operator(AR_OT_Category_Add.bl_idname, text= 'Add')
-            col.operator(AR_OT_Category_Rename.bl_idname, text= 'Rename')
-            col.operator(AR_OT_Category_Delet.bl_idname, text= 'Remove')
+            row = col.row(align= True)
+            selectedCat_index = GetCatRadioIndex(AR_Var.Selected_Category)
+            row.label(text= '')
+            row2 = row.row(align= True)
+            row2.scale_x = 1.5
+            row2.operator(AR_OT_Category_MoveUp.bl_idname, text= '',icon= 'TRIA_UP').Index = selectedCat_index
+            row2.operator(AR_OT_Category_MoveDown.bl_idname, text= '',icon= 'TRIA_DOWN').Index = selectedCat_index
+            row2.operator(AR_OT_Category_Add.bl_idname, text= '', icon= 'ADD')
+            row2.operator(AR_OT_Category_Delet.bl_idname, text= '', icon= 'TRASH')
+            row.label(text= '')
+            row = col.row(align= False)
+            row.prop(AR_Var, 'RenameCat', text= '')
+            row.operator(AR_OT_Category_Rename.bl_idname, text= 'ReName')
             col.label(text= "Data Management", icon= 'FILE_FOLDER')
             col.operator(AR_OT_Import.bl_idname, text= 'Import')
             col.operator(AR_OT_Export.bl_idname, text= 'Export')
@@ -925,16 +940,9 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 index = int(self.bl_idname.split("_")[3])
                 category = AR_Var.Categories[index]
                 layout = self.layout
-                row = layout.row(align= True)
-                row.scale_x = 1.2
-                row2 = row.row()
-                row2.ui_units_x = 5
-                row2.label(text= category.pn_name)
-                row2 = row.row(align= True)
-                row2.ui_units_x = 1.6
-                row2.operator(AR_OT_Category_MoveUp.bl_idname, icon="TRIA_UP", text= "").Index = index
-                row2.operator(AR_OT_Category_MoveDown.bl_idname, icon="TRIA_DOWN", text="").Index = index
-                #self.bl_label = category.pn_name
+                row = layout.row()
+                row.prop(AR_Var.Selected_Category[index], 'selected', text= '', icon= 'LAYER_ACTIVE' if AR_Var.Selected_Category[index].selected else 'LAYER_USED', emboss= False)
+                row.label(text= category.pn_name)
 
             def draw(self, context):
                 AR_Var = context.preferences.addons[__package__].preferences
@@ -960,7 +968,14 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 categoriesclasses.remove(panel)
             except:
                 pass
-
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    if register:
+        new = AR_Var.Selected_Category.add()
+        new.index = index
+    else:
+        AR_Var.Selected_Category.remove(len(AR_Var.Selected_Category) - 1)
+    if GetCatRadioIndex(AR_Var.Selected_Category) is None and len(AR_Var.Selected_Category):
+        AR_Var.Selected_Category[0].selected = True
 # Opertators ===============================================================================
 class AR_OT_Category_Add(Operator):
     bl_idname = "ar.category_add"
@@ -1006,19 +1021,18 @@ class AR_OT_Category_Delet(Operator):
         AR_Var = context.preferences.addons[__package__].preferences
         categories = AR_Var.Categories
         scene = context.scene
-        for cat in categories:
-            if cat.pn_selected:
-                index = GetPanelIndex(cat)
-                start = cat.Instance_Start
-                for i in range(start, start + cat.Instance_length):
-                    AR_Var.ar_enum.remove(len(AR_Var.ar_enum) - 1)
-                    AR_Var.Instance_Coll.remove(start)
-                for nextcat in categories[index + 1 :]:
-                    nextcat.Instance_Start -= cat.Instance_length
-                categories.remove(index)
-                RegisterUnregister_Category(len(categories), False)
-                SetEnumIndex()
-                break
+        index = GetCatRadioIndex(AR_Var.Selected_Category)
+        if not index is None:
+            cat = categories[index]
+            start = cat.Instance_Start
+            for i in range(start, start + cat.Instance_length):
+                AR_Var.ar_enum.remove(len(AR_Var.ar_enum) - 1)
+                AR_Var.Instance_Coll.remove(start)
+            for nextcat in categories[index + 1 :]:
+                nextcat.Instance_Start -= cat.Instance_length
+            categories.remove(index)
+            RegisterUnregister_Category(len(categories), False)
+            SetEnumIndex()
         bpy.context.area.tag_redraw()
         TempSaveCats()
         if AR_Var.Autosave:
@@ -1028,11 +1042,7 @@ class AR_OT_Category_Delet(Operator):
     def draw(self, context):    
         AR_Var = context.preferences.addons[__package__].preferences    
         layout = self.layout
-        categories = AR_Var.Categories
-        box = layout.box()
-        box.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
-        for cat in categories:
-            layout.prop(cat, 'pn_selected', text= cat.pn_name)
+        layout.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -1159,6 +1169,7 @@ class AR_OT_Category_MoveUp(Operator):
             cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
             cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
             cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
+            AR_Var.Selected_Category[i - 1].selected = True
         bpy.context.area.tag_redraw()
         TempSaveCats()
         if AR_Var.Autosave:
@@ -1186,6 +1197,7 @@ class AR_OT_Category_MoveDown(Operator):
             cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
             cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
             cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
+            AR_Var.Selected_Category[i + 1].selected = True
         bpy.context.area.tag_redraw()
         TempSaveCats()
         if AR_Var.Autosave:
@@ -1763,6 +1775,7 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
                 gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
 
     def invoke(self, context, event):
+        self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 classes.append(AR_OT_Category_Cmd_Icon)
 
@@ -1893,6 +1906,7 @@ class AR_OT_Record_Icon(bpy.types.Operator):
                 gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon= ic).icon = ic
 
     def invoke(self, context, event):
+        self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 classes.append(AR_OT_Record_Icon)
 
@@ -2355,10 +2369,30 @@ class AR_ImportCategory(PropertyGroup):
     show : BoolProperty(default= True)
 classes.append(AR_ImportCategory)
 
-class AR_Prop(AddonPreferences):#何かとプロパティを収納
+
+categoryCurrentselected = [None]
+categoryLastselected = [0]
+def CategoriesRadioButton(self, content):
+    index = self.index
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    radioCats = AR_Var.Selected_Category
+    if self.selected and categoryCurrentselected[0] != index:
+        categoryCurrentselected[0] = index
+        if categoryLastselected[0] != index and categoryLastselected[0] < len(radioCats):
+            radioCats[categoryLastselected[0]].selected = False
+        categoryLastselected[0] = index
+    elif not self.selected and index == categoryLastselected[0] and categoryCurrentselected[0] == index:
+        self.selected = True
+
+class AR_SelectedCategory(PropertyGroup):
+    selected : BoolProperty(update= CategoriesRadioButton)
+    index : IntProperty()
+classes.append(AR_SelectedCategory)
+
+class AR_Prop(AddonPreferences):
     bl_idname = __package__
 
-    Rename : StringProperty() #AR_Var.name
+    Rename : StringProperty()
     Autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     RecToBtn_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and delete it from Local")], name= "Mode")
     BtnToRec_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Local"), ("move", "Move", "Move the Action over to local and delete it from Global")], name= "Mode")
@@ -2369,6 +2403,8 @@ class AR_Prop(AddonPreferences):#何かとプロパティを収納
     ar_enum : CollectionProperty(type= AR_Enum)
 
     Categories : CollectionProperty(type= AR_CategorizeProps)
+    Selected_Category : CollectionProperty(type= AR_SelectedCategory)
+    RenameCat : StringProperty()
 
     FileDisp_Name = []
     FileDisp_Command = []
