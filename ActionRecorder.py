@@ -2170,6 +2170,7 @@ class AR_OT_Update(bpy.types.Operator):
         AR_Var.Update = False
         AR_Var.Restart = True
         Update()
+        bpy.ops.ar.restart('INVOKE_DEFAULT')
         return {"FINISHED"}
 classes.append(AR_OT_Update)
 
@@ -2210,6 +2211,7 @@ classes.append(AR_OT_Restart)
 class AR_OT_CheckCtrl(bpy.types.Operator):
     bl_idname = "ar.check_ctrl"
     bl_label = "Check Ctrl"
+    bl_options = {'INTERNAL'}
 
     def execute(self, context):
         return {"FINISHED"}
