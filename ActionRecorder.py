@@ -505,6 +505,7 @@ def InitSavedPanel(dummy = None):
     catlength[0] = len(AR_Var.Categories)
     TempSaveCats()
     TempUpdate()
+    multiselection_buttons[0] = False
     oninit[0] = False
 
 def GetPanelIndex(cat): #Get Index of a Category
@@ -843,7 +844,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
                 row = layout.row()
                 row2 = row.split(factor= 0.7)
                 col = row2.column()
-                col.enabled = len(AR_Var.Instance_Coll) > 0 and not multiselection_buttons[0]
+                col.enabled = len(AR_Var.Instance_Coll) > 0 and not (multiselection_buttons[0] and len(InstanceLastselected) > 1)
                 col.prop(AR_Var , 'Rename' , text='')
                 row2.operator(AR_OT_Button_Rename.bl_idname , text='ReName')
     AR_PT_Global.__name__ = "AR_PT_Global_%s" % spaceType
@@ -1348,6 +1349,7 @@ class AR_OT_Import(Operator, ImportHelper):
             self.report({'ERROR'}, "{ " + self.filepath + " } Select a .zip file")
         AR_Var = context.preferences.addons[__package__].preferences
         AR_Var.Importsettings.clear()
+        TempSaveCats()
         return {"FINISHED"}
     
     def draw(self, context):
@@ -1707,7 +1709,7 @@ class AR_OT_Button_Rename(Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Instance_Coll) and not multiselection_buttons[0]
+        return len(AR_Var.Instance_Coll) and not (multiselection_buttons[0] and len(InstanceLastselected) > 1)
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -1746,6 +1748,7 @@ class AR_OT_Category_Cmd_Icon(bpy.types.Operator):
         AR_Var = context.preferences.addons[__package__].preferences
         AR_Var.Instance_Coll[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = "BLANK1"
+        TempSaveCats()
         bpy.context.area.tag_redraw()
         return {"FINISHED"}
     
@@ -2294,9 +2297,13 @@ def Instance_Updater(self, context):
         bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
     if multiselection_buttons[0]:
         if self.Value:
-            InstanceLastselected.insert(0, self.Index)
+            if not self.Index in InstanceLastselected:
+                InstanceLastselected.insert(0, self.Index)
+                AR_Var.Instance_Index = self.Index
         else:
             InstanceLastselected.remove(self.Index)
+            if len(InstanceLastselected) < 1:
+                self.Value = True
         InstanceCurrentselected[0] = self.Index
     else:
         if len(InstanceLastselected) > 1:
