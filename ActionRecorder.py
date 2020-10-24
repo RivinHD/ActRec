@@ -1122,6 +1122,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row.label(text= '')
             row = col.row(align= False)
             row.operator(AR_OT_Category_Edit.bl_idname, text= 'Edit')
+            row.prop(AR_Var, 'ShowAllCategories', text= "", icon= 'RESTRICT_VIEW_OFF' if AR_Var.ShowAllCategories else 'RESTRICT_VIEW_ON')
             col.label(text= "Data Management", icon= 'FILE_FOLDER')
             col.operator(AR_OT_Import.bl_idname, text= 'Import')
             col.operator(AR_OT_Export.bl_idname, text= 'Export')
@@ -1157,6 +1158,8 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 index = int(self.bl_idname.split("_")[3])
                 category = AR_Var.Categories[index]
                 name = category.pn_name
+                if AR_Var.ShowAllCategories:
+                    return True
                 if name in CatVisibility["Area"][context.area.ui_type]:
                     return True
                 if context.area.ui_type == "VIEW_3D":
@@ -2904,6 +2907,7 @@ class AR_Prop(AddonPreferences):
 
     Categories : CollectionProperty(type= AR_CategorizeProps)
     Selected_Category : CollectionProperty(type= AR_SelectedCategory)
+    ShowAllCategories : BoolProperty(name= "Show All Categories", default= False)
 
     FileDisp_Name = []
     FileDisp_Command = []
