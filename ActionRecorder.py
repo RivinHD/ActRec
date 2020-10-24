@@ -36,7 +36,6 @@ classes = []
 classespanel = []
 categoriesclasses = []
 catlength = [0]
-activeareas = []
 ontempload = [False]
 multiselection_buttons = [False, True]
 oninit = [False]
@@ -49,6 +48,8 @@ class Data:
     Commands_RenderComplete = []
     Commands_RenderInit = []
     CatVisis = []
+    alert_index = None
+    activeareas = []
 # endregion
 
 # region UIList
@@ -224,28 +225,28 @@ def TempLoad(dummy): # load commands after undo
                 Item.active = data[keys[i]][j]["active"]
     ontempload[0] = False
 
+def getlastoperation(data, i=-1):
+    if len(data) < 1:
+        return ("", i)
+    if data[i].body.startswith("bpy."):
+        return (data[i].body, i)
+    else:
+        return getlastoperation(data, i-1)
+
+def CheckAddCommand(data):
+    name, index = getlastoperation(data)
+    macro = GetMacro(name)
+    if macro is True:
+        return CheckAddCommand(data[ :index])
+    else:
+        return (name, macro)
+
 def Add(Num):
-    Recent = Get_Recent('Reports_All')
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if Num:
+        Recent = Get_Recent('Reports_All')
         try: #Add Macro
-            if Recent[-2].body.count('bpy'):
-                Name_Temp = Recent[-2].body
-                name = Name_Temp[Name_Temp.find('bpy'):]
-                macro = GetMacro(name)
-                if macro is True:
-                    Name_Temp = Recent[-3].body
-                    name = Name_Temp[Name_Temp.find('bpy'):]
-                    macro = GetMacro(name)
-
-            else:
-                Name_Temp = Recent[-3].body
-                name = Name_Temp[Name_Temp.find('bpy'):]
-                macro = GetMacro(name)
-                if macro is True:
-                    Name_Temp = Recent[-4].body
-                    name = Name_Temp[Name_Temp.find('bpy'):]
-                    macro = GetMacro(name)
+            name, macro = CheckAddCommand(Recent)
             notadded = False
             if macro is None or macro is True:
                 notadded = name
@@ -266,7 +267,6 @@ def Add(Num):
     else: # Add Record
         Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
         Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], 'Untitled.001')
-        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
     AR_Var.Record_Coll[CheckCommand(Num)].Index = len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1
     bpy.data.texts.new(Item.cname)
 
@@ -342,6 +342,8 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
                         try:
                             while eval(data["PyStatement"]):
                                 BackLoops = Play(Commands[int(i) + 1:], copy.deepcopy(AllLoops), extension + 2)
+                                if BackLoops == True:
+                                    return True
                             else:
                                 AllLoops = BackLoops
                             continue
@@ -352,6 +354,8 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
                     else:
                         for k in np.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
                             BackLoops = Play(Commands[int(i) + 1:], copy.deepcopy(AllLoops), extension + 2)
+                            if BackLoops == True:
+                                return True
                         else:
                             AllLoops = BackLoops    
                         AllLoops[loopi].pop('End', None)
@@ -709,24 +713,19 @@ def CheckForDublicates(l, name, num = 1): #Check for name dublicates and appen .
         return CheckForDublicates(l, name.split(".")[0] +".{0:03d}".format(num), num + 1)
     return name
 
-def AlertTimerPlay(): #Remove alert after time passed for Recored
+def AlertTimerPlay(recindex): #Remove alert after time passed for Recored
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    btnlist = AR_Var.Record_Coll[CheckCommand(0)].Command
-    for i in range(len(btnlist)):
-        if btnlist[i].alert:
-            btnlist[i].alert = False
-            for ele in AR_Var.Record_Coll[CheckCommand(i + 1)].Command:
-                if ele.alert:
-                    ele.alert = False
-                    for area in activeareas:
-                        for i in classespanel:
-                            if i.__name__ == "AR_PT_Local_" + area or i.__name__ == "AR_PT_MacroEditer_" + area:
-                                bpy.utils.unregister_class(i)
-                                bpy.utils.register_class(i)
-                    return 
+    AR_Var.Record_Coll[CheckCommand(0)].Command[recindex].alert = False
+    for ele in AR_Var.Record_Coll[CheckCommand(recindex + 1)].Command:
+        ele.alert = False
+    for area in Data.activeareas:
+        for i in classespanel:
+            if i.__name__ == "AR_PT_Local_" + area or i.__name__ == "AR_PT_MacroEditer_" + area:
+                bpy.utils.unregister_class(i)
+                bpy.utils.register_class(i)
 
 def AlertTimerCmd(): #Remove alert after time passed for Buttons
-    alert_index[0] = None
+    Data.alert_index = None
 
 def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collection
     collection.add()
@@ -1192,7 +1191,7 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
                 col = layout.column()
                 for i in range(category.Instance_Start, category.Instance_Start + category.Instance_length):
                     row = col.row(align=True)
-                    row.alert = alert_index[0] == i
+                    row.alert = Data.alert_index == i
                     row.prop(AR_Var.ar_enum[i], 'Value' ,toggle = 1, icon= 'LAYER_ACTIVE' if AR_Var.ar_enum[i].Value else 'LAYER_USED', text= "", event= True)
                     row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon_value= AR_Var.Instance_Coll[i].icon).index = i
                     row.operator(AR_OT_Category_Cmd.bl_idname , text= AR_Var.Instance_Coll[i].name).Index = i
@@ -2082,7 +2081,6 @@ class AR_OT_Button_Rename(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Button_Rename)
 
-alert_index = [None]
 class AR_OT_Category_Cmd(Operator):
     bl_idname = 'ar.category_cmd_button'
     bl_label = 'ComRec Command'
@@ -2092,7 +2090,7 @@ class AR_OT_Category_Cmd(Operator):
 
     def execute(self, context):
         if Execute_Instance(self.Index):
-            alert_index[0] = self.Index
+            Data.alert_index = self.Index
             bpy.app.timers.register(AlertTimerCmd, first_interval = 1)
         return{'FINISHED'}
 classes.append(AR_OT_Category_Cmd)
@@ -2184,11 +2182,11 @@ class AR_OT_Record_Play(Operator):
         alert = Play(AR_Var.Record_Coll[CheckCommand(index + 1)].Command)
         if alert:
             AR_Var.Record_Coll[CheckCommand(0)].Command[index].alert = True
-            bpy.app.timers.register(AlertTimerPlay, first_interval = 1)
-            activeareas.clear()
+            bpy.app.timers.register(functools.partial(AlertTimerPlay, index), first_interval = 1)
+            Data.activeareas.clear()
             for area in context.screen.areas:
                 if area.type in spaceTypes:
-                    activeareas.append(area.type)
+                    Data.activeareas.append(area.type)
             bpy.context.area.tag_redraw()
         return{'FINISHED'}
 classes.append(AR_OT_Record_Play)
@@ -2465,14 +2463,13 @@ class AR_OT_AddEvent(bpy.types.Operator):
                 ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
                 ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4)]
     Type : EnumProperty(items= TypesList, name= "Event Type", description= 'Shows all possible Events', default= 'Timer')
-    time : FloatProperty(name= "Time")
-    Statements : EnumProperty(items=[('count_up', 'Count Up', 'Count a Number up from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
-                                    ('count_down', 'Count Down', 'Count a Number down from the Startnumber with the Stepnumber to the Endnumber. \nStop when Numer < Endnumber ', '', 1),
-                                    ('python', 'Python Statment', 'Create a custom statement with python code', '', 2)])
+    time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
+    Statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
+                                    ('python', 'Python Statment', 'Create a custom statement with python code', '', 1)])
     Startnumber : FloatProperty(name= "Startnumber", description= "Startnumber of the Count statements", default=0)
     Stepnumber : FloatProperty(name= "Stepnumber", description= "Stepnumber of the Count statements", default= 1)
     Endnumber : FloatProperty(name= "Endnumber", description= "Endnumber of the Count statements", default= 1)
-    PythonStatement : StringProperty(name= "Statement", description= "Statment for the Python Statement")            
+    PythonStatement : StringProperty(name= "Statement", description= "Statment for the Python Statement")
     Num : IntProperty(default= -1)
     
     @classmethod
