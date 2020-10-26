@@ -922,8 +922,9 @@ def runRenderInit(dummy):
     Play(Data.Commands_RenderInit)
     Data.Commands_RenderInit.clear()
 
+@persistent
 def SaveToPrefsHandler(dummy):
-    SaveToPrefs()
+    bpy.ops.wm.save_userpref()
 
 def WriteCatVis(data):
     with open(catVisPath, 'w', encoding= 'utf8') as catfile:
@@ -2997,7 +2998,7 @@ def Initialize_Props():
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
     bpy.app.handlers.undo_post.append(TempLoadCats)
     bpy.app.handlers.redo_post.append(TempLoadCats)
-    bpy.app.handlers.save_post.append(SaveToPrefsHandler)
+    bpy.app.handlers.save_pre.append(SaveToPrefsHandler)
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
         AR_Prop.addon_keymaps.append(km)
