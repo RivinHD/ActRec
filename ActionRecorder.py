@@ -321,7 +321,7 @@ def Select_Command(Mode): # Select the upper/lower Record
         else:
             AR_Var.Record_Coll[CheckCommand(0)].Index = currentIndex + 1
 
-def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
+def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
     if AllLoops is None:
         AllLoops = getAllLoops(Commands)
     for i, Command in enumerate(Commands):
@@ -330,7 +330,7 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
             if split[0] == 'ar.event':
                 data = json.loads(":".join(split[1:]))
                 if data['Type'] == 'Timer':
-                    bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:]), first_interval = data['Time'])
+                    bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:], index), first_interval = data['Time'])
                     return
                 elif data['Type'] == 'Loop' :
                     loopi = getIndexInLoop(i + extension, AllLoops, 'Loop')
@@ -341,7 +341,7 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
                     if data['StatementType'] == 'python':
                         try:
                             while eval(data["PyStatement"]):
-                                BackLoops = Play(Commands[int(i) + 1:], copy.deepcopy(AllLoops), extension + 2)
+                                BackLoops = Play(Commands[int(i) + 1:], index, copy.deepcopy(AllLoops), extension + 2)
                                 if BackLoops == True:
                                     return True
                             else:
@@ -349,11 +349,12 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
                             continue
                         except:
                             Command.alert = True
+                            Alert(index)
                             return True # Alert
                         return
                     else:
                         for k in np.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
-                            BackLoops = Play(Commands[int(i) + 1:], copy.deepcopy(AllLoops), extension + 2)
+                            BackLoops = Play(Commands[int(i) + 1:], index, copy.deepcopy(AllLoops), extension + 2)
                             if BackLoops == True:
                                 return True
                         else:
@@ -368,18 +369,20 @@ def Play(Commands, AllLoops = None, extension = 0): #Execute the Macro
                         if 'Loop' not in AllLoops[loopi]:
                             return AllLoops
                 elif data['Type'] == 'Render Complet':
-                    Data.Commands_RenderComplete += Commands[i + 1:]
+                    Data.Commands_RenderComplete.append((index, Commands[i + 1:]))
                     return
                 elif data['Type'] == 'Render Init':
-                    Data.Commands_RenderInit += Commands[i + 1:]
+                    Data.Commands_RenderInit.append((index ,Commands[i + 1:]))
                     return
                 else:
                     Command.alert = True
+                    Alert(index)
                     return True # Alert
             try:
                 exec(Command.cname)
             except:
                 Command.alert = True
+                Alert(index)
                 return True # Alert
 
 def Clear(Num) : # Clear all Macros
@@ -718,11 +721,7 @@ def AlertTimerPlay(recindex): #Remove alert after time passed for Recored
     AR_Var.Record_Coll[CheckCommand(0)].Command[recindex].alert = False
     for ele in AR_Var.Record_Coll[CheckCommand(recindex + 1)].Command:
         ele.alert = False
-    for area in Data.activeareas:
-        for i in classespanel:
-            if i.__name__ == "AR_PT_Local_" + area or i.__name__ == "AR_PT_MacroEditer_" + area:
-                bpy.utils.unregister_class(i)
-                bpy.utils.register_class(i)
+    redrawLocalANDMacroPanels()
 
 def AlertTimerCmd(): #Remove alert after time passed for Buttons
     Data.alert_index = None
@@ -883,8 +882,8 @@ def LoadIcons(filepath):
         bpy.data.images.remove(img)
         return 'The Image must be a square'
 
-def TimerCommads(Commands):
-    Play(Commands)
+def TimerCommads(Commands, index):
+    Play(Commands, index)
 
 def getAllLoops(Commands):
     datal = []
@@ -915,11 +914,13 @@ def getIndexInLoop(i, AllLoops, identifier):
             return li
 
 def runRenderComplete(dummy):
-    Play(Data.Commands_RenderComplete)
+    for index, Commands in Data.Commands_RenderComplete:
+        Play(Commands, index)
     Data.Commands_RenderComplete.clear()
 
 def runRenderInit(dummy):
-    Play(Data.Commands_RenderInit)
+    for index, Commands in Data.Commands_RenderInit:
+        Play(Commands, index)
     Data.Commands_RenderInit.clear()
 
 @persistent
@@ -936,6 +937,22 @@ def getCatInAreas(cat, data):
         if cat == i[1]:
             l.append(i[0])
     return l
+
+def Alert(index):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    AR_Var.Record_Coll[CheckCommand(0)].Command[index].alert = True
+    bpy.app.timers.register(functools.partial(AlertTimerPlay, index), first_interval = 1)
+    try:
+        bpy.context.area.tag_redraw()
+    except:
+        redrawLocalANDMacroPanels()
+
+def redrawLocalANDMacroPanels():
+    for i in classespanel:
+        if i.__name__.startswith("AR_PT_Local_") or i.__name__.startswith("AR_PT_MacroEditer_"):
+            bpy.utils.unregister_class(i)
+            bpy.utils.register_class(i)
+
 # endregion
 
 # region Panels
@@ -2180,15 +2197,7 @@ class AR_OT_Record_Play(Operator):
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
         index = AR_Var.Record_Coll[CheckCommand(0)].Index
-        alert = Play(AR_Var.Record_Coll[CheckCommand(index + 1)].Command)
-        if alert:
-            AR_Var.Record_Coll[CheckCommand(0)].Command[index].alert = True
-            bpy.app.timers.register(functools.partial(AlertTimerPlay, index), first_interval = 1)
-            Data.activeareas.clear()
-            for area in context.screen.areas:
-                if area.type in spaceTypes:
-                    Data.activeareas.append(area.type)
-            bpy.context.area.tag_redraw()
+        Play(AR_Var.Record_Coll[CheckCommand(index + 1)].Command, index)
         return{'FINISHED'}
 classes.append(AR_OT_Record_Play)
 
@@ -2277,7 +2286,7 @@ class AR_OT_Record_Execute(Operator):
 
     def execute(self, content):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
-        Play(AR_Var.Record_Coll[CheckCommand(self.index)].Command)
+        Play(AR_Var.Record_Coll[CheckCommand(self.index)].Command, self.index - 1)
         return {"FINISHED"}
 classes.append(AR_OT_Record_Execute)
 
@@ -2476,7 +2485,7 @@ class AR_OT_AddEvent(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command)
+        return len(AR_Var.Record_Coll[CheckCommand(0)].Command)
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
