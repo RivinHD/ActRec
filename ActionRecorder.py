@@ -380,7 +380,8 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                     return True # Alert
             try:
                 exec(Command.cname)
-            except:
+            except Exception as err:
+                print(err)
                 Command.alert = True
                 Alert(index)
                 return True # Alert
