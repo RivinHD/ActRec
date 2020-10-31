@@ -241,12 +241,16 @@ def CheckAddCommand(data):
     else:
         return (name, macro)
 
-def Add(Num):
+def Add(Num, command = None):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if Num:
         Recent = Get_Recent('Reports_All')
         try: #Add Macro
-            name, macro = CheckAddCommand(Recent)
+            if command is None:
+                name, macro = CheckAddCommand(Recent)
+            else:
+                name = command
+                macro = GetMacro(command)
             notadded = False
             if macro is None or macro is True:
                 notadded = name
@@ -456,12 +460,33 @@ def Load():#Load Buttons from Storage
                     for line in text.readlines():
                         cmd = inst.command.add()
                         cmd.name = line.strip()
-    for iconpath in os.listdir(AR_Var.IconFilePath):
+    for iconpath in os.listdir(AR_Var.IconFilePath): # Load Icons
         filepath = os.path.join(AR_Var.IconFilePath, iconpath)
         if os.path.isfile(filepath):
             LoadIcons(filepath)
     SetEnumIndex()
-    
+
+@persistent
+def LoadLocalActions(dummy):
+    print('-----------Load Local Actions-----------')
+    scene = bpy.context.scene
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    AR_Var.Record_Coll.clear()
+    for ele in scene.ar_local:
+        loc = AR_Var.Record_Coll.add()
+        loc.name = ele.name
+        loc.Command.clear()
+        for cmd in ele.Command:
+            locmd = loc.Command.add()
+            locmd.cname = cmd.cname
+            locmd.macro = cmd.macro
+            locmd.active = cmd.active
+            locmd.alert = cmd.alert
+            locmd.icon = cmd.icon
+        loc.Index = ele.Index
+    if len(AR_Var.Record_Coll) > len(scene.ar_local):
+        AR_Var.Record_Coll.remove(1) # Bug
+
 def Recorder_to_Instance(panel): #Convert Record to Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
@@ -596,7 +621,7 @@ def I_Move(Mode): # Move a Button to the upper/lower
 @persistent
 def InitSavedPanel(dummy = None):
     try:
-        bpy.app.timers.unregister(InitSavedPanel)
+        bpy.app.timers.unregister(TimerInitSavedPanel)
     except:
         if bpy.data.filepath == '':
             return
@@ -623,6 +648,9 @@ def InitSavedPanel(dummy = None):
     TempUpdate()
     multiselection_buttons[0] = False
     oninit[0] = False
+
+def TimerInitSavedPanel():
+    InitSavedPanel()
 
 def GetPanelIndex(cat): #Get Index of a Category
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -737,15 +765,11 @@ def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collectio
             cmd = collection[x].command.add()
             cmd.name = command.name
     collection[index].name = data["name"]
-    collection[index].icon = data["icon"]
+    collection[index].icon = CheckIcon(data["icon"])
     collection[index].command.clear()
     for command in data["command"]:
         cmd = collection[index].command.add()
         cmd.name = command
-
-def SaveToPrefs():
-    if bpy.data.filepath != '':
-        bpy.ops.wm.save_userpref()
 
 def ImportSortedZip(filepath):
     with zipfile.ZipFile(filepath, 'r') as zip_out:
@@ -925,8 +949,21 @@ def runRenderInit(dummy):
     Data.Commands_RenderInit.clear()
 
 @persistent
-def SaveToPrefsHandler(dummy):
-    bpy.ops.wm.save_userpref()
+def SaveToDataHandler(dummy):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    bpy.context.scene.ar_local.clear()
+    for ele in AR_Var.Record_Coll:
+        loc = bpy.context.scene.ar_local.add()
+        loc.name = ele.name
+        loc.Command.clear()
+        for cmd in ele.Command:
+            locmd = loc.Command.add()
+            locmd.cname = cmd.cname
+            locmd.macro = cmd.macro
+            locmd.active = cmd.active
+            locmd.alert = cmd.alert
+            locmd.icon = cmd.icon
+        loc.Index = ele.Index
 
 def WriteCatVis(data):
     with open(catVisPath, 'w', encoding= 'utf8') as catfile:
@@ -954,6 +991,17 @@ def redrawLocalANDMacroPanels():
             bpy.utils.unregister_class(i)
             bpy.utils.register_class(i)
 
+def CheckIcon(Icon):
+    if icon.isnumeric():
+        icon = int(icon)
+    else:
+        iconlist = getIcons()
+        if icon in iconlist:
+            icon = getIconsvalues()[iconlist.index(icon)]
+        else:
+            icon = 101 # Icon: BLANK1
+    return icon
+ 
 # endregion
 
 # region Panels
@@ -1648,18 +1696,9 @@ class AR_OT_Import(Operator, ImportHelper):
                         for btn_file in dirs:
                             name_icon = os.path.splitext(os.path.basename(btn_file))[0]
                             name = "".join(name_icon.split("~")[1:-1])
-                            icon = name_icon.split("~")[-1]
-                            if icon.isnumeric():
-                                icon = int(icon)
-                            else:
-                                iconlist = getIcons()
-                                if icon in iconlist:
-                                    icon = getIconsvalues()[iconlist.index(icon)]
-                                else:
-                                    icon = 101 # Icon: BLANK1
                             inst = AR_Var.Instance_Coll.add()
                             inst.name = CheckForDublicates([AR_Var.Instance_Coll[i].name for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length)], name)
-                            inst.icon = icon
+                            inst.icon = CheckIcon(name_icon.split("~")[-1])
                             for line in zip_out.read(btn_file).decode("utf-8").splitlines():
                                 cmd = inst.command.add()
                                 cmd.name = line
@@ -1694,7 +1733,7 @@ class AR_OT_Import(Operator, ImportHelper):
                                     inst = AR_Var.Instance_Coll[i]
                                     if btn.btn_name == inst.name:
                                         inst.name = btn.btn_name
-                                        inst.icon = btn.icon
+                                        inst.icon = CheckIcon(btn.icon)
                                         inst.command.clear()
                                         for cmd in btn.command.splitlines():
                                             new = inst.command.add()
@@ -1908,7 +1947,6 @@ class AR_OT_Record_Add(Operator):
         Add(0)
         TempSave(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Record_Add)
 
@@ -1927,7 +1965,6 @@ class AR_OT_Record_Remove(Operator):
         Remove(0)
         TempUpdate()
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Record_Remove)
 
@@ -1946,7 +1983,6 @@ class AR_OT_Record_MoveUp(Operator):
         Move(0 , 'Up')
         TempUpdate()
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveUp)
 
@@ -1966,7 +2002,6 @@ class AR_OT_Record_MoveDown(Operator):
         Move(0 , 'Down')
         TempUpdate()
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveDown)
 
@@ -2013,7 +2048,6 @@ class AR_OT_ButtonToRecord(Operator):
                 Save()
         TempUpdate()
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_ButtonToRecord)
 
@@ -2236,7 +2270,7 @@ class AR_OT_Record_Stop(Operator):
             self.report({'ERROR'}, "Not all actions were added because they are not of type Operator: %s" % mess)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
+        
         return {"FINISHED"}
 classes.append(AR_OT_Record_Stop)
 
@@ -2253,7 +2287,6 @@ class AR_OT_Record_Icon(Operator):
         AR_Var.Record_Coll[0].Command[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = 101 #Icon: BLANK1
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
     
     def draw(self, execute):
@@ -2296,6 +2329,8 @@ class AR_OT_Command_Add(Operator):
     bl_label = "ActRec Add Macro"
     bl_description = "Add a Macro to the selected Record"
 
+    command : StringProperty()
+
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -2304,14 +2339,16 @@ class AR_OT_Command_Add(Operator):
     def execute(self, context):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         scene = context.scene
-        message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
+        if self.command == "":
+            message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
+        else:
+            message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1, self.command)
         if type(message) == str:
             self.report({'ERROR'}, "Action could not be added because it is not of type Operator:\n %s" % message)
         elif message:
             self.report({'ERROR'}, "No Action could be added")
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Add)
 
@@ -2331,7 +2368,6 @@ class AR_OT_Command_Remove(Operator):
         Remove(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Remove)
 
@@ -2351,7 +2387,6 @@ class AR_OT_Command_MoveUp(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Up')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveUp)
 
@@ -2371,7 +2406,6 @@ class AR_OT_Command_MoveDown(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Down')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveDown)
 
@@ -2391,7 +2425,6 @@ class AR_OT_Command_Clear(Operator):
         Clear(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 classes.append(AR_OT_Command_Clear)
 
@@ -2417,7 +2450,6 @@ class AR_OT_Command_Edit(Operator):
         macro.cname = self.Command
         TempUpdateCommand(index_btn)
         bpy.context.area.tag_redraw()
-        SaveToPrefs()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -2472,7 +2504,9 @@ class AR_OT_AddEvent(bpy.types.Operator):
                 ('Render Complet', 'Render complet', 'Wait until the rendering has finished', 'IMAGE_RGB_ALPHA', 1),
                 ('Render Init', 'Render Init', 'Wait until the rendering has started', 'IMAGE_RGB', 2),
                 ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
-                ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4)]
+                ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
+                ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
+                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6)]
     Type : EnumProperty(items= TypesList, name= "Event Type", description= 'Shows all possible Events', default= 'Timer')
     time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
     Statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
@@ -2494,19 +2528,30 @@ class AR_OT_AddEvent(bpy.types.Operator):
             Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command.add()
         else:
             Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command[self.Num]
-        Item.macro = "Event: " + self.Type
-        data = {'Type': self.Type}
-        if self.Type == 'Timer':
-            data['Time'] = self.time
-        elif self.Type == 'Loop':
-            data['StatementType'] = self.Statements
-            if self.Statements == 'python':
-                data["PyStatement"] = self.PythonStatement
-            else:
-                data["Startnumber"] = self.Startnumber
-                data["Endnumber"] = self.Endnumber
-                data["Stepnumber"] = self.Stepnumber
-        Item.cname = "ar.event:" + json.dumps(data)
+        if self.Type == 'Clipboard':
+            cmd = context.window_manager.clipboard
+            macro = GetMacro(cmd)
+            if type(macro) != str:
+                macro = cmd
+            Item.macro = macro
+            Item.cname = cmd
+        elif self.Type == 'Empty':
+            Item.macro = "<Empty>"
+            Item.cname = ""
+        else:
+            Item.macro = "Event: " + self.Type
+            data = {'Type': self.Type}
+            if self.Type == 'Timer':
+                data['Time'] = self.time
+            elif self.Type == 'Loop':
+                data['StatementType'] = self.Statements
+                if self.Statements == 'python':
+                    data["PyStatement"] = self.PythonStatement
+                else:
+                    data["Startnumber"] = self.Startnumber
+                    data["Endnumber"] = self.Endnumber
+                    data["Stepnumber"] = self.Stepnumber
+            Item.cname = "ar.event:" + json.dumps(data)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         return {"FINISHED"}
 
@@ -2530,6 +2575,55 @@ class AR_OT_AddEvent(bpy.types.Operator):
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_AddEvent)
+
+class AR_OT_CopyToActRec(bpy.types.Operator):
+    bl_idname = "ar.copy_to_actrec"
+    bl_label = "Copy to Action Recorder"
+    bl_description = "Copy the selected Operator to Action Recorder Macro"
+
+    @classmethod
+    def poll(cls, context):
+        AR_Var = context.preferences.addons[__package__].preferences
+        return context.active_object is not None and len(AR_Var.Record_Coll[CheckCommand(0)].Command)
+
+    def execute(self, context):
+        if hasattr(context, 'button_operator'):
+            op = context.button_operator
+            opid = op.bl_rna.identifier
+            split = opid.split("_OT_")
+            group = split[0]
+            ops = split[1]
+            props = []
+            opsprops = []
+            for opsprop in op.bl_rna.properties[1:]: # first element is nra_type (skiped)
+                prop = opsprop.identifier
+                if hasattr(opsprop, 'is_array'):
+                    is_array = opsprop.is_array
+                else:
+                    is_array = False
+                opsprops.append((prop, is_array))
+            for attr in dir(op):
+                for i in range(len(opsprops)):
+                    if attr == opsprops[i][0] and hasattr( op, attr ):
+                        value = getattr(op, attr)
+                        if opsprops[i][1]:
+                            value = tuple(value)
+                        props.append((str(attr), value))
+                        opsprops.pop(i)
+                        break
+            propstr = "("
+            for prop, value in props:
+                if isinstance(value, str):
+                    value = "\"" + value + "\""
+                elif value is None:
+                    value = "\"\""
+                propstr += prop + "=" + str(value) + ", "
+            if propstr[-2:] == ", ":
+                propstr = propstr[:-2]
+            propstr += ")"
+            bpy.ops.ar.command_add('EXEC_DEFAULT', command="bpy.ops." + group.lower() + "." + ops + propstr)
+        return {"FINISHED"}
+classes.append(AR_OT_CopyToActRec)
 
 class AR_OT_ClearOperator(Operator):
     bl_idname = "ar.command_clearoperator"
@@ -2753,13 +2847,26 @@ class AR_MT_Action_Pie(Menu):
                 break
             ops = pie.operator(AR_OT_Record_Execute.bl_idname, text= actions[i].cname).index = i + 1
 classes.append(AR_MT_Action_Pie)
+
+def menu_func(self, context):
+    if hasattr(context, 'button_operator'):
+        layout = self.layout
+        layout.separator()
+        layout.operator(AR_OT_CopyToActRec.bl_idname)
+
+class WM_MT_button_context(Menu):
+    bl_label = "Add Viddyoze Tag"
+
+    def draw(self, context):
+        pass
+classes.append(WM_MT_button_context)
+
 # endregion
 
 # region PropertyGroups
 def SavePrefs(self, context):
     if not ontempload[0]:
         AR_Var = bpy.context.preferences.addons[__package__].preferences
-        SaveToPrefs()
         TempUpdateCommand(AR_Var.Record_Coll[0].Index + 1)
 
 class AR_Record_Struct(PropertyGroup):
@@ -2774,6 +2881,19 @@ class AR_Record_Merge(PropertyGroup):
     Index : IntProperty()
     Command : CollectionProperty(type = AR_Record_Struct)
 classes.append(AR_Record_Merge)
+
+class AR_Record_Struct_Copy(PropertyGroup):
+    cname : StringProperty() #AR_Var.name
+    macro : StringProperty()
+    active : BoolProperty(default= True)
+    alert : BoolProperty()
+    icon : IntProperty(default= 101) #Icon: BLANK1
+classes.append(AR_Record_Struct_Copy)
+
+class AR_Record_Merge_Copy(PropertyGroup):
+    Index : IntProperty()
+    Command : CollectionProperty(type = AR_Record_Struct_Copy)
+classes.append(AR_Record_Merge_Copy)
 
 currentselected = [None]
 lastselected = [0]
@@ -2990,7 +3110,7 @@ class AR_Prop(AddonPreferences):
         if self.ShowKeymap:
             wm = bpy.context.window_manager
             kc = wm.keyconfigs.user
-            km = AR_Var.addon_keymaps[0]
+            km = kc.keymaps['Action Recorder']
             for kmi in km.keymap_items:
                 rna_keymap_ui.draw_kmi([], kc, km, kmi, box, 0)
 classes.append(AR_Prop)
@@ -3003,14 +3123,19 @@ for spaceType in spaceTypes:
 def Initialize_Props():
     bpy.types.Scene.ar_filecategories = CollectionProperty(type= AR_CategorizeFileDisp)
     bpy.types.Scene.ar_filedisp = CollectionProperty(type= AR_FileDisp)
+    bpy.types.Scene.ar_local = CollectionProperty(type= AR_Record_Merge_Copy)
     bpy.app.handlers.depsgraph_update_pre.append(InitSavedPanel)
     bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
     bpy.app.handlers.undo_post.append(TempLoadCats)
     bpy.app.handlers.redo_post.append(TempLoadCats)
-    bpy.app.handlers.save_pre.append(SaveToPrefsHandler)
-    if bpy.context.window_manager.keyconfigs.addon:
-        km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
+    bpy.app.handlers.save_pre.append(SaveToDataHandler)
+    bpy.app.handlers.load_post.append(LoadLocalActions)
+    bpy.app.handlers.render_complete.append(runRenderComplete)
+    bpy.app.handlers.render_init.append(runRenderInit)
+    bpy.types.WM_MT_button_context.append(menu_func)
+    if bpy.context.window_manager.keyconfigs.user:
+        km = bpy.context.window_manager.keyconfigs.user.keymaps.new(name='Action Recorder', space_type='EMPTY')
         AR_Prop.addon_keymaps.append(km)
         for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
@@ -3018,23 +3143,36 @@ def Initialize_Props():
                 kmi.properties.name = name
     pcoll = bpy.utils.previews.new()
     preview_collections['ar_custom'] = pcoll
-    bpy.app.handlers.render_complete.append(runRenderComplete)
-    bpy.app.handlers.render_init.append(runRenderInit)
-    bpy.app.timers.register(InitSavedPanel, first_interval = 1)
+    bpy.app.timers.register(TimerInitSavedPanel, first_interval = 1)
 
 def Clear_Props():
     del bpy.types.Scene.ar_filedisp
     del bpy.types.Scene.ar_filecategories
+    del bpy.types.Scene.ar_local
     bpy.app.handlers.undo_post.remove(TempLoad)
     bpy.app.handlers.redo_post.remove(TempLoad)
     bpy.app.handlers.undo_post.remove(TempLoadCats)
     bpy.app.handlers.redo_post.remove(TempLoadCats)
+    bpy.app.handlers.save_pre.remove(SaveToDataHandler)
+    bpy.app.handlers.load_post.remove(LoadLocalActions)
+    try:
+        bpy.app.handlers.render_complete.remove(runRenderComplete)
+    except:
+        print("runRenderComplete")
+    try:
+        bpy.app.handlers.render_init.remove(runRenderInit)
+    except:
+        print("runRenderInit")
+    try:
+        bpy.types.WM_MT_button_context.remove(menu_func)
+    except:
+        print('menu_func')
     try:
         bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     except:
         pass
     for km in AR_Prop.addon_keymaps:
-        bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
+        bpy.context.window_manager.keyconfigs.user.keymaps.remove(km)
     AR_Prop.addon_keymaps.clear() #Unregister Preview Collection
     for pcoll in preview_collections.values():
         bpy.utils.previews.remove(pcoll)
