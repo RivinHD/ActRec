@@ -266,6 +266,10 @@ def Add(Num, command = None):
             bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return notadded
         except:
+            if AR_Var.CreateEmpty:
+                Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
+                Item.macro = "<Empty>"
+                Item.cname = ""
             bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return True
     else: # Add Record
@@ -518,7 +522,7 @@ def Instance_to_Recorder():#Convert Button to Record
         l.append(AR_Var.Instance_Index)
     for Index in l:
         Item = AR_Var.Record_Coll[CheckCommand(0)].Command.add()
-        Item.cname = AR_Var.Instance_Coll[Index].name
+        Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], AR_Var.Instance_Coll[Index].name)
         Item.icon = AR_Var.Instance_Coll[Index].icon
         for Command in AR_Var.Instance_Coll[Index].command:
             Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
@@ -991,7 +995,9 @@ def redrawLocalANDMacroPanels():
             bpy.utils.unregister_class(i)
             bpy.utils.register_class(i)
 
-def CheckIcon(Icon):
+def CheckIcon(icon):
+    if isinstance(icon, int):
+        return icon
     if icon.isnumeric():
         icon = int(icon)
     else:
@@ -1001,7 +1007,7 @@ def CheckIcon(Icon):
         else:
             icon = 101 # Icon: BLANK1
     return icon
- 
+
 # endregion
 
 # region Panels
