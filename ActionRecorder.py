@@ -97,6 +97,7 @@ def Get_Recent(Return_Bool):
     area = win.screen.areas[0]
     area_type = area.type
     area.type = 'INFO'
+    bpy.ops.info.reports_display_update()
     override = bpy.context.copy()
     override['window'] = win
     override['screen'] = win.screen
@@ -265,11 +266,12 @@ def Add(Num, command = None):
             UpdateRecordText(Num)
             bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return notadded
-        except:
+        except Exception as err:
             if AR_Var.CreateEmpty:
                 Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                 Item.macro = "<Empty>"
                 Item.cname = ""
+            print("Action Adding Failure: " + str(err))
             bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return True
     else: # Add Record
