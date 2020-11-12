@@ -2523,7 +2523,6 @@ class AR_OT_Command_Run_Queued(Operator):
 
     def execute(self, context):
         while not execution_queue.empty():
-            print("-"*10,time.time() - self.t)
             function = execution_queue.get()
             function()
             Data.ActiveTimers -= 1
