@@ -2519,7 +2519,6 @@ class AR_OT_Command_Run_Queued(Operator):
     bl_label = "Run Queued Commands"
     bl_options ={'INTERNAL'}
 
-    t = 0
     _timer = None
 
     def execute(self, context):
@@ -2532,7 +2531,6 @@ class AR_OT_Command_Run_Queued(Operator):
     
     def modal(self, context, event):
         if Data.ActiveTimers > 0:
-            print(time.time() - self.t)
             self.execute(context)
             return {'PASS_THROUGH'}
         else:
@@ -2543,7 +2541,6 @@ class AR_OT_Command_Run_Queued(Operator):
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.05, window=context.window)
         wm.modal_handler_add(self)
-        self.t = time.time()
         return {'RUNNING_MODAL'}
     
     def cancel(self, context):
