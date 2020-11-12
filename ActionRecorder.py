@@ -23,6 +23,7 @@ import numpy as np
 import copy
 from importlib import reload
 from .Category import Category as CatVisibility
+import queue
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences, Menu
@@ -41,6 +42,7 @@ multiselection_buttons = [False, True]
 oninit = [False]
 preview_collections = {}
 catVisPath = os.path.join(os.path.dirname(__file__), "Category.py")
+execution_queue = queue.Queue()
 
 class Data:
     Edit_Command = None
@@ -50,6 +52,7 @@ class Data:
     CatVisis = []
     alert_index = None
     activeareas = []
+    ActiveTimers = 0
 # endregion
 
 # region UIList
@@ -97,7 +100,6 @@ def Get_Recent(Return_Bool):
     area = win.screen.areas[0]
     area_type = area.type
     area.type = 'INFO'
-    bpy.ops.info.reports_display_update()
     override = bpy.context.copy()
     override['window'] = win
     override['screen'] = win.screen
@@ -341,6 +343,8 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                 data = json.loads(":".join(split[1:]))
                 if data['Type'] == 'Timer':
                     bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:], index), first_interval = data['Time'])
+                    Data.ActiveTimers += 1
+                    bpy.ops.ar.command_run_queued('INVOKE_DEFAULT')
                     return
                 elif data['Type'] == 'Loop' :
                     loopi = getIndexInLoop(i + extension, AllLoops, 'Loop')
@@ -837,8 +841,13 @@ def CheckForUpdate():
 def GetVersion(line):
     return eval("(%s)" %line.split("(")[1].split(")")[0])
 
+def CheckForCategotyFile():
+    dirpath = os.path.dirname(__file__)
+    return os.path.exists(os.path.join(dirpath, "Category.py"))
+
 def Update():
     source = request.urlopen(config["repoSource_URL"] + "/archive/master.zip")
+    ExistCat = CheckForCategotyFile()
     with zipfile.ZipFile(BytesIO(source.read())) as extract:
         for exct in extract.namelist():
             tail, head = os.path.split(exct)
@@ -849,6 +858,8 @@ def Update():
             if not os.path.exists(temppath):
                 os.mkdir(temppath)
             if len(tail.split('/')) == 1 and head.endswith(".py"):
+                if head == "Category.py" and ExistCat:
+                    continue
                 with open(os.path.join(temppath, head), 'w', encoding= 'utf8') as tempfile:
                     tempfile.write(extract.read(exct).decode("utf-8"))
         zippath = os.path.join(bpy.app.tempdir, "AR_Update/" + __package__ +".zip")
@@ -914,7 +925,7 @@ def LoadIcons(filepath):
         return 'The Image must be a square'
 
 def TimerCommads(Commands, index):
-    Play(Commands, index)
+    execution_queue.put(functools.partial(Play, Commands, index))
 
 def getAllLoops(Commands):
     datal = []
@@ -2503,6 +2514,43 @@ class AR_OT_Command_Edit(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Command_Edit)
 
+class AR_OT_Command_Run_Queued(Operator):
+    bl_idname = "ar.command_run_queued"
+    bl_label = "Run Queued Commands"
+    bl_options ={'INTERNAL'}
+
+    t = 0
+    _timer = None
+
+    def execute(self, context):
+        while not execution_queue.empty():
+            print("-"*10,time.time() - self.t)
+            function = execution_queue.get()
+            function()
+            Data.ActiveTimers -= 1
+        return {"FINISHED"}
+    
+    def modal(self, context, event):
+        if Data.ActiveTimers > 0:
+            print(time.time() - self.t)
+            self.execute(context)
+            return {'PASS_THROUGH'}
+        else:
+            self.cancel(context)
+            return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.05, window=context.window)
+        wm.modal_handler_add(self)
+        self.t = time.time()
+        return {'RUNNING_MODAL'}
+    
+    def cancel(self, context):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+classes.append(AR_OT_Command_Run_Queued)
+
 class AR_OT_AddEvent(bpy.types.Operator):
     bl_idname = "ar.addevent"
     bl_label = "Add Event"
@@ -2877,8 +2925,18 @@ def SavePrefs(self, context):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         TempUpdateCommand(AR_Var.Record_Coll[0].Index + 1)
 
+def SetRecordName(self, value):
+    textI = bpy.data.texts.find(self.cname)
+    if textI != -1:
+        text = bpy.data.texts[textI]
+        text.name = value
+    self['cname'] = value
+
+def GetCname(self):
+    return self.get('cname', '')
+
 class AR_Record_Struct(PropertyGroup):
-    cname : StringProperty() #AR_Var.name
+    cname : StringProperty(set= SetRecordName, get=GetCname) #AR_Var.name
     macro : StringProperty()
     active : BoolProperty(default= True, update= SavePrefs)
     alert : BoolProperty()

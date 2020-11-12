@@ -4,8 +4,8 @@ from . import ActionRecorder as ActionRecorder
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version": (3, 5, 6),
-    "blender": (2, 90, 1),
+    "version": (3, 5, 7),
+    "blender": (2, 83, 9),
     "location" : "View 3D",
     "warning" : "",
     "wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
