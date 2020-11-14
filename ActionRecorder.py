@@ -2680,6 +2680,11 @@ class AR_OT_AddEvent(bpy.types.Operator):
             box.prop_search(self, 'VertObj', bpy.data, 'meshes')
 
     def invoke(self, context, event):
+        obj = bpy.context.object.name
+        self.SelectedObject = obj
+        index = bpy.data.meshes.find(obj)
+        if index != -1:
+            self.VertObj = obj
         return context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_AddEvent)
 
