@@ -333,6 +333,11 @@ def Select_Command(Mode): # Select the upper/lower Record
         else:
             AR_Var.Record_Coll[CheckCommand(0)].Index = currentIndex + 1
 
+def RespAlert(Command, index):
+    Command.alert = True
+    Alert(index)
+    return True
+
 def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
     if AllLoops is None:
         AllLoops = getAllLoops(Commands)
@@ -362,9 +367,7 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                                 AllLoops = BackLoops
                             continue
                         except:
-                            Command.alert = True
-                            Alert(index)
-                            return True # Alert
+                            return RespAlert(Command, index)
                         return
                     else:
                         for k in np.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
@@ -388,17 +391,42 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                 elif data['Type'] == 'Render Init':
                     Data.Commands_RenderInit.append((index ,Commands[i + 1:]))
                     return
+                elif data['Type'] == 'Select Object':
+                    obj = bpy.data.objects[data['Object']]
+                    objs = bpy.context.view_layer.objects
+                    if obj in [o for o in objs]:
+                        objs.active = obj
+                    else:
+                        return RespAlert(Command, index)
+                    continue
+                elif data['Type'] == 'Select Vertices':
+                    obj = bpy.context.object
+                    mode = bpy.context.active_object.mode
+                    bpy.ops.object.mode_set(mode = 'EDIT') 
+                    bpy.ops.mesh.select_mode(type="VERT")
+                    bpy.ops.mesh.select_all(action = 'DESELECT')
+                    bpy.ops.object.mode_set(mode = 'OBJECT')
+                    mesh = bpy.context.object.data
+                    objverts = mesh.vertices
+                    verts = data['Verts']
+                    if max(verts) < len(objverts):
+                        for vert in objverts:
+                            vert.select = False
+                        for i in verts:
+                            objverts[i].select = True
+                        mesh.update()
+                    else:
+                        bpy.ops.object.mode_set(mode=mode)
+                        return RespAlert(Command, index)
+                    bpy.ops.object.mode_set(mode=mode)
+                    continue
                 else:
-                    Command.alert = True
-                    Alert(index)
-                    return True # Alert
+                    return RespAlert(Command, index)
             try:
                 exec(Command.cname)
             except Exception as err:
                 print(err)
-                Command.alert = True
-                Alert(index)
-                return True # Alert
+                return RespAlert(Command, index)
 
 def Clear(Num) : # Clear all Macros
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -1044,6 +1072,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             if AR_Var.AutoUpdate and AR_Var.Update:
                 box = layout.box()
                 box.label(text= "A new Version is available (" + AR_Var.Version + ")")
+                box.operator(AR_OT_Update.bl_idname, text= "Update")
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
@@ -2500,6 +2529,10 @@ class AR_OT_Command_Edit(Operator):
                         bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index, Statements= data['StatementType'], PythonStatement= data["PyStatement"])
                     else:
                         bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index, Statements= data['StatementType'], Startnumber= data["Startnumber"], Endnumber= data["Endnumber"], Stepnumber= data["Stepnumber"])
+                elif data['Type'] == 'Select Object':
+                    bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index, SelectedObject= data['Object'])
+                elif data['Type'] == 'Select Vertices':
+                    bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index, VertObj= data['Object'])
                 else:
                     bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index)
                 return {"FINISHED"}
@@ -2558,7 +2591,9 @@ class AR_OT_AddEvent(bpy.types.Operator):
                 ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
                 ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
                 ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
-                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6)]
+                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6),
+                ('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7),
+                ('Select Vertices', 'Select Vertices', 'Select the choosen verts', 'GROUP_VERTEX', 8)]
     Type : EnumProperty(items= TypesList, name= "Event Type", description= 'Shows all possible Events', default= 'Timer')
     time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
     Statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
@@ -2568,7 +2603,9 @@ class AR_OT_AddEvent(bpy.types.Operator):
     Endnumber : FloatProperty(name= "Endnumber", description= "Endnumber of the Count statements", default= 1)
     PythonStatement : StringProperty(name= "Statement", description= "Statment for the Python Statement")
     Num : IntProperty(default= -1)
-    
+    SelectedObject : StringProperty(name= "Object", description= "Choose an Object which get select when this Event is played")
+    VertObj : StringProperty(name= "Object", description= "Choose an Object to get the selected verts from")
+
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -2603,6 +2640,18 @@ class AR_OT_AddEvent(bpy.types.Operator):
                     data["Startnumber"] = self.Startnumber
                     data["Endnumber"] = self.Endnumber
                     data["Stepnumber"] = self.Stepnumber
+            elif self.Type == 'Select Object':
+                data['Object'] = self.SelectedObject
+            elif self.Type == 'Select Vertices':
+                data['Object'] = self.VertObj
+                selverts = []
+                obj = bpy.context.view_layer.objects[self.VertObj]
+                obj.update_from_editmode()
+                verts = obj.data.vertices
+                for v in verts:
+                    if v.select:
+                        selverts.append(v.index)
+                data['Verts'] = selverts
             Item.cname = "ar.event:" + json.dumps(data)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         return {"FINISHED"}
@@ -2623,6 +2672,12 @@ class AR_OT_AddEvent(bpy.types.Operator):
                 box.prop(self, 'Startnumber')
                 box.prop(self, 'Endnumber')
                 box.prop(self, 'Stepnumber')
+        elif self.Type == 'Select Object':
+            box = layout.box()
+            box.prop_search(self, 'SelectedObject', bpy.context.view_layer, 'objects')
+        elif self.Type == 'Select Vertices':
+            box = layout.box()
+            box.prop_search(self, 'VertObj', bpy.data, 'meshes')
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
