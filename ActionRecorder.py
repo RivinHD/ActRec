@@ -3231,10 +3231,11 @@ class AR_Prop(AddonPreferences):
         row.label(text="Keymap")
         if self.ShowKeymap:
             wm = bpy.context.window_manager
-            kc = wm.keyconfigs.addon
-            for km in AR_Prop.addon_keymaps:
-                for kmi in km.keymap_items:
-                    rna_keymap_ui.draw_kmi([], kc, km, kmi, box, 0)
+            kc = wm.keyconfigs.user
+            km = kc.keymaps['Screen']
+            for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
+                kmi = km.keymap_items[idname]
+                rna_keymap_ui.draw_kmi([], kc, km, kmi, box, 0)
 classes.append(AR_Prop)
 
 # region Registration
@@ -3259,6 +3260,12 @@ def Initialize_Props():
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Screen')
         AR_Prop.addon_keymaps.append(km)
+        for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
+            kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
+            if not name is None:
+                kmi.properties.name = name
+    if bpy.context.window_manager.keyconfigs.user:
+        km = bpy.context.window_manager.keyconfigs.user.keymaps['Screen']
         for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
             if not name is None:
@@ -3293,8 +3300,7 @@ def Clear_Props():
         bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     except:
         pass
-    for km in AR_Prop.addon_keymaps:
-        bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
+    bpy.context.window_manager.keyconfigs.addon.keymaps.remove(AR_Prop.addon_keymaps[0])
     AR_Prop.addon_keymaps.clear() #Unregister Preview Collection
     for pcoll in preview_collections.values():
         bpy.utils.previews.remove(pcoll)
