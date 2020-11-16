@@ -510,19 +510,20 @@ def LoadLocalActions(dummy):
     scene = bpy.context.scene
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     AR_Var.Record_Coll.clear()
-    for ele in scene.ar_local:
+    local = json.loads(scene.ar_local)
+    for ele in local:
         loc = AR_Var.Record_Coll.add()
-        loc.name = ele.name
+        loc.name = ele['name']
+        loc.Index = ele['Index']
         loc.Command.clear()
-        for cmd in ele.Command:
+        for cmd in ele['Command']:
             locmd = loc.Command.add()
-            locmd.cname = cmd.cname
-            locmd.macro = cmd.macro
-            locmd.active = cmd.active
-            locmd.alert = cmd.alert
-            locmd.icon = cmd.icon
-        loc.Index = ele.Index
-    if len(AR_Var.Record_Coll) > len(scene.ar_local):
+            locmd.cname = cmd['cname']
+            locmd.macro = cmd['macro']
+            locmd.active = cmd['active']
+            locmd.alert = cmd['alert']
+            locmd.icon = cmd['icon']
+    if len(AR_Var.Record_Coll) > len(local):
         AR_Var.Record_Coll.remove(1) # Bug
 
 def Recorder_to_Instance(panel): #Convert Record to Button
@@ -996,19 +997,22 @@ def runRenderInit(dummy):
 @persistent
 def SaveToDataHandler(dummy):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    bpy.context.scene.ar_local.clear()
+    local = []
     for ele in AR_Var.Record_Coll:
-        loc = bpy.context.scene.ar_local.add()
-        loc.name = ele.name
-        loc.Command.clear()
+        loc = {}
+        loc['name'] = ele.name
+        loc['Index'] = ele.Index
+        loc['Command'] = []
         for cmd in ele.Command:
-            locmd = loc.Command.add()
-            locmd.cname = cmd.cname
-            locmd.macro = cmd.macro
-            locmd.active = cmd.active
-            locmd.alert = cmd.alert
-            locmd.icon = cmd.icon
-        loc.Index = ele.Index
+            locmd = {}
+            locmd['cname'] = cmd.cname
+            locmd['macro'] = cmd.macro
+            locmd['active'] = cmd.active
+            locmd['alert'] = cmd.alert
+            locmd['icon'] = cmd.icon
+            loc['Command'].append(locmd)
+        local.append(loc)
+    bpy.context.scene.ar_local = json.dumps(local)
 
 def WriteCatVis(data):
     with open(catVisPath, 'w', encoding= 'utf8') as catfile:
@@ -1377,6 +1381,8 @@ class AR_OT_Category_Add(Operator):
     lastName : StringProperty(name= "Internal", default= "")
     edit : BoolProperty(default= False, name= "Internal")
     catName : StringProperty(name= "Internal")
+    CancelDataArea = []
+    CancelDataMode = []
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -1408,14 +1414,18 @@ class AR_OT_Category_Add(Operator):
 
     def invoke(self, context, event):
         if self.edit:
+            self.CancelDataArea.clear()
+            self.CancelDataMode.clear()
             name = self.catName
             self.Name = name
             for area in CatVisibility['Area']:
-                if name in CatVisibility['Area'][area]: 
+                if name in CatVisibility['Area'][area]:
+                    self.CancelDataArea.append(area)
                     CatVisibility['Area'][area].remove(name)
                     bpy.ops.ar.category_applyvisibility('EXEC_DEFAULT', Area= area, Mode= 'NONE')
             for mode in CatVisibility['Mode']:
                 if name in CatVisibility['Mode'][mode]:
+                    self.CancelDataMode.append(mode)
                     CatVisibility['Mode'][mode].remove(name)
                     bpy.ops.ar.category_applyvisibility('EXEC_DEFAULT', Area= 'VIEW_3D', Mode= mode)
         return context.window_manager.invoke_props_dialog(self)
@@ -1448,6 +1458,11 @@ class AR_OT_Category_Add(Operator):
                     row.operator(AR_OT_Category_Delete_Visibility.bl_idname, text= '', icon= 'PANEL_CLOSE', emboss= False).index = i
 
     def cancel(self, context):
+        name = self.Name
+        for area in self.CancelDataArea:
+            CatVisibility['Area'][area].append(name)
+        for mode in self.CancelDataMode:
+            CatVisibility['Mode'][mode].append(name)
         Data.CatVisis.clear()
 classes.append(AR_OT_Category_Add)
 
@@ -1995,6 +2010,7 @@ class AR_OT_Record_Add(Operator):
         Add(0)
         TempSave(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_Add)
 
@@ -2013,6 +2029,7 @@ class AR_OT_Record_Remove(Operator):
         Remove(0)
         TempUpdate()
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_Remove)
 
@@ -2031,6 +2048,7 @@ class AR_OT_Record_MoveUp(Operator):
         Move(0 , 'Up')
         TempUpdate()
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveUp)
 
@@ -2050,6 +2068,7 @@ class AR_OT_Record_MoveDown(Operator):
         Move(0 , 'Down')
         TempUpdate()
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveDown)
 
@@ -2096,6 +2115,7 @@ class AR_OT_ButtonToRecord(Operator):
                 Save()
         TempUpdate()
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_ButtonToRecord)
 
@@ -2318,7 +2338,7 @@ class AR_OT_Record_Stop(Operator):
             self.report({'ERROR'}, "Not all actions were added because they are not of type Operator: %s" % mess)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
-        
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_Stop)
 
@@ -2335,6 +2355,7 @@ class AR_OT_Record_Icon(Operator):
         AR_Var.Record_Coll[0].Command[self.index].icon = AR_Prop.SelectedIcon
         AR_Prop.SelectedIcon = 101 #Icon: BLANK1
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
     
     def draw(self, execute):
@@ -2397,6 +2418,7 @@ class AR_OT_Command_Add(Operator):
             self.report({'ERROR'}, "No Action could be added")
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Command_Add)
 
@@ -2416,6 +2438,7 @@ class AR_OT_Command_Remove(Operator):
         Remove(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Command_Remove)
 
@@ -2435,6 +2458,7 @@ class AR_OT_Command_MoveUp(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Up')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveUp)
 
@@ -2454,6 +2478,7 @@ class AR_OT_Command_MoveDown(Operator):
         Move(AR_Var.Record_Coll[CheckCommand(0)].Index + 1 , 'Down')
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Command_MoveDown)
 
@@ -2473,6 +2498,7 @@ class AR_OT_Command_Clear(Operator):
         Clear(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Command_Clear)
 
@@ -2498,6 +2524,7 @@ class AR_OT_Command_Edit(Operator):
         macro.cname = self.Command
         TempUpdateCommand(index_btn)
         bpy.context.area.tag_redraw()
+        SaveToDataHandler(None)
         return {"FINISHED"}
 
     def draw(self, context):
@@ -2535,6 +2562,7 @@ class AR_OT_Command_Edit(Operator):
                     bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index, VertObj= data['Object'])
                 else:
                     bpy.ops.ar.addevent('INVOKE_DEFAULT', Type= data['Type'], Num= self.index)
+                SaveToDataHandler(None)
                 return {"FINISHED"}
             self.Name = macro.macro
             self.Command = macro.cname
@@ -2987,6 +3015,7 @@ def SetRecordName(self, value):
         text = bpy.data.texts[textI]
         text.name = value
     self['cname'] = value
+    SaveToDataHandler(None)
 
 def GetCname(self):
     return self.get('cname', '')
@@ -3003,19 +3032,6 @@ class AR_Record_Merge(PropertyGroup):
     Index : IntProperty()
     Command : CollectionProperty(type = AR_Record_Struct)
 classes.append(AR_Record_Merge)
-
-class AR_Record_Struct_Copy(PropertyGroup):
-    cname : StringProperty() #AR_Var.name
-    macro : StringProperty()
-    active : BoolProperty(default= True)
-    alert : BoolProperty()
-    icon : IntProperty(default= 101) #Icon: BLANK1
-classes.append(AR_Record_Struct_Copy)
-
-class AR_Record_Merge_Copy(PropertyGroup):
-    Index : IntProperty()
-    Command : CollectionProperty(type = AR_Record_Struct_Copy)
-classes.append(AR_Record_Merge_Copy)
 
 currentselected = [None]
 lastselected = [0]
@@ -3246,7 +3262,7 @@ for spaceType in spaceTypes:
 def Initialize_Props():
     bpy.types.Scene.ar_filecategories = CollectionProperty(type= AR_CategorizeFileDisp)
     bpy.types.Scene.ar_filedisp = CollectionProperty(type= AR_FileDisp)
-    bpy.types.Scene.ar_local = CollectionProperty(type= AR_Record_Merge_Copy)
+    bpy.types.Scene.ar_local = StringProperty(name= 'AR Local', description= 'Scene Backup-Data of AddonPreference.RecordColl (= Local Actions)', default= '{}')
     bpy.app.handlers.depsgraph_update_pre.append(InitSavedPanel)
     bpy.app.handlers.undo_post.append(TempLoad) # add TempLoad to ActionHandler and call ist after undo
     bpy.app.handlers.redo_post.append(TempLoad) # also for redo
@@ -3260,12 +3276,6 @@ def Initialize_Props():
     if bpy.context.window_manager.keyconfigs.addon:
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(name='Screen')
         AR_Prop.addon_keymaps.append(km)
-        for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
-            kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
-            if not name is None:
-                kmi.properties.name = name
-    if bpy.context.window_manager.keyconfigs.user:
-        km = bpy.context.window_manager.keyconfigs.user.keymaps['Screen']
         for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
             if not name is None:
