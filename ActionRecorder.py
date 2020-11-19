@@ -672,6 +672,7 @@ def InitSavedPanel(dummy = None):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if bpy.data.filepath == '':
         AR_Var.Record_Coll.clear()
+    LoadLocalActions(None)
     AR_Var.Update = False
     AR_Var.Version = ''
     AR_Var.Restart = False
@@ -1250,6 +1251,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row.prop(AR_Var, 'Autosave', toggle= True, text= "On" if AR_Var.Autosave else "Off")
             col.operator(AR_OT_Save.bl_idname , text='Save to File' )
             col.operator(AR_OT_Load.bl_idname , text='Load from File' )
+            col.operator/AR_OT_Record_LoadLoaclActions.bl_idname, text='Load Local Actions')
             col.label(text= "Local Settings")
             col.prop(AR_Var, 'CreateEmpty', text= "Create Empty Macro on Error")
     AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
@@ -2071,6 +2073,18 @@ class AR_OT_Record_MoveDown(Operator):
         SaveToDataHandler(None)
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveDown)
+
+class AR_OT_Record_LoadLoaclActions(bpy.types.Operator):
+    bl_idname = "ar.record_loadlocalactions"
+    bl_label = "Load Loacl Actions"
+    bl_description = "Load the Local Action from the last Save"
+
+    def execute(self, context):
+        LoadLocalActions(None)
+        TempUpdate()
+        bpy.context.area.tag_redraw()
+        return {"FINISHED"}
+classes.append(AR_OT_Record_LoadLoaclActions)
 
 class AR_OT_Save(Operator):
     bl_idname = "ar.data_save"
