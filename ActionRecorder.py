@@ -278,7 +278,10 @@ def Add(Num, command = None):
             return True
     else: # Add Record
         Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
-        Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], 'Untitled.001')
+        if command == None:
+            Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], 'Untitled.001')
+        else:
+            Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], command)
     AR_Var.Record_Coll[CheckCommand(Num)].Index = len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1
     bpy.data.texts.new(Item.cname)
 
@@ -1054,6 +1057,20 @@ def CheckIcon(icon):
             icon = 101 # Icon: BLANK1
     return icon
 
+def LoadActionFromTexteditor(texts):
+    AR_Var = bpy.context.preferences.addons[__package__].preferences
+    AR_Var.Record_Coll.clear()
+    for text in texts:
+        if bpy.data.texts.find(text) == -1:
+            continue
+        text = bpy.data.texts[text]
+        lines = [line.body for line in text.lines]
+        Add(0, text.name)
+        for line in lines:
+            print(line)
+            if line != '':
+                AR_Var = bpy.context.preferences.addons[__package__].preferences
+                Add(len(AR_Var.Record_Coll[0].Command), line)
 # endregion
 
 # region Panels
@@ -1251,7 +1268,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row.prop(AR_Var, 'Autosave', toggle= True, text= "On" if AR_Var.Autosave else "Off")
             col.operator(AR_OT_Save.bl_idname , text='Save to File' )
             col.operator(AR_OT_Load.bl_idname , text='Load from File' )
-            col.operator/AR_OT_Record_LoadLoaclActions.bl_idname, text='Load Local Actions')
+            col.operator(AR_OT_Record_LoadLoaclActions.bl_idname, text='Load Local Actions')
             col.label(text= "Local Settings")
             col.prop(AR_Var, 'CreateEmpty', text= "Create Empty Macro on Error")
     AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
@@ -2074,16 +2091,51 @@ class AR_OT_Record_MoveDown(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Record_MoveDown)
 
+class AR_LLA_TextProps(PropertyGroup):
+    name : StringProperty()
+    apply : BoolProperty(default= False)
+classes.append(AR_LLA_TextProps)
+
 class AR_OT_Record_LoadLoaclActions(bpy.types.Operator):
     bl_idname = "ar.record_loadlocalactions"
     bl_label = "Load Loacl Actions"
     bl_description = "Load the Local Action from the last Save"
 
+    Source : EnumProperty(name= 'Source', description= "Choose the source from where to load", items= [('scene', 'Scene', ''), ('text', 'Texteditor', '')])
+    Texts : CollectionProperty(type= AR_LLA_TextProps)
+
     def execute(self, context):
-        LoadLocalActions(None)
+        if self.Source == 'scene':
+            LoadLocalActions(None)
+        else:
+            texts = []
+            for text in self.Texts:
+                if text.apply:
+                    texts.append(text.name)
+            LoadActionFromTexteditor(texts)
         TempUpdate()
         bpy.context.area.tag_redraw()
         return {"FINISHED"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'Source', expand= True)
+        if self.Source == 'text':
+            box = layout.box()
+            texts = [txt.name for txt in bpy.data.texts]
+            for text in self.Texts:
+                if text.name in texts:
+                    row = box.row()
+                    row.label(text= text.name)
+                    row.prop(text, 'apply', text= '')
+
+    def invoke(self, context, event):
+        texts = self.Texts
+        texts.clear()
+        for text in bpy.data.texts:
+            txt = texts.add()
+            txt.name = text.name
+        return bpy.context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_Record_LoadLoaclActions)
 
 class AR_OT_Save(Operator):
@@ -2722,11 +2774,12 @@ class AR_OT_AddEvent(bpy.types.Operator):
             box.prop_search(self, 'VertObj', bpy.data, 'meshes')
 
     def invoke(self, context, event):
-        obj = bpy.context.object.name
-        self.SelectedObject = obj
-        index = bpy.data.meshes.find(obj)
-        if index != -1:
-            self.VertObj = obj
+        if bpy.context.object != None:
+            obj = bpy.context.object.name
+            self.SelectedObject = obj
+            index = bpy.data.meshes.find(obj)
+            if index != -1:
+                self.VertObj = obj
         return context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_AddEvent)
 
