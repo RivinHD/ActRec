@@ -2685,9 +2685,10 @@ class AR_OT_AddEvent(bpy.types.Operator):
                 ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
                 ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
                 ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
-                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6),
-                ('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7),
-                ('Select Vertices', 'Select Vertices', 'Select the choosen verts', 'GROUP_VERTEX', 8)]
+                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6) #,
+                #('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7),
+                #('Select Vertices', 'Select Vertices', 'Select the choosen verts', 'GROUP_VERTEX', 8)
+                ]
     Type : EnumProperty(items= TypesList, name= "Event Type", description= 'Shows all possible Events', default= 'Timer')
     time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
     Statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
