@@ -1526,7 +1526,7 @@ classes.append(AR_OT_Category_Delete_Visibility)
 
 class AR_OT_Category_Delet(Operator):
     bl_idname = "ar.category_delet"
-    bl_label = "Delet Category"
+    bl_label = "Delete Category"
     bl_description = "Delete the selected Category"
 
     @classmethod
@@ -3185,7 +3185,7 @@ def Instance_Updater(self, context):
             self.Value = True
 
 class AR_Enum(PropertyGroup):
-    Value : BoolProperty(default= False, update= Instance_Updater)
+    Value : BoolProperty(default= False, update= Instance_Updater, description= "Click this button to select this Macro")
     Index : IntProperty()
     Init = True
 classes.append(AR_Enum)
