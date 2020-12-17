@@ -2895,41 +2895,7 @@ class AR_OT_CopyToActRec(Operator):
 
     def execute(self, context):
         bpy.ops.ui.copy_python_command_button()
-        op = bpy.context.window_manager.clipboard
-        op = eval(op.split('(')[0]).get_rna_type()
-        opid = op.bl_rna.identifier
-        split = opid.split("_OT_")
-        group = split[0]
-        ops = split[1]
-        props = []
-        opsprops = []
-        for opsprop in op.bl_rna.properties[1:]: # first element is nra_type (skiped)
-            prop = opsprop.identifier
-            if hasattr(opsprop, 'is_array'):
-                is_array = opsprop.is_array
-            else:
-                is_array = False
-            opsprops.append((prop, is_array))
-        for attr in dir(op):
-            for i in range(len(opsprops)):
-                if attr == opsprops[i][0] and hasattr( op, attr ):
-                    value = getattr(op, attr)
-                    if opsprops[i][1]:
-                        value = tuple(value)
-                    props.append((str(attr), value))
-                    opsprops.pop(i)
-                    break
-        propstr = "("
-        for prop, value in props:
-            if isinstance(value, str):
-                value = "\"" + value + "\""
-            elif value is None:
-                value = "\"\""
-            propstr += prop + "=" + str(value) + ", "
-        if propstr[-2:] == ", ":
-            propstr = propstr[:-2]
-        propstr += ")"
-        bpy.ops.ar.command_add('EXEC_DEFAULT', command="bpy.ops." + group.lower() + "." + ops + propstr)
+        bpy.ops.ar.command_add('EXEC_DEFAULT', command= bpy.context.window_manager.clipboard)
         return {"FINISHED"}
 classes.append(AR_OT_CopyToActRec)
 
