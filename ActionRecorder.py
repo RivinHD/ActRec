@@ -145,14 +145,35 @@ def Record(Num, Mode):
     else:
         AR_Prop.Record = False
         notadded = []
-        for i in range (AR_Prop.Temp_Num, len(Recent)):
-            TempText = Recent[i-1].body
+        startCommand = ""
+        lastCommand = ""
+        for i in range(AR_Prop.Temp_Num, len(Recent)):
+            TempText = Recent[i - 1].body
             if TempText.count('bpy'):
                 name = TempText[TempText.find('bpy'):]
+                if lastCommand.split("(", 1)[0] == name.split("(", 1)[0] and startCommand != name:
+                    lastCommand = name
+                    continue
                 macro = GetMacro(name)
-                if macro is None or macro is True:
+                if macro is True:
+                    continue
+                if startCommand != lastCommand:
+                    lastMacro = GetMacro(lastCommand)
+                    if lastMacro is None:
+                        notadded.append(name)
+                        if AR_Var.CreateEmpty:
+                            Item = AR_Var.Record_Coll[CheckCommand(Num)].Command[-1]
+                            Item.macro = "<Empty>"
+                            Item.cname = ""
+                    else:
+                        Item = AR_Var.Record_Coll[CheckCommand(Num)].Command[-1]
+                        Item.macro = lastMacro
+                        Item.cname = lastCommand
+                lastCommand = name
+                startCommand = name
+                if macro is None:
                     notadded.append(name)
-                    if macro is None and AR_Var.CreateEmpty:
+                    if AR_Var.CreateEmpty:
                         Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                         Item.macro = "<Empty>"
                         Item.cname = ""
@@ -555,7 +576,6 @@ def LoadLocalActions(dummy):
             locmd.active = cmd['active']
             locmd.alert = cmd['alert']
             locmd.icon = cmd['icon']
-    print([(x.name, x.Index, x.Command) for x in AR_Var.Record_Coll])
     # Check Command
     i = 0
     while i < len(local):
@@ -565,8 +585,6 @@ def LoadLocalActions(dummy):
             i += 1
         else:
             AR_Var.Record_Coll.remove(i)
-    print(local)
-    print([(x.name, x.Index, x.Command) for x in AR_Var.Record_Coll])
     SaveToDataHandler(None)
 
 def Recorder_to_Instance(panel): #Convert Record to Button
