@@ -181,6 +181,18 @@ def Record(Num, Mode):
                     Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                     Item.macro = macro
                     Item.cname = name
+        if startCommand != lastCommand:
+            lastMacro = GetMacro(lastCommand)
+            if lastMacro is None:
+                notadded.append(name)
+                if AR_Var.CreateEmpty:
+                    Item = AR_Var.Record_Coll[CheckCommand(Num)].Command[-1]
+                    Item.macro = "<Empty>"
+                    Item.cname = ""
+            else:
+                Item = AR_Var.Record_Coll[CheckCommand(Num)].Command[-1]
+                Item.macro = lastMacro
+                Item.cname = lastCommand
         UpdateRecordText(Num)
         bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
         return notadded
