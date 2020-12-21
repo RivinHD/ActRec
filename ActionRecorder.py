@@ -2564,7 +2564,7 @@ classes.append(AR_OT_Record_Execute)
 class AR_OT_Command_Add(Operator):
     bl_idname = "ar.command_add"
     bl_label = "ActRec Add Macro"
-    bl_description = "Add a Macro to the selected Action"
+    bl_description = "Add the last operation you executed"
 
     command : StringProperty()
 
