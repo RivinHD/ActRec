@@ -68,7 +68,6 @@ class AR_UL_Selector(UIList):
         row.operator(AR_OT_Record_Icon.bl_idname, text= "", icon_value= AR_Var.Record_Coll[0].Command[index].icon, emboss= False).index = index
         col = row.column()
         col.ui_units_x = 0.5
-        col.label(text= "│")
         row.prop(item, 'cname', text = '', emboss= False)
 classes.append(AR_UL_Selector)
 class AR_UL_Command(UIList):
@@ -3195,7 +3194,7 @@ class AR_Record_Struct(PropertyGroup):
     macro : StringProperty()
     active : BoolProperty(default= True, update= SavePrefs, description= 'Toggles Macro on and off.')
     alert : BoolProperty()
-    icon : IntProperty(default= 101) #Icon: BLANK1
+    icon : IntProperty(default= 286) #Icon: MESH_PLANE
 classes.append(AR_Record_Struct)
 
 class AR_Record_Merge(PropertyGroup):
