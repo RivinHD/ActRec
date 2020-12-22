@@ -1341,7 +1341,7 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row2.operator(AR_OT_Category_MoveUp.bl_idname, text= '',icon= 'TRIA_UP').Index = selectedCat_index
             row2.operator(AR_OT_Category_MoveDown.bl_idname, text= '',icon= 'TRIA_DOWN').Index = selectedCat_index
             row2.operator(AR_OT_Category_Add.bl_idname, text= '', icon= 'ADD').edit = False
-            row2.operator(AR_OT_Category_Delet.bl_idname, text= '', icon= 'TRASH')
+            row2.operator(AR_OT_Category_Delete.bl_idname, text= '', icon= 'TRASH')
             row.label(text= '')
             row = col.row(align= False)
             row.operator(AR_OT_Category_Edit.bl_idname, text= 'Edit')
@@ -1596,8 +1596,8 @@ class AR_OT_Category_Delete_Visibility(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Category_Delete_Visibility)
 
-class AR_OT_Category_Delet(Operator):
-    bl_idname = "ar.category_delet"
+class AR_OT_Category_Delete(Operator):
+    bl_idname = "ar.category_delete"
     bl_label = "Delete Category"
     bl_description = "Delete the selected Category"
 
@@ -1643,7 +1643,7 @@ class AR_OT_Category_Delet(Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_Category_Delet)
+classes.append(AR_OT_Category_Delete)
 
 class AR_OT_Category_Edit(Operator):
     bl_idname = "ar.category_edit"
