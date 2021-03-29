@@ -1,4 +1,5 @@
 ﻿# region Imports
+from types import ClassMethodDescriptorType
 import bpy
 from bpy.app.handlers import persistent
 import os
@@ -21,23 +22,27 @@ import inspect
 import functools
 import numpy as np
 import copy
+import importlib
 from importlib import reload
 from .Category import Category as CatVisibility
 import queue
+import subprocess
+import ensurepip
+import sys
+import re
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences, Menu
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 import rna_keymap_ui
 import bpy.utils.previews
-
-import sys
 # endregion
 
 # region Variables
 classes = []
 classespanel = []
 categoriesclasses = []
+blendclasses = []
 catlength = [0]
 ontempload = [False]
 multiselection_buttons = [False, True]
@@ -68,7 +73,7 @@ class AR_UL_Selector(UIList):
         row.operator(AR_OT_Record_Icon.bl_idname, text= "", icon_value= AR_Var.Record_Coll[0].Command[index].icon, emboss= False).index = index
         col = row.column()
         col.ui_units_x = 0.5
-        row.prop(item, 'cname', text = '', emboss= False)
+        row.prop(item, 'cname', text= '', emboss= False)
 classes.append(AR_UL_Selector)
 class AR_UL_Command(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -79,12 +84,13 @@ class AR_UL_Command(UIList):
         row.prop(item, 'active', text= "")
         row.operator(AR_OT_Command_Edit.bl_idname, text= item.macro, emboss= False).index = index
 classes.append(AR_UL_Command)
+
 # endregion
 
 # region Functions
 def CheckCommand(num): #Add a new Collection if necessary
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    if len(AR_Var.Record_Coll) <= num:
+    while len(AR_Var.Record_Coll) <= num:
         AR_Var.Record_Coll.add()
     return num
 
@@ -204,7 +210,7 @@ def CreateTempFile():
             json.dump({"0":[]}, tempfile)
     return tpath
 
-def TempSave(Num):  # write new command to temp.json file
+def TempSave(Num):  # write new record to temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:   
@@ -215,7 +221,7 @@ def TempSave(Num):  # write new command to temp.json file
         tempfile.seek(0)
         json.dump(data, tempfile)
 
-def TempUpdate(): # update all commands in temp.json file
+def TempUpdate(): # update all records in temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:
@@ -226,7 +232,7 @@ def TempUpdate(): # update all commands in temp.json file
             data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
         json.dump(data, tempfile)
 
-def TempUpdateCommand(Key): # update one command in temp.json file
+def TempUpdateCommand(Key): # update one record in temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     with open(tpath, 'r+', encoding='utf8') as tempfile:
@@ -237,7 +243,7 @@ def TempUpdateCommand(Key): # update one command in temp.json file
         json.dump(data, tempfile)
 
 @persistent
-def TempLoad(dummy): # load commands after undo
+def TempLoad(dummy): # load records after undo
     tpath = bpy.app.tempdir + "temp.json"
     ontempload[0] = True
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -390,28 +396,48 @@ def RespAlert(Command, index, CommandIndex):
         else:
             AR_Var.Record_Coll[CheckCommand(index + 1)].Index = 0
             bpy.context.area.tag_redraw()
-        bpy.app.timers.register(functools.partial(AfterAlert, Command, index, CommandIndex), first_interval= 0.01)
+        bpy.app.timers.register(functools.partial(Alert, Command, index, CommandIndex), first_interval= 0.01)
     else:
-        AfterAlert(Command, index, CommandIndex)
+        Alert(Command, index, CommandIndex)
     return True
 
-def AfterAlert(Command, index, CommandIndex):
+def Alert(Command, index, CommandIndex):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    AR_Var.Record_Coll[CheckCommand(index + 1)].Index = CommandIndex
     Command.alert = True
     AR_Var.Record_Coll[CheckCommand(index + 1)].Index = CommandIndex
-    Alert(index)
+    AR_Var.Record_Coll[CheckCommand(0)].Command[index].alert = True
+    bpy.app.timers.register(functools.partial(AlertTimerPlay, index), first_interval = 1)
+    try:
+        bpy.context.area.tag_redraw()
+    except:
+        redrawLocalANDMacroPanels()
 
-def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
+def Play(Commands, index, AllLoops = None, extension = 0, offset = 0): #Execute the Macro
     if AllLoops is None:
         AllLoops = getAllLoops(Commands)
+    first_event = len(Commands)
     for i, Command in enumerate(Commands):
         if Command.active:
             split = Command.cname.split(":")
-            if split[0] == 'ar.event':
+            if split[0] == 'ar.event': # non-realtime events
+                data = json.loads(":".join(split[1:]))
+                if data['Type'] == 'Render Complet':
+                    Data.Commands_RenderComplete.append((index, Commands[i + 1:], i + 1))
+                    first_event = i
+                    break
+                elif data['Type'] == 'Render Init':
+                    Data.Commands_RenderInit.append((index, Commands[i + 1:], i + 1))
+                    first_event = i
+                    break
+                else:
+                    return RespAlert(Command, index, i + offset)
+    for i, Command in enumerate(Commands[:first_event]):
+        if Command.active:
+            split = Command.cname.split(":")
+            if split[0] == 'ar.event': # realtime events
                 data = json.loads(":".join(split[1:]))
                 if data['Type'] == 'Timer':
-                    bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:], index), first_interval = data['Time'])
+                    bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:], index, i + 1), first_interval = data['Time'])
                     Data.ActiveTimers += 1
                     bpy.ops.ar.command_run_queued('INVOKE_DEFAULT')
                     return
@@ -431,8 +457,7 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                                 AllLoops = BackLoops
                             continue
                         except:
-                            return RespAlert(Command, index, i)
-                        return
+                            return RespAlert(Command, index, i + offset)
                     else:
                         for k in np.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
                             BackLoops = Play(Commands[int(i) + 1:], index, copy.deepcopy(AllLoops), extension + 2)
@@ -449,19 +474,13 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                     else:
                         if 'Loop' not in AllLoops[loopi]:
                             return AllLoops
-                elif data['Type'] == 'Render Complet':
-                    Data.Commands_RenderComplete.append((index, Commands[i + 1:]))
-                    return
-                elif data['Type'] == 'Render Init':
-                    Data.Commands_RenderInit.append((index ,Commands[i + 1:]))
-                    return
                 elif data['Type'] == 'Select Object':
                     obj = bpy.data.objects[data['Object']]
                     objs = bpy.context.view_layer.objects
                     if obj in [o for o in objs]:
                         objs.active = obj
                     else:
-                        return RespAlert(Command, index, i)
+                        return RespAlert(Command, index, i + offset)
                     continue
                 elif data['Type'] == 'Select Vertices':
                     obj = bpy.context.object
@@ -481,16 +500,16 @@ def Play(Commands, index, AllLoops = None, extension = 0 ): #Execute the Macro
                         mesh.update()
                     else:
                         bpy.ops.object.mode_set(mode=mode)
-                        return RespAlert(Command, index, i)
+                        return RespAlert(Command, index, i + offset)
                     bpy.ops.object.mode_set(mode=mode)
                     continue
                 else:
-                    return RespAlert(Command, index, i)
+                    return RespAlert(Command, index, i + offset)
             try:
                 exec(Command.cname)
             except Exception as err:
                 print(err)
-                return RespAlert(Command, index, i)
+                return RespAlert(Command, index, i + offset)
 
 def Clear(Num) : # Clear all Macros
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -499,19 +518,20 @@ def Clear(Num) : # Clear all Macros
 
 def Save(): #Save Buttons to Storage
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    for savedfolder in os.listdir(AR_Var.StorageFilePath):
-        folderpath = os.path.join(AR_Var.StorageFilePath, savedfolder)
+    path = AR_Var.ExactStoragePath
+    for savedfolder in os.listdir(path):
+        folderpath = os.path.join(path, savedfolder)
         for savedfile in os.listdir(folderpath):
             os.remove(os.path.join(folderpath, savedfile))
         os.rmdir(folderpath)
     for cat in AR_Var.Categories:
-        panelpath = os.path.join(AR_Var.StorageFilePath, f"{GetPanelIndex(cat)}~" + cat.pn_name)
+        panelpath = os.path.join(path, f"{GetPanelIndex(cat)}~" + cat.pn_name)
         os.mkdir(panelpath)
         start = cat.Instance_Start
         for cmd_i in range(start, start + cat.Instance_length):
             with open(os.path.join(panelpath, f"{cmd_i - start}~" + AR_Var.Instance_Coll[cmd_i].name + "~" + f"{AR_Var.Instance_Coll[cmd_i].icon}" + ".py"), 'w', encoding='utf8') as cmd_file:
                 for cmd in AR_Var.Instance_Coll[cmd_i].command:
-                    cmd_file.write(cmd.name + "\n")
+                    cmd_file.write(cmd.name + "#" + cmd.macro +"\n")
 
 def Load():#Load Buttons from Storage
     print('------------------Load-----------------')
@@ -523,8 +543,9 @@ def Load():#Load Buttons from Storage
     AR_Var.ar_enum.clear()
     AR_Var.Instance_Coll.clear()
     AR_Var.Instance_Index = 0
-    for folder in os.listdir(AR_Var.StorageFilePath):
-        folderpath = os.path.join(AR_Var.StorageFilePath, folder)
+    path = AR_Var.ExactStoragePath
+    for folder in sorted(os.listdir(path)):
+        folderpath = os.path.join(path, folder)
         if os.path.isdir(folderpath):
             textfiles = os.listdir(folderpath)
             new = AR_Var.Categories.add()
@@ -561,7 +582,18 @@ def Load():#Load Buttons from Storage
                 with open(os.path.join(folderpath, txt), 'r', encoding='utf8') as text:
                     for line in text.readlines():
                         cmd = inst.command.add()
-                        cmd.name = line.strip()
+                        line_split = line.strip().split('#')
+                        updated_cmd = update_macro(line_split[0])
+                        if updated_cmd is None:
+                            cmd.macro = "ERROR N/A"
+                            cmd.name = "The command <%s> no longer exists in this version of Blender" %line_split[0]
+                        else:
+                            if updated_cmd is False:
+                                cmd.name = line_split[0]
+                            else:
+                                cmd.name = updated_cmd
+                            if len(line_split) > 1:
+                                cmd.macro = "#".join(line_split[1:])
     for iconpath in os.listdir(AR_Var.IconFilePath): # Load Icons
         filepath = os.path.join(AR_Var.IconFilePath, iconpath)
         if os.path.isfile(filepath):
@@ -601,9 +633,15 @@ def LoadLocalActions(dummy):
 def Recorder_to_Instance(panel): #Convert Record to Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     scene = bpy.context.scene
-    i = panel.Instance_Start +  panel.Instance_length
+    i = panel.Instance_Start + panel.Instance_length
+    rec_commands = []
+    rec_macros = []
+    for Command in AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command:
+        rec_commands.append(Command.cname)
+        rec_macros.append(Command.macro)
     data = {"name":CheckForDublicates([AR_Var.Instance_Coll[j].name for j in range(panel.Instance_Start, i)], AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].cname),
-            "command": [Command.cname for Command in AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command],
+            "command": rec_commands,
+            "macro" : rec_macros,
             "icon": AR_Var.Record_Coll[CheckCommand(0)].Command[AR_Var.Record_Coll[CheckCommand(0)].Index].icon}
     Inst_Coll_Insert(i, data , AR_Var.Instance_Coll)
     panel.Instance_length += 1
@@ -633,12 +671,15 @@ def Instance_to_Recorder():#Convert Button to Record
         Item.icon = AR_Var.Instance_Coll[Index].icon
         for Command in AR_Var.Instance_Coll[Index].command:
             Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
-            macro = GetMacro(Command.name)
+            if Command.macro == '':
+                macro = GetMacro(Command.name)
+            else:
+                macro = Command.macro
             if macro == None:
                 split = Command.name.split(":")
                 if split[0] == "ar.event":
                     data = json.loads(":".join(split[1:]))
-                    Item.macro = "Event:" + data['Type']
+                    Item.macro = "Event: " + data['Type']
                 else:
                     Item.macro = Command.name
             else: 
@@ -708,7 +749,7 @@ def I_Move(Mode): # Move a Button to the upper/lower
         else :
             index2 = index1 + 1
         LengthTemp = len(AR_Var.Instance_Coll)
-        if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 <LengthTemp):
+        if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 < LengthTemp):
             AR_Var.Instance_Coll[index1].name , AR_Var.Instance_Coll[index2].name = AR_Var.Instance_Coll[index2].name , AR_Var.Instance_Coll[index1].name
             AR_Var.Instance_Coll[index1].icon , AR_Var.Instance_Coll[index2].icon = AR_Var.Instance_Coll[index2].icon , AR_Var.Instance_Coll[index1].icon
             index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].command]
@@ -750,10 +791,13 @@ def InitSavedPanel(dummy = None):
     AR_Var.Restart = False
     if AR_Var.AutoUpdate:
         bpy.ops.ar.check_update('EXEC_DEFAULT')
-    if not os.path.exists(AR_Var.StorageFilePath):
-        os.mkdir(AR_Var.StorageFilePath)
+    AR_Var.StorageFilePath = AR_Var.StorageFilePath #Update StorageFilePath
+    path = AR_Var.ExactStoragePath
+    if not os.path.exists(path):
+        os.mkdir(path)
     if not os.path.exists(AR_Var.IconFilePath):
         os.mkdir(AR_Var.IconFilePath)
+    AR_Var.Selected_Category.clear()
     Load()
     catlength[0] = len(AR_Var.Categories)
     TempSaveCats()
@@ -785,7 +829,6 @@ def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
 
 def TempSaveCats(): # save to the create Tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    scene = bpy.context.scene
     tcatpath = CreateTempCats()
     with open(tcatpath, 'r+', encoding='utf8') as tempfile:
         tempfile.truncate(0)
@@ -804,7 +847,8 @@ def TempSaveCats(): # save to the create Tempfile
             insts.append({
                 "name": inst.name,
                 "icon": inst.icon,
-                "command": [cmd.name for cmd in inst.command]
+                "command": [cmd.name for cmd in inst.command],
+                "macro" : [cmd.macro for cmd in inst.command]
             })
         data = {
             "Instance_Index": AR_Var.Instance_Index,
@@ -816,7 +860,6 @@ def TempSaveCats(): # save to the create Tempfile
 @persistent
 def TempLoadCats(dummy): #Load the Created tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    scene = bpy.context.scene
     tcatpath = bpy.app.tempdir + "tempcats.json"
     AR_Var.ar_enum.clear()
     reg = bpy.ops.screen.redo_last.poll()
@@ -835,13 +878,15 @@ def TempLoadCats(dummy): #Load the Created tempfile
             for y in range(len(inst_coll[i]["command"])):
                 cmd = inst.command.add()
                 cmd.name = inst_coll[i]["command"][y]
+                cmd.maro = inst_coll[i]["macro"][y]
         index = data["Instance_Index"]
         AR_Var.Instance_Index = index
         for i in range(len(AR_Var.Instance_Coll)):
             new_e = AR_Var.ar_enum.add()
             new_e.name = str(i)
             new_e.Index = i
-        AR_Var.ar_enum[index].Value = True
+        if len(AR_Var.ar_enum):
+            AR_Var.ar_enum[index].Value = True
         for cat in data["Categories"]:
             new = AR_Var.Categories.add()
             new.name = cat["name"]
@@ -879,9 +924,12 @@ def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collectio
     collection[index].name = data["name"]
     collection[index].icon = CheckIcon(data["icon"])
     collection[index].command.clear()
-    for command in data["command"]:
+    commands = data["command"]
+    macros = data["macro"]
+    for i in range(len(commands)):
         cmd = collection[index].command.add()
-        cmd.name = command
+        cmd.name = commands[i]
+        cmd.macro = macros[i]
 
 def ImportSortedZip(filepath):
     with zipfile.ZipFile(filepath, 'r') as zip_out:
@@ -1026,8 +1074,8 @@ def LoadIcons(filepath):
         bpy.data.images.remove(img)
         return 'The Image must be a square'
 
-def TimerCommads(Commands, index):
-    execution_queue.put(functools.partial(Play, Commands, index))
+def TimerCommads(Commands, index, offset):
+    execution_queue.put(functools.partial(Play, Commands, index, offset=offset))
 
 def getAllLoops(Commands):
     datal = []
@@ -1057,14 +1105,16 @@ def getIndexInLoop(i, AllLoops, identifier):
         if identifier in AllLoops[li] and i == AllLoops[li][identifier]:
             return li
 
+@persistent
 def runRenderComplete(dummy):
-    for index, Commands in Data.Commands_RenderComplete:
-        Play(Commands, index)
+    for index, Commands, offset in Data.Commands_RenderComplete:
+        Play(Commands, index, offset=offset)
     Data.Commands_RenderComplete.clear()
 
+@persistent
 def runRenderInit(dummy):
-    for index, Commands in Data.Commands_RenderInit:
-        Play(Commands, index)
+    for index, Commands, offset in Data.Commands_RenderInit:
+        Play(Commands, index, offset=offset)
     Data.Commands_RenderInit.clear()
 
 @persistent
@@ -1097,15 +1147,6 @@ def getCatInAreas(cat, data):
         if cat == i[1]:
             l.append(i[0])
     return l
-
-def Alert(index):
-    AR_Var = bpy.context.preferences.addons[__package__].preferences
-    AR_Var.Record_Coll[CheckCommand(0)].Command[index].alert = True
-    bpy.app.timers.register(functools.partial(AlertTimerPlay, index), first_interval = 1)
-    try:
-        bpy.context.area.tag_redraw()
-    except:
-        redrawLocalANDMacroPanels()
 
 def redrawLocalANDMacroPanels():
     for i in classespanel:
@@ -1145,9 +1186,15 @@ def showCategory(name, context):
     AR_Var = context.preferences.addons[__package__].preferences
     if AR_Var.ShowAllCategories:
         return True
+    res = CatVisibility["Area"].get(context.area.ui_type, None)
+    if res is None:
+        CatVisibility["Area"][context.area.ui_type] = []
     if name in CatVisibility["Area"][context.area.ui_type]:
         return True
     if context.area.ui_type == "VIEW_3D":
+        res = CatVisibility["Mode"].get(context.mode, None)
+        if res is None:
+            CatVisibility["Mode"][context.mode] = []
         if name in CatVisibility["Mode"][context.mode]:    
             return True
     l = []
@@ -1158,6 +1205,102 @@ def showCategory(name, context):
         for item in ele:
             l.append(item)
     return not (name in l)
+
+def getCollectionBorderOfButtonIndex(index, AR_Var):
+    for cat in AR_Var.Categories:
+        if index < cat.Instance_Start + cat.Instance_length and index >= cat.Instance_Start:
+            return (cat.Instance_Start, cat.Instance_Start + cat.Instance_length - 1)
+
+def TextToLines(text, font_text, limit, endcharacter = " ,"):
+    if text == '' or not font_text.use_dynamic_text:
+        return [text]
+    characters_width = font_text.getWidthOfText(text)
+    possible_breaks = split_and_keep(endcharacter, text)
+    lines = [""]
+    start = 0
+    for psb in possible_breaks:
+        line_length = len(lines[-1])
+        total_line_length = start + line_length
+        total_length = total_line_length + len(psb)
+        width = sum(characters_width[start : total_length])
+        if width <= limit:
+            lines[-1] += psb
+        else:
+            if sum(characters_width[total_line_length : total_length]) > limit:
+                start += line_length
+                while psb != "":
+                    i = clamp(int(limit / width * len(psb)), 0, len(psb))
+                    if len(psb) != i:
+                        if sum(characters_width[start : start + i]) <= limit:
+                            while sum(characters_width[start : start + i]) <= limit:
+                                i += 1
+                            i -= 1
+                        else:
+                            while sum(characters_width[start : start + i]) >= limit:
+                                i -= 1
+                            i += 1
+                    lines.append(psb[:i])
+                    psb = psb[i:]
+                    start += i
+                    width = sum(characters_width[start : total_length])
+            else:
+                lines.append(psb)
+                start += line_length + len(psb)
+    if(lines[0] == ""):
+        lines.pop(0)
+    return lines
+
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+def split_and_keep(sep, text):
+    p=chr(ord(max(text))+1)
+    for s in sep:
+        text = text.replace(s, s+p)
+    return text.split(p)
+
+def getFontPath():
+    if bpy.context.preferences.view.font_path_ui == '':
+        dirc = "\\".join(sys.executable.split("\\")[:-3])
+        return os.path.join(dirc, "datafiles", "fonts", "droidsans.ttf")
+    else:
+        return bpy.context.preferences.view.font_path_ui
+
+def update_macro(macro: str):
+    if macro.startswith("bpy.ops."):
+        command, values = macro.split("(", 1)
+        values = extract_properties(values[:-1])
+        for i in range(len(values)):
+            values[i] = values[i].strip().split("=")
+        try:
+            props = eval(command + ".get_rna_type().properties[1:]")
+        except:
+            return None
+        inputs = []
+        for prop in props:
+            for value in values:
+                if value[0] == prop.identifier:
+                    inputs.append(value[0] + "=" + value[1])
+                    values.remove(value)
+                    break
+        return command + "(" + ", ".join(inputs) + ")"
+    else:
+        return False
+
+def extract_properties(properties :str):
+    properties = properties.split(",")
+    new_props = []
+    prop_str = ''
+    for prop in properties:
+        prop = prop.split('=')
+        if prop[0].strip().isidentifier() and len(prop) > 1:
+            new_props.append(prop_str)
+            prop_str = ''
+            prop_str += "=".join(prop)
+        else:
+            prop_str += "," + prop[0]
+    new_props.append(prop_str)
+    return new_props[1:]
 # endregion
 
 # region Panels
@@ -1454,7 +1597,7 @@ class AR_OT_Category_Add(Operator):
                 ("VERTEX_GPENCIL", "Vertex Paint Grease Pencil", "", "VPAINT_HLT", 19)]
     AreaItems = [("NONE", "None", "", "SELECT_SET", 0),
                 ("VIEW_3D", "3D Viewport", "", "VIEW3D", 1),
-                ("VIEW", "Image Editor", "", "IMAGE", 2),
+                ("IMAGE_EDITOR", "Image Editor", "", "IMAGE", 2),
                 ("UV", "UV Editor", "", "UV", 3),
                 ("CompositorNodeTree", "Compositor", "", "NODE_COMPOSITING", 4),
                 ("TextureNodeTree", "Texture Node Editor", "", "NODE_TEXTURE", 5),
@@ -2312,7 +2455,12 @@ class AR_OT_Button_MoveUp(Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Instance_Coll)
+        if len(AR_Var.Instance_Coll):
+            index = AR_Var.Instance_Index
+            start, end = getCollectionBorderOfButtonIndex(index, AR_Var)
+            return len(AR_Var.Instance_Coll) and index > start and index <= end
+        else:
+            return False
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -2332,7 +2480,13 @@ class AR_OT_Button_MoveDown(Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Instance_Coll)
+        if len(AR_Var.Instance_Coll):
+            AR_Var = context.preferences.addons[__package__].preferences
+            index = AR_Var.Instance_Index
+            start, end = getCollectionBorderOfButtonIndex(index, AR_Var)
+            return len(AR_Var.Instance_Coll) and index >= start and index < end
+        else:
+            return False
         
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
@@ -2677,6 +2831,34 @@ class AR_OT_Command_Clear(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_Command_Clear)
 
+class FontText():
+    def __init__(self, fontpath):
+        print(importlib.util.find_spec('fontTools') is None)
+        self.path = fontpath
+        # install the fonttools to blender modules if not exists
+        if importlib.util.find_spec('fontTools') is None:
+            ensurepip.bootstrap()
+            os.environ.pop("PIP_REQ_TRACKER", None)
+            try:
+                output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color'])
+                print(output)
+            except subprocess.CalledProcessError as e:
+                print(e.output)
+                self.use_dynamic_text = False
+                return
+        self.use_dynamic_text = True
+        from fontTools.ttLib import TTFont
+
+        font = TTFont(fontpath)
+        self.t = font['cmap'].getcmap(3,1).cmap
+        self.s = font.getGlyphSet()
+        self.width_in_pixels = 10/font['head'].unitsPerEm
+    
+    def getWidthOfText(self, text):
+        total = []
+        for c in text:
+            total.append(self.s[self.t[ord(c)]].width * self.width_in_pixels)
+        return total
 def Edit_Commandupdate(self, context):
     Data.Edit_Command = self.Command
 cmd_edit_time = [0]
@@ -2691,6 +2873,13 @@ class AR_OT_Command_Edit(Operator):
     index : IntProperty()
     Edit : BoolProperty(default= False)
     CopyData : BoolProperty(default= False, name= "Copy Previous", description= "Copy the data of the previous recorded Macro and place it in this Macro")
+    class AR_Multiline(PropertyGroup):
+        line : StringProperty()
+    classes.append(AR_Multiline)
+    text : CollectionProperty(type= AR_Multiline)
+    active_line : IntProperty(default= 0)
+    width = 500
+    font_text = FontText(getFontPath())
 
     def execute(self, context):
         self.Edit = False
@@ -2710,15 +2899,25 @@ class AR_OT_Command_Edit(Operator):
         return {"FINISHED"}
 
     def draw(self, context):
-        self.Command = Data.Edit_Command
         AR_Var = context.preferences.addons[__package__].preferences
         layout = self.layout
+        self.Command = ""
+        for line in self.text:
+            self.Command += line.line
+        command = ""
         if self.CopyData:
             layout.prop(AR_Var, 'LastLine', text= "Name")
-            layout.prop(AR_Var, 'LastLineCmd', text= "")
+            command = AR_Var.LastLineCmd
         else:
             layout.prop(self, 'Name', text= "Name")
-            layout.prop(self, 'Command', text= "")
+            command = self.Command
+        self.text.clear()
+        for line in TextToLines(command, self.font_text, self.width - 16): # 8 left and right of the Stringproperty begins text
+            new = self.text.add()
+            new.line = line
+        col = layout.column(align= True)
+        for line in self.text:
+            col.prop(line, 'line', text= "")
         row = layout.row().split(factor= 0.65)
         ops = row.operator(AR_OT_ClearOperator.bl_idname)
         ops.Command = self.Command
@@ -2756,7 +2955,15 @@ class AR_OT_Command_Edit(Operator):
             self.Name = macro.macro
             self.Command = macro.cname
             Data.Edit_Command = self.Command
-            return context.window_manager.invoke_props_dialog(self, width=500)
+            fontpath = getFontPath()
+            if self.font_text.path != fontpath:
+                print("path", self.font_text.path != fontpath)
+                self.font_text = FontText(fontpath)
+            self.text.clear()
+            for line in TextToLines(self.Command, self.font_text, self.width - 15):
+                new = self.text.add()
+                new.line = line
+            return context.window_manager.invoke_props_dialog(self, width=self.width)
         else:
             self.last = mlast
             cmd_edit_time[0] = t
@@ -2838,6 +3045,9 @@ class AR_OT_AddEvent(Operator):
             Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command.add()
         else:
             Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command[self.Num]
+        rec = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)]
+        index = len(rec.Command) - 1
+        rec.Index = index
         if self.Type == 'Clipboard':
             cmd = context.window_manager.clipboard
             macro = GetMacro(cmd)
@@ -2848,6 +3058,7 @@ class AR_OT_AddEvent(Operator):
         elif self.Type == 'Empty':
             Item.macro = "<Empty>"
             Item.cname = ""
+            bpy.ops.ar.command_edit('INVOKE_DEFAULT', index= index, Edit= True)
         else:
             Item.macro = "Event: " + self.Type
             data = {'Type': self.Type}
@@ -2874,8 +3085,6 @@ class AR_OT_AddEvent(Operator):
                         selverts.append(v.index)
                 data['Verts'] = selverts
             Item.cname = "ar.event:" + json.dumps(data)
-        rec = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)]
-        rec.Index = len(rec.Command) - 1
         TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         return {"FINISHED"}
 
@@ -3168,7 +3377,7 @@ class WM_MT_button_context(Menu):
 
     def draw(self, context):
         pass
-classes.append(WM_MT_button_context)
+blendclasses.append(WM_MT_button_context)
 
 # endregion
 
@@ -3282,6 +3491,7 @@ classes.append(AR_CategorizeFileDisp)
 
 class AR_CommandString(PropertyGroup):
     name : StringProperty()
+    macro : StringProperty()
 classes.append(AR_CommandString)
 
 class AR_Struct(PropertyGroup):
@@ -3325,6 +3535,7 @@ classes.append(AR_SelectedCategory)
 
 class AR_CommandEditProp(PropertyGroup):
     prop : bpy.types.Property
+
 # endregion
 
 class AR_Prop(AddonPreferences):
@@ -3361,8 +3572,35 @@ class AR_Prop(AddonPreferences):
     LastLineIndex : IntProperty()
     LastLine : StringProperty(default= "<Empty>")
     LastLineCmd : StringProperty()
-
-    StorageFilePath : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(__file__), "Storage"))
+    def get_storage_path(self):
+        origin_path = self.get('StorageFilePath', 'Fallback')
+        if os.path.exists(origin_path):
+            return self['StorageFilePath']
+        else:
+            path = os.path.join(os.path.dirname(__file__), "Storage")
+            if origin_path != 'Fallback':
+                print("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
+            self['StorageFilePath'] = path
+            return path
+    def set_storage_path(self, origin_path):
+        if origin_path != os.path.join(os.path.dirname(__file__), "Storage"):
+            main_version = ".".join(bpy.app.version_string.split(".")[:2])
+            path = os.path.join(origin_path, main_version)
+            if not (os.path.exists(path) and os.path.isdir(path)):
+                os.mkdir(path)
+                transferfolders = []
+                for cat in self.Categories:
+                    transferfolders.append(str(GetPanelIndex(cat)) + "~" + cat.pn_name)
+                for folder in os.listdir(origin_path):
+                    if folder in transferfolders:
+                        os.rename(os.path.join(origin_path, folder), os.path.join(path, folder))
+            self['StorageFilePath'] = origin_path
+            self.ExactStoragePath = path
+        else:
+            self['StorageFilePath'] = origin_path
+            self.ExactStoragePath = origin_path
+    StorageFilePath : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(__file__), "Storage"), get=get_storage_path, set=set_storage_path)
+    ExactStoragePath : StringProperty(description="Is the full path to the Storage Folder (includes the Version)[hidden]", default= os.path.join(os.path.dirname(__file__), "Storage"))
     IconFilePath : StringProperty(name= "Icon Path", description= "The Path to the Storage for the added Icons", default= os.path.join(os.path.dirname(__file__), "Icons"))
 
     Importsettings : CollectionProperty(type= AR_ImportCategory)
@@ -3460,7 +3698,7 @@ def Initialize_Props():
     pcoll = bpy.utils.previews.new()
     preview_collections['ar_custom'] = pcoll
     bpy.app.timers.register(TimerInitSavedPanel, first_interval = 1)
-
+    
 def Clear_Props():
     del bpy.types.Scene.ar_filedisp
     del bpy.types.Scene.ar_filecategories
@@ -3474,15 +3712,15 @@ def Clear_Props():
     try:
         bpy.app.handlers.render_complete.remove(runRenderComplete)
     except:
-        print("runRenderComplete")
+        print("runRenderComplete already removed")
     try:
         bpy.app.handlers.render_init.remove(runRenderInit)
     except:
-        print("runRenderInit")
+        print("runRenderInit already removed")
     try:
         bpy.types.WM_MT_button_context.remove(menu_func)
     except:
-        print('menu_func')
+        print('menu_func already removed')
     try:
         bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     except:
@@ -3493,7 +3731,3 @@ def Clear_Props():
         bpy.utils.previews.remove(pcoll)
     preview_collections.clear()
 # endregion
-
-#================================================
-# The region commentaries use the extension “#region folding for VS Code” 
-#================================================

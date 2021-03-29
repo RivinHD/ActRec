@@ -4,8 +4,8 @@ from . import ActionRecorder as ActionRecorder
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version": (3, 5, 8),
-    "blender": (2, 83, 9),
+    "version": (3, 6, 0),
+    "blender": (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
     "wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
@@ -19,6 +19,11 @@ def register():
         bpy.utils.register_class(cls)
     for cls in ActionRecorder.classespanel:
         bpy.utils.register_class(cls)
+    for cls in ActionRecorder.blendclasses:
+        try:
+            bpy.utils.register_class(cls)
+        except:
+            continue
     ActionRecorder.Initialize_Props()
     print("------- Registered Action Recorder -------")
 
@@ -32,5 +37,10 @@ def unregister():
             continue
     for cls in ActionRecorder.classespanel:
         bpy.utils.unregister_class(cls)
+    for cls in ActionRecorder.blendclasses:
+        try:
+            bpy.utils.unregister_class(cls)
+        except:
+            continue
     ActionRecorder.Clear_Props()
     print("------- Unregistered Action Recorder -------")
