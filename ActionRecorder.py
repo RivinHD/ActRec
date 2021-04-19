@@ -521,12 +521,14 @@ def Save(): #Save Buttons to Storage
     path = AR_Var.ExactStoragePath
     for savedfolder in os.listdir(path):
         folderpath = os.path.join(path, savedfolder)
-        for savedfile in os.listdir(folderpath):
-            os.remove(os.path.join(folderpath, savedfile))
-        os.rmdir(folderpath)
+        if os.path.exists(folderpath):
+            for savedfile in os.listdir(folderpath):
+                os.remove(os.path.join(folderpath, savedfile))
+            os.rmdir(folderpath)
     for cat in AR_Var.Categories:
         panelpath = os.path.join(path, f"{GetPanelIndex(cat)}~" + cat.pn_name)
-        os.mkdir(panelpath)
+        if not os.path.exists(panelpath):
+            os.mkdir(panelpath)
         start = cat.Instance_Start
         for cmd_i in range(start, start + cat.Instance_length):
             with open(os.path.join(panelpath, f"{cmd_i - start}~" + AR_Var.Instance_Coll[cmd_i].name + "~" + f"{AR_Var.Instance_Coll[cmd_i].icon}" + ".py"), 'w', encoding='utf8') as cmd_file:
@@ -632,7 +634,6 @@ def LoadLocalActions(dummy):
 
 def Recorder_to_Instance(panel): #Convert Record to Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    scene = bpy.context.scene
     i = panel.Instance_Start + panel.Instance_length
     rec_commands = []
     rec_macros = []
@@ -649,15 +650,13 @@ def Recorder_to_Instance(panel): #Convert Record to Button
     e_index = len(AR_Var.ar_enum) - 1
     new_e.name = str(e_index)
     new_e.Index = e_index
-    p_i = GetPanelIndex(panel)
     categories = AR_Var.Categories
-    if p_i < len(categories):
-        for cat in categories[ p_i + 1: ]:
-            cat.Instance_Start += 1
+    for cat in categories:
+        if cat.Instance_Start > panel.Instance_Start:
+            cat.Instance_Start -= 1
 
 def Instance_to_Recorder():#Convert Button to Record
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    scene = bpy.context.scene
     l = []
     if multiselection_buttons[0]:
         for i in range(len(AR_Var.ar_enum)):
@@ -720,10 +719,9 @@ def I_Remove(): # Remove a Button
             for cat in categories:
                 if Index >= cat.Instance_Start and Index < cat.Instance_Start + cat.Instance_length:
                     cat.Instance_length -= 1
-                    p_i = GetPanelIndex(cat)
-                    if p_i < len(categories):
-                        for cat in categories[ p_i + 1: ]:
-                            cat.Instance_Start -= 1
+                    for cat2 in categories:
+                        if cat2.Instance_Start > cat.Instance_Start:
+                            cat2.Instance_Start -= 1
                     break
             if len(AR_Var.Instance_Coll) and len(AR_Var.Instance_Coll)-1 < Index :
                 AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
