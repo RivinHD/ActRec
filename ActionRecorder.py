@@ -1,5 +1,5 @@
 ﻿# region Imports
-from types import ClassMethodDescriptorType
+import logging
 import bpy
 from bpy.app.handlers import persistent
 import os
@@ -50,6 +50,7 @@ oninit = [False]
 preview_collections = {}
 catVisPath = os.path.join(os.path.dirname(__file__), "Category.py")
 execution_queue = queue.Queue()
+logger = logging.getLogger(__package__)
 
 class Data:
     Edit_Command = None
@@ -205,7 +206,7 @@ def Record(Num, Mode):
 def CreateTempFile():
     tpath = bpy.app.tempdir + "temp.json"
     if not os.path.exists(tpath):
-        print(tpath)
+        logger.info(tpath)
         with open(tpath, 'w', encoding='utf8') as tempfile:
             json.dump({"0":[]}, tempfile)
     return tpath
@@ -323,7 +324,7 @@ def Add(Num, command = None):
                 Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
                 Item.macro = "<Empty>"
                 Item.cname = ""
-            print("Action Adding Failure: " + str(err))
+            logger.error("Action Adding Failure: " + str(err))
             bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return True
     else: # Add Record
@@ -508,7 +509,7 @@ def Play(Commands, index, AllLoops = None, extension = 0, offset = 0): #Execute 
             try:
                 exec(Command.cname)
             except Exception as err:
-                print(err)
+                logger.error(err)
                 return RespAlert(Command, index, i + offset)
 
 def Clear(Num) : # Clear all Macros
@@ -536,9 +537,8 @@ def Save(): #Save Buttons to Storage
                     cmd_file.write(cmd.name + "#" + cmd.macro +"\n")
 
 def Load():#Load Buttons from Storage
-    print('------------------Load-----------------')
+    logger.info('Load')
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    scene = bpy.context.scene
     for cat in AR_Var.Categories:
         RegisterUnregister_Category(GetPanelIndex(cat), False)
     AR_Var.Categories.clear()
@@ -599,12 +599,12 @@ def Load():#Load Buttons from Storage
     for iconpath in os.listdir(AR_Var.IconFilePath): # Load Icons
         filepath = os.path.join(AR_Var.IconFilePath, iconpath)
         if os.path.isfile(filepath):
-            LoadIcons(filepath)
+            LoadIcons(filepath, True)
     SetEnumIndex()
 
 @persistent
 def LoadLocalActions(dummy):
-    print('-----------Load Local Actions-----------')
+    logger.info('Load Local Actions')
     scene = bpy.context.scene
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     AR_Var.Record_Coll.clear()
@@ -822,7 +822,7 @@ def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
     tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
         with open(tcatpath, 'x', encoding='utf8') as tempfile:
-            print(tcatpath)
+            logger.info(tcatpath)
     return tcatpath
 
 def TempSaveCats(): # save to the create Tempfile
@@ -1043,9 +1043,10 @@ def getIcons():
 def getIconsvalues():
     return [icon.value for icon in bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.values()[1:]]
 
-def registerIcon(pcoll, name: str, filepath: str):
+def registerIcon(pcoll, name: str, filepath: str, only_new: bool):
     try:
-        pcoll.load(name, filepath, 'IMAGE', force_reload= True)
+        if only_new and not(name in pcoll):
+            pcoll.load(name, filepath, 'IMAGE', force_reload= True)
     except:
         split = name.split('.')
         if len(split) > 1 and split[-1].isnumeric():
@@ -1057,7 +1058,7 @@ def registerIcon(pcoll, name: str, filepath: str):
 def unregisterIcon(pcoll, name: str):
     del pcoll[name]
 
-def LoadIcons(filepath):
+def LoadIcons(filepath: str, only_new: bool = False):
     img = bpy.data.images.load(filepath)
     if img.size[0] == img.size[1]:
         AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -1066,7 +1067,7 @@ def LoadIcons(filepath):
         img.name = '.'.join(split[:-1])
         internalpath = os.path.join(AR_Var.IconFilePath, img.name + "." + split[-1])
         img.save_render(internalpath)
-        registerIcon(preview_collections['ar_custom'], "AR_" + img.name, internalpath)
+        registerIcon(preview_collections['ar_custom'], "AR_" + img.name, internalpath, only_new)
         bpy.data.images.remove(img)
     else:
         bpy.data.images.remove(img)
@@ -1175,7 +1176,6 @@ def LoadActionFromTexteditor(texts):
         lines = [line.body for line in text.lines]
         Add(0, text.name)
         for line in lines:
-            print(line)
             if line != '':
                 AR_Var = bpy.context.preferences.addons[__package__].preferences
                 Add(len(AR_Var.Record_Coll[0].Command), line)
@@ -1521,6 +1521,8 @@ def RegisterUnregister_Category(index, register = True): #Register/Unregister on
             def poll(self, context):
                 AR_Var = context.preferences.addons[__package__].preferences
                 index = int(self.bl_idname.split("_")[3])
+                if len(AR_Var.Categories) <= index:
+                    Load()
                 category = AR_Var.Categories[index]
                 return showCategory(category.pn_name, context)
 
@@ -2831,7 +2833,6 @@ classes.append(AR_OT_Command_Clear)
 
 class FontText():
     def __init__(self, fontpath):
-        print(importlib.util.find_spec('fontTools') is None)
         self.path = fontpath
         # install the fonttools to blender modules if not exists
         if importlib.util.find_spec('fontTools') is None:
@@ -2839,9 +2840,9 @@ class FontText():
             os.environ.pop("PIP_REQ_TRACKER", None)
             try:
                 output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color'])
-                print(output)
+                logger.info(output)
             except subprocess.CalledProcessError as e:
-                print(e.output)
+                logger.warning(e.output)
                 self.use_dynamic_text = False
                 return
         self.use_dynamic_text = True
@@ -2928,7 +2929,6 @@ class AR_OT_Command_Edit(Operator):
         mlast = f"{index_btn}.{self.index}" 
         t = time.time()
         self.CopyData = False
-        #print(str(self.last == mlast)+ "    " +str(cmd_edit_time[0] + 0.7 > t) + "      " + str(self.last) + "      " + str(mlast)+ "      " + str(cmd_edit_time[0])+ "      " + str(cmd_edit_time[0] + 0.7)+ "      " + str(t))
         if self.last == mlast and cmd_edit_time[0] + 0.7 > t or self.Edit:
             self.last = mlast
             cmd_edit_time[0] = t
@@ -2955,7 +2955,7 @@ class AR_OT_Command_Edit(Operator):
             Data.Edit_Command = self.Command
             fontpath = getFontPath()
             if self.font_text.path != fontpath:
-                print("path", self.font_text.path != fontpath)
+                logger.debug("path", self.font_text.path != fontpath)
                 self.font_text = FontText(fontpath)
             self.text.clear()
             for line in TextToLines(self.Command, self.font_text, self.width - 15):
@@ -3577,7 +3577,7 @@ class AR_Prop(AddonPreferences):
         else:
             path = os.path.join(os.path.dirname(__file__), "Storage")
             if origin_path != 'Fallback':
-                print("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
+                logger.error("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
             self['StorageFilePath'] = path
             return path
     def set_storage_path(self, origin_path):
@@ -3693,8 +3693,7 @@ def Initialize_Props():
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
             if not name is None:
                 kmi.properties.name = name
-    pcoll = bpy.utils.previews.new()
-    preview_collections['ar_custom'] = pcoll
+    preview_collections['ar_custom'] = bpy.utils.previews.new()
     bpy.app.timers.register(TimerInitSavedPanel, first_interval = 1)
     
 def Clear_Props():
@@ -3710,15 +3709,15 @@ def Clear_Props():
     try:
         bpy.app.handlers.render_complete.remove(runRenderComplete)
     except:
-        print("runRenderComplete already removed")
+        logger.debug("runRenderComplete already removed")
     try:
         bpy.app.handlers.render_init.remove(runRenderInit)
     except:
-        print("runRenderInit already removed")
+        logger.debug("runRenderInit already removed")
     try:
         bpy.types.WM_MT_button_context.remove(menu_func)
     except:
-        print('menu_func already removed')
+        logger.debug('menu_func already removed')
     try:
         bpy.app.handlers.depsgraph_update_pre.remove(InitSavedPanel)
     except:
