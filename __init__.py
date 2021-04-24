@@ -1,7 +1,6 @@
 ﻿import bpy
 from . import ActionRecorder as ActionRecorder
 import logging
-import logging.handlers
 import os
 import sys
 import traceback
@@ -9,7 +8,7 @@ import traceback
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version": (3, 6, 2),
+    "version": (3, 6, 3),
     "blender": (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
@@ -25,16 +24,27 @@ class Logger:
         dirc = os.path.join(os.path.dirname(__file__), "logs")
         if not os.path.exists(dirc):
             os.mkdir(dirc)
-        path = os.path.join(dirc, "ActRec.log")
+        all_logs = os.listdir(dirc)
+        loglater = []
+        while len(all_logs) >= count:
+            try:
+                os.remove(min([os.path.join(dirc, filename) for filename in all_logs], key=os.path.getctime)) # delete oldest file
+                all_logs = os.listdir(dirc)
+            except PermissionError as err:
+                loglater.append("File is already used -> PermissionError: " + str(err))
+                break
+        path = os.path.join(dirc, "ActRec_%s.log" % bpy.app.tempdir.split("\\")[-2].split("_")[1]) #get individuell id from blender tempdir
+
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
         file_formatter = logging.Formatter("%(levelname)s - %(relativeCreated)d - %(funcName)s - %(message)s")
-        file_handler = logging.handlers.RotatingFileHandler(path, mode='a', backupCount= count, encoding= 'utf-8', delay= True)
-        file_handler.doRollover() # Save last Session as Backup and start with clean file
+        file_handler = logging.FileHandler(path, mode='w', encoding= 'utf-8', delay= True)
         file_handler.setLevel(logger.level)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-        logger.info("ActRec Logger started with %i Backups" %count)
+        logger.info("Logging ActRec " + ".".join([str(x) for x in bl_info['version']]) + " running on Blender " + bpy.app.version_string)
+        for log_text in loglater:
+            logger.info(log_text)
         self.logger = logger
 
         sys.excepthook = self.exception_handler
