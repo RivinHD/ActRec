@@ -4,6 +4,7 @@ import logging
 import logging.handlers
 import os
 import sys
+import traceback
 
 bl_info = {
     "name" : "ActionRecorder",
@@ -38,9 +39,9 @@ class Logger:
 
         sys.excepthook = self.exception_handler
     
-    def exception_handler(self, type, value, tb):
-        self.logger.exception(str(type) + ": " + str(value))
-        self.logger.error(tb)
+    def exception_handler(self, exc_type, exc_value, exc_tb):
+        traceback.print_exception(exc_type, exc_value, exc_tb)
+        self.logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
 logger = Logger(5).logger
 
 def register():
