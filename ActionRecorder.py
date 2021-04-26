@@ -1,5 +1,4 @@
 ﻿# region Imports
-import logging
 import bpy
 from bpy.app.handlers import persistent
 import os
@@ -30,6 +29,7 @@ import subprocess
 import ensurepip
 import sys
 import re
+import logging
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, UIList, Operator, PropertyGroup, AddonPreferences, Menu
@@ -285,16 +285,20 @@ def CheckAddCommand(data, line = 0):
     else:
         return (name, macro, len(data) + line - 1)
 
-def Add(Num, command = None):
+def Add(Num, command = None, macro = None):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if Num:
-        Recent = Get_Recent('Reports_All')
         try: #Add Macro
             if command is None:
+                Recent = Get_Recent('Reports_All')
                 name, macro, line = CheckAddCommand(Recent)
+                bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             else:
                 name = command
-                macro = GetMacro(command)
+                if macro is None:
+                    macro = GetMacro(command)
+                else:
+                    macro = macro
                 line = -1
             notadded = False
             if macro is None or macro is True:
@@ -316,8 +320,8 @@ def Add(Num, command = None):
                     AR_Var.LastLine = macro
                     AR_Var.LastLineIndex = line
                     AR_Var.LastLineCmd = name
-            UpdateRecordText(Num)
-            bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
+            if not AR_Var.hideLocal:
+                UpdateRecordText(Num)
             return notadded
         except Exception as err:
             if AR_Var.CreateEmpty:
@@ -325,7 +329,6 @@ def Add(Num, command = None):
                 Item.macro = "<Empty>"
                 Item.cname = ""
             logger.error("Action Adding Failure: " + str(err))
-            bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
             return True
     else: # Add Record
         Item = AR_Var.Record_Coll[CheckCommand(Num)].Command.add()
@@ -334,7 +337,8 @@ def Add(Num, command = None):
         else:
             Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], command)
     AR_Var.Record_Coll[CheckCommand(Num)].Index = len(AR_Var.Record_Coll[CheckCommand(Num)].Command) - 1
-    bpy.data.texts.new(Item.cname)
+    if not AR_Var.hideLocal:
+        bpy.data.texts.new(Item.cname)
 
 def UpdateRecordText(Num):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -342,7 +346,7 @@ def UpdateRecordText(Num):
     if bpy.data.texts.find(RecName) == -1:
         bpy.data.texts.new(RecName)
     bpy.data.texts[RecName].clear()
-    bpy.data.texts[RecName].write("".join([cmd.cname + "\n" for cmd in AR_Var.Record_Coll[CheckCommand(Num)].Command]))
+    bpy.data.texts[RecName].write("".join([cmd.cname + "#" + cmd.macro +"\n" for cmd in AR_Var.Record_Coll[CheckCommand(Num)].Command]))
 
 def Remove(Num): # Remove Record or Macro
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -1178,7 +1182,8 @@ def LoadActionFromTexteditor(texts):
         for line in lines:
             if line != '':
                 AR_Var = bpy.context.preferences.addons[__package__].preferences
-                Add(len(AR_Var.Record_Coll[0].Command), line)
+                splitlines = line.split("#")
+                Add(len(AR_Var.Record_Coll[0].Command), "#".join(splitlines[:-1]), splitlines[-1])
 
 def showCategory(name, context):
     AR_Var = context.preferences.addons[__package__].preferences
@@ -1496,7 +1501,9 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
             row.prop(AR_Var, 'Autosave', toggle= True, text= "On" if AR_Var.Autosave else "Off")
             col.operator(AR_OT_Save.bl_idname , text='Save to File' )
             col.operator(AR_OT_Load.bl_idname , text='Load from File' )
-            col.operator(AR_OT_Record_LoadLoaclActions.bl_idname, text='Load Local Actions')
+            row2 = col.row(align= True)
+            row2.operator(AR_OT_Record_LoadLoaclActions.bl_idname, text='Load Local Actions')
+            row2.prop(AR_Var, 'hideLocal', text= "", toggle= True, icon= "HIDE_ON" if AR_Var.hideLocal else "HIDE_OFF")
             col.label(text= "Local Settings")
             col.prop(AR_Var, 'CreateEmpty', text= "Create Empty Macro on Error")
     AR_PT_Advanced.__name__ = "AR_PT_Advanced_%s" % spaceType
@@ -3039,11 +3046,13 @@ class AR_OT_AddEvent(Operator):
 
     def execute(self, context):
         AR_Var = context.preferences.addons[__package__].preferences
+        selected_action = CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         if self.Num == -1:
-            Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command.add()
+            Item = AR_Var.Record_Coll[selected_action].Command.add()
         else:
-            Item = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)].Command[self.Num]
-        rec = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)]
+            Item = AR_Var.Record_Coll[selected_action].Command[self.Num]
+        selected_action = CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
+        rec = AR_Var.Record_Coll[selected_action]
         index = len(rec.Command) - 1
         rec.Index = index
         if self.Type == 'Clipboard':
@@ -3083,7 +3092,9 @@ class AR_OT_AddEvent(Operator):
                         selverts.append(v.index)
                 data['Verts'] = selverts
             Item.cname = "ar.event:" + json.dumps(data)
-        TempUpdateCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
+        TempUpdateCommand(selected_action)
+        if not AR_Var.hideLocal:
+            UpdateRecordText(selected_action)
         return {"FINISHED"}
 
     def draw(self, context):
@@ -3570,6 +3581,17 @@ class AR_Prop(AddonPreferences):
     LastLineIndex : IntProperty()
     LastLine : StringProperty(default= "<Empty>")
     LastLineCmd : StringProperty()
+    def hide_show_local_in_texteditor(self, context):
+        if self.hideLocal:
+            actio_names = [cmd.cname for cmd in self.Record_Coll[0].Command]
+            for text in bpy.data.texts:
+                if text.name in actio_names:
+                    bpy.data.texts.remove(text)
+        else:
+            for i in range(1, len(self.Record_Coll)):
+                UpdateRecordText(i)
+    hideLocal : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update=hide_show_local_in_texteditor)
+
     def get_storage_path(self):
         origin_path = self.get('StorageFilePath', 'Fallback')
         if os.path.exists(origin_path):
