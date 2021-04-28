@@ -1170,9 +1170,10 @@ def CheckIcon(icon):
             icon = 101 # Icon: BLANK1
     return icon
 
-def LoadActionFromTexteditor(texts):
+def LoadActionFromTexteditor(texts, replace = True):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    AR_Var.Record_Coll.clear()
+    if replace:
+        AR_Var.Record_Coll.clear()
     for text in texts:
         if bpy.data.texts.find(text) == -1:
             continue
@@ -1264,7 +1265,7 @@ def split_and_keep(sep, text):
 
 def getFontPath():
     if bpy.context.preferences.view.font_path_ui == '':
-        dirc = "\\".join(sys.executable.split("\\")[:-3])
+        dirc = "\\".join(bpy.app.binary_path_python.split("\\")[:-3])
         return os.path.join(dirc, "datafiles", "fonts", "droidsans.ttf")
     else:
         return bpy.context.preferences.view.font_path_ui
@@ -2846,7 +2847,7 @@ class FontText():
             ensurepip.bootstrap()
             os.environ.pop("PIP_REQ_TRACKER", None)
             try:
-                output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color'])
+                output = subprocess.check_output([bpy.app.binary_path_python, '-m', 'pip', 'install', 'fonttools', '--no-color'])
                 logger.info(output)
             except subprocess.CalledProcessError as e:
                 logger.warning(e.output)

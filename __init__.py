@@ -8,7 +8,7 @@ import traceback
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version": (3, 6, 4),
+    "version": (3, 6, 5),
     "blender": (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
@@ -46,13 +46,18 @@ class Logger:
         for log_text in loglater:
             logger.info(log_text)
         self.logger = logger
+        self.file_handler = file_handler
 
         sys.excepthook = self.exception_handler
     
     def exception_handler(self, exc_type, exc_value, exc_tb):
         traceback.print_exception(exc_type, exc_value, exc_tb)
         self.logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
-logger = Logger(5).logger
+
+    def unregister(self):
+        self.file_handler.close()
+        self.logger.removeHandler(self.file_handler)
+log_sys = Logger(5)
 
 def register():
     for cls in ActionRecorder.classes:
@@ -65,7 +70,7 @@ def register():
         except:
             continue
     ActionRecorder.Initialize_Props()
-    logger.info("Registered Action Recorder")
+    log_sys.logger.info("Registered Action Recorder")
 
 def unregister():
     for cls in ActionRecorder.classes:
@@ -83,4 +88,5 @@ def unregister():
         except:
             continue
     ActionRecorder.Clear_Props()
-    logger.info("Unregistered Action Recorder")
+    log_sys.logger.info("Unregistered Action Recorder")
+    log_sys.unregister()
