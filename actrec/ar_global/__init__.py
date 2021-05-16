@@ -1,4 +1,4 @@
-from . import preferences
+from . import preferences, functions
 
 def register():
     preferences.register()

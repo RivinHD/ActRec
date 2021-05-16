@@ -3,13 +3,14 @@
 import bpy
 
 # relative imports
-from . import update, config, preferences, log
+from . import update, config, preferences, log, operators
 # endregion
 
 # region Registration
 def register():
     update.register()
     preferences.register()
+    operators.register()
     for cls in ActionRecorder.classes:
         bpy.utils.register_class(cls)
     for cls in ActionRecorder.classespanel:

@@ -1,17 +1,18 @@
 # region Imports
 # external modules
-import Category_Visibility
 import bpy
 import os
 
 # blender modules
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
-from bpy.types import PropertyGroup
+from bpy.types import PropertyGroup, AddonPreferences
 import rna_keymap_ui
 
 # relative imports
 from . import log
 from . import ar_category
+from . import ar_global
+from . import update
 # endregion
 
 classes = []
@@ -29,14 +30,20 @@ class AR_action(PropertyGroup):
 classes.append(AR_action)
 
 # region Preferences
-class AR_preferences(bpy.types.AddonPreferences):
+class AR_preferences(
+    ar_category.preferences.Preferences,
+    ar_global.preferences.Preferences,
+    update.Preferneces,
+    AddonPreferences):
     bl_idname = __package__
 
     addon_directory = os.path.dirname(os.path.dirname(__file__)) # get the base addon directory
     space_types = [space.identifier for space in bpy.types.Panel.bl_rna.properties['bl_space_type'].enum_items] # get all registered Space Types of Blender
-    
-    ar_category.preferences.register_preferences()
 
+    preview_collections = {}
+    icon_selected = 101 # default icon value for BLANK1
+    
+    # =================================================================================================================================
     Rename : StringProperty()
     Autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     RecToBtn_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
@@ -77,10 +84,6 @@ class AR_preferences(bpy.types.AddonPreferences):
     IconFilePath : StringProperty(name= "Icon Path", description= "The Path to the Storage for the added Icons", default= os.path.join(os.path.dirname(__file__), "Icons"))
 
     Importsettings : CollectionProperty(type= AR_ImportCategory)
-    Update : BoolProperty()
-    Version : StringProperty()
-    Restart : BoolProperty()
-    AutoUpdate : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
     ShowKeymap : BoolProperty(default= True)
     # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
     addon_keymaps = []
@@ -94,22 +97,22 @@ class AR_preferences(bpy.types.AddonPreferences):
     ]
 
     def draw(self, context):
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__package__].preferences
         layout = self.layout
         col = layout.column()
         row = col.row()
-        if AR_Var.Update:
-            row.operator(AR_OT_Update.bl_idname, text= "Update")
+        if AR.Update:
+            update.draw_update_button(row, AR)
             row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
         else:
             row.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
-            if AR_Var.Restart:
+            if AR.Restart:
                 row.operator(AR_OT_Restart.bl_idname, text= "Restart to Finsih")
-        if AR_Var.Version != '':
-            if AR_Var.Update:
-                col.label(text= "A new Version is available (" + AR_Var.Version + ")")
+        if AR.Version != '':
+            if AR.Update:
+                col.label(text= "A new Version is available (" + AR.Version + ")")
             else:
-                col.label(text= "You are using the latest Vesion (" + AR_Var.Version + ")")
+                col.label(text= "You are using the latest Vesion (" + AR.Version + ")")
         col.separator(factor= 1.5)
         col.label(text= 'Action Storage Folder')
         row = col.row()
@@ -121,8 +124,8 @@ class AR_preferences(bpy.types.AddonPreferences):
         row = col.row().split(factor= 0.5)
         row.label(text= "Icon Storage Folder")
         row2 = row.row(align= True).split(factor= 0.65, align= True)
-        row2.operator(AR_OT_AddCustomIcon.bl_idname, text= "Add Custom Icon", icon= 'PLUS')
-        row2.operator(AR_OT_DeleteCustomIcon.bl_idname, text= "Delete", icon= 'TRASH')
+        row2.operator(AR_OT_Add_Custom_Icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS')
+        row2.operator(AR_OT_Delete_Custom_Icon.bl_idname, text= "Delete", icon= 'TRASH')
         row = col.row()
         row.operator(AR_OT_Preferences_DirectorySelector.bl_idname, text= "Select Icon Storage Folder", icon= 'FILEBROWSER').directory = "Icons"
         row.operator(AR_OT_Preferences_RecoverDirectory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Icons"
@@ -145,7 +148,11 @@ class AR_preferences(bpy.types.AddonPreferences):
 # region Regestration
 def register():
     bpy.utils.register_class(AR_preferences)
+    AR_preferences.preview_collections['ar_custom'] = bpy.utils.previews.new()
 
 def unregister():
     bpy.utils.unregister_class(AR_preferences)
+    for pcoll in AR_preferences.preview_collections.values():
+        bpy.utils.previews.remove(pcoll)
+    AR_preferences.preview_collections.clear()
 # endregion

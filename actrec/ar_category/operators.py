@@ -1,15 +1,14 @@
 # region Import
 # external modules
-import json
+from actrec import ar_global
 
 # blender modules
-from refactor import Add
 import bpy
 from bpy.types import Operator
 from bpy.props import StringProperty, EnumProperty, BoolProperty, IntProperty
 
 # relativ imports
-from .. import functions as fc
+from .. import functions
 from .. import ar_category
 from ..preferences import AR_preferences
 
@@ -109,10 +108,6 @@ class AR_OT_Category_Interface(Operator):
     area : EnumProperty(items= area_items, name= "Area", description= "Shows all available areas for the panel")
     mode : EnumProperty(items= mode_items, name= "Mode", description= "Shows all available modes for the selected area")
 
-    def write_category_visibility(data: dict) -> None:
-        with open(AR_preferences.category_visibility_path, 'w', encoding= 'utf8') as file:
-            file.write(json.dumps(data, indent= 4))
-
     def apply_visibility(self, category_visibility: dict, visibility_options: dict, name: str) -> None:
         for area in visibility_options:
             category_visibility.setdefault('Area', {})
@@ -124,7 +119,7 @@ class AR_OT_Category_Interface(Operator):
                 file_area.setdefault('Mode', {})
                 file_area['Mode'].setdefault(mode, [])
                 file_area['Mode'][mode].append(name)
-        self.write_category_visibility(category_visibility)
+        ar_category.functions.write_category_visibility(category_visibility)
 
     def category_visibility_to_list(visibility_options: dict) -> list:
         l = []
@@ -168,7 +163,7 @@ class AR_OT_Category_Add(AR_OT_Category_Interface, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         new = AR.categories.add()
-        name = fc.check_for_dublicates([n.name for n in AR.categories], self.name)
+        name = functions.check_for_dublicates([n.name for n in AR.categories], self.name)
         new.name = name
         new.start = len(AR.Instance_Coll)
         new.length = 0
@@ -182,10 +177,16 @@ classes.append(AR_OT_Category_Add)
 class AR_OT_Category_Edit(AR_OT_Category_Interface ,Operator):
     bl_idname = "ar.category_edit"
     bl_label = "Edit Category"
+    bl_description = "Edit the selected Category"
     
     category_name : StringProperty(name= "Category Name", description= "Category being edited")
     cancel_data = {}
     category_visibility = {}
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.Categories)
 
     def invoke(self, context, event):
         self.cancel_data = {}
@@ -257,6 +258,9 @@ class AR_OT_Category_Delete(Operator):
         AR = context.preferences.addons[__package__].preferences
         return len(AR.categories)
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         categories = AR.categories
@@ -272,16 +276,17 @@ class AR_OT_Category_Delete(Operator):
                 nextcat.start -= cat.length
             categories.remove(index)
             ar_category.panles.unregister_category(len(categories))
-            SetEnumIndex()
-            for area in CatVisibility['Area']:
-                if name in CatVisibility['Area'][area]: 
-                    CatVisibility['Area'][area].remove(name)
-            for mode in CatVisibility['Mode']:
-                if name in CatVisibility['Mode'][mode]:
-                    CatVisibility['Mode'][mode].remove(name)
-            WriteCatVis(CatVisibility)
+            ar_global.functions.set_enum_index()
+            category_visibility = ar_category.functions.read_category_visbility()
+            for area in category_visibility.get('Area', {}):
+                if name in category_visibility['Area'][area].get('categories', []): 
+                    category_visibility['Area'][area]['categories'].remove(name)
+                for mode in category_visibility['Area'].get('Mode', {}):
+                    if name in category_visibility['Mode'][mode]:
+                        category_visibility['Mode'][mode].remove(name)
+            ar_category.functions.write_category_visibility(category_visibility)
         bpy.context.area.tag_redraw()
-        TempSaveCats()
+        ar_category .functions.category_runtime_save(AR)
         if AR.Autosave:
             Save()
         return {"FINISHED"}
@@ -290,29 +295,15 @@ class AR_OT_Category_Delete(Operator):
         AR = context.preferences.addons[__package__].preferences    
         layout = self.layout
         layout.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
 classes.append(AR_OT_Category_Delete)
-
-class AR_OT_Category_Edit(Operator):
-    bl_idname = "ar.category_edit"
-    bl_label = "Edit Category"
-    bl_description = "Edit the selected Category"
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
-        return len(AR.Categories)
-
-    def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
-        index = None
-        for cat in AR.Selected_Category:
-            if cat.selected:
-                index = cat.index
-        if index != None:
-            bpy.ops.ar.category_add('INVOKE_DEFAULT', edit= True, catName= AR.Categories[index].pn_name) 
-        return {"FINISHED"}
-classes.append(AR_OT_Category_Edit)
 # endregion
+
+# region Registration 
+def register() -> None:
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister() -> None:
+    for cls in classes:
+        bpy.utils.register_class(cls)
+# endregion 

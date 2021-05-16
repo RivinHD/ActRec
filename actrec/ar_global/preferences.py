@@ -34,7 +34,7 @@ classes.append(AR_global_actions_enum)
 # endregion
 
 # region preferences
-def register_preferences() -> None:
+class Preferences:
     AR = bpy.context.preferences.addons[__package__].preferences
     AR.setdefault("global_actions_enum.selected_indexes", [])
 

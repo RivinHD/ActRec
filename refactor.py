@@ -1,4 +1,5 @@
 ﻿# region Imports
+from typing import Optional
 import bpy
 from bpy.app.handlers import persistent
 import os
@@ -46,7 +47,6 @@ catlength = [0]
 ontempload = [False]
 multiselection_buttons = [False, True]
 oninit = [False]
-preview_collections = {}
 catVisPath = os.path.join(os.path.dirname(__file__), "Category.py")
 execution_queue = queue.Queue()
 logger = logging.getLogger(__package__)
@@ -577,9 +577,9 @@ def Load():#Load Buttons from Storage
                 if icon.isnumeric():
                     icon = int(icon)
                 else:
-                    iconlist = getIcons()
+                    iconlist = get_icons()
                     if icon in iconlist:
-                        icon = getIconsvalues()[iconlist.index(icon)]
+                        icon = get_icons_values()[iconlist.index(icon)]
                     else:
                         icon = 101 # Icon: BLANK1
                 inst.icon = icon
@@ -602,8 +602,8 @@ def Load():#Load Buttons from Storage
     for iconpath in os.listdir(AR_Var.IconFilePath): # Load Icons
         filepath = os.path.join(AR_Var.IconFilePath, iconpath)
         if os.path.isfile(filepath):
-            LoadIcons(filepath, True)
-    SetEnumIndex()
+            load_icons(filepath, True)
+    set_enum_index()()
 
 @persistent
 def LoadLocalActions(dummy):
@@ -729,7 +729,7 @@ def I_Remove(): # Remove a Button
             if len(AR_Var.Instance_Coll) and len(AR_Var.Instance_Coll)-1 < Index :
                 AR_Var.Instance_Index = len(AR_Var.Instance_Coll)-1
             offset += 1
-    SetEnumIndex()
+    set_enum_index()()
 
 def I_Move(Mode): # Move a Button to the upper/lower
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -963,41 +963,6 @@ def CreateNewProp(prop):
 def DeleteProps(address):
     exec("del %s" % address)
 
-def getIcons():
-    return bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.keys()[1:]
-
-def getIconsvalues():
-    return [icon.value for icon in bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.values()[1:]]
-
-def registerIcon(pcoll, name: str, filepath: str, only_new: bool):
-    try:
-        if only_new and not(name in pcoll):
-            pcoll.load(name, filepath, 'IMAGE', force_reload= True)
-    except:
-        split = name.split('.')
-        if len(split) > 1 and split[-1].isnumeric():
-            name = ".".join(split[:-1]) + str(int(split[-1]) + 1)
-        else:
-            name = name + ".1"
-        registerIcon(pcoll, name, filepath)
-
-def unregisterIcon(pcoll, name: str):
-    del pcoll[name]
-
-def LoadIcons(filepath: str, only_new: bool = False):
-    img = bpy.data.images.load(filepath)
-    if img.size[0] == img.size[1]:
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
-        img.scale(32, 32)
-        split = img.name.split('.') # last element is format of file
-        img.name = '.'.join(split[:-1])
-        internalpath = os.path.join(AR_Var.IconFilePath, img.name + "." + split[-1])
-        img.save_render(internalpath)
-        registerIcon(preview_collections['ar_custom'], "AR_" + img.name, internalpath, only_new)
-        bpy.data.images.remove(img)
-    else:
-        bpy.data.images.remove(img)
-        return 'The Image must be a square'
 
 def TimerCommads(Commands, index, offset):
     execution_queue.put(functools.partial(Play, Commands, index, offset=offset))
@@ -1081,9 +1046,9 @@ def CheckIcon(icon):
     if icon.isnumeric():
         icon = int(icon)
     else:
-        iconlist = getIcons()
+        iconlist = get_icons()
         if icon in iconlist:
-            icon = getIconsvalues()[iconlist.index(icon)]
+            icon = get_icons_values()[iconlist.index(icon)]
         else:
             icon = 101 # Icon: BLANK1
     return icon
@@ -1481,7 +1446,7 @@ class AR_OT_Category_MoveButton(Operator):
                     for nextcat in categories[ar_category.functions.get_panel_index(cat) + 1:]:
                         nextcat.Instance_Start += 1
                     cat.Instance_length += 1
-                SetEnumIndex()
+                set_enum_index()()
                 break
         bpy.context.area.tag_redraw()
         TempSaveCats()
@@ -1708,7 +1673,7 @@ class AR_OT_Import(Operator, ImportHelper):
                         if Index != -1:
                             for cat in ar_categories[Index + 1:] :
                                 cat.Instance_Start += 1
-            SetEnumIndex()
+            set_enum_index()()
             if AR_Var.Autosave:
                 Save()
         else:
@@ -2161,41 +2126,6 @@ class AR_OT_Category_Cmd(Operator):
         return{'FINISHED'}
 classes.append(AR_OT_Category_Cmd)
 
-class IconTable(Operator):
-    bl_label = "Icons"
-    bl_description = "Press to select an Icon"
-
-    def draw(self, execute):
-        layout = self.layout
-        box = layout.box()
-        row = box.row()
-        row.label(text= "Selected Icon:")
-        row.label(text=" ", icon_value= AR_Prop.SelectedIcon)
-        row.prop(self, 'search', text= 'Search:')
-        row.operator(AR_OT_Selector_Icon.bl_idname, text= "Clear Icon").icon = 101 #Icon: BLANK1
-        box = layout.box()
-        gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
-        iconvalues = getIconsvalues()
-        for i,ic in enumerate(getIcons()):
-            normalname = ic.lower().replace("_"," ")
-            if self.search == '' or self.search.lower() in normalname:
-                gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon_value= iconvalues[i]).icon = iconvalues[i]
-        box = layout.box()
-        row = box.row().split(factor= 0.5)
-        row.label(text= "Custom Icons")
-        row2 = row.row()
-        row2.operator(AR_OT_AddCustomIcon.bl_idname, text= "Add Custom Icon", icon= 'PLUS').activatPopUp = self.bl_idname
-        row2.operator(AR_OT_DeleteCustomIcon.bl_idname, text= "Delete", icon= 'TRASH')
-        gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
-        customIconValues = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
-        for i,ic in enumerate(list(preview_collections['ar_custom'])):
-            normalname = ic.lower().replace("_"," ")
-            if self.search == '' or self.search.lower() in normalname:
-                gridf.operator(AR_OT_Selector_Icon.bl_idname, text= "", icon_value= customIconValues[i]).icon = customIconValues[i]
-
-    def check(self, context):
-        return True
-
 class AR_OT_Category_Cmd_Icon(IconTable, Operator):
     bl_idname = "ar.category_cmd_icon"
 
@@ -2220,18 +2150,7 @@ class AR_OT_Category_Cmd_Icon(IconTable, Operator):
         return context.window_manager.invoke_props_dialog(self, width=1000)
 classes.append(AR_OT_Category_Cmd_Icon)
 
-class AR_OT_Selector_Icon(Operator):
-    bl_idname = "ar.category_icon"
-    bl_label = "Icon"
-    bl_options = {'REGISTER','INTERNAL'}
-    bl_description = "Select the Icon"
 
-    icon : IntProperty(default= 101) #Icon: BLANK1
-
-    def execute(self, context):
-        AR_Prop.SelectedIcon = self.icon
-        return {"FINISHED"}
-classes.append(AR_OT_Selector_Icon)
 
 class AR_OT_Record_SelectorUp(Operator):
     bl_idname = 'ar.record_selector_up'
@@ -2841,92 +2760,11 @@ class AR_OT_ReleaseNotes(Operator):
 classes.append(AR_OT_ReleaseNotes)
 
 
-class AR_OT_CheckCtrl(Operator):
-    bl_idname = "ar.check_ctrl"
-    bl_label = "Check Ctrl"
-    bl_options = {'INTERNAL'}
 
-    def execute(self, context):
-        return {"FINISHED"}
 
-    def invoke(self, context, event):
-        if event.ctrl:
-            return {"FINISHED"}
-        return {"CANCELLED"}
-classes.append(AR_OT_CheckCtrl)
 
-class AR_OT_AddCustomIcon(Operator, ImportHelper):
-    bl_idname = "ar.add_customicon"
-    bl_label = "Add Custom Icon"
-    bl_description = "Adds a custom Icon"
 
-    filter_glob : StringProperty(default='*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp', options={'HIDDEN'} )
-    activatPopUp : StringProperty(default= "")
 
-    def execute(self, context):
-        if os.path.isfile(self.filepath) and self.filepath.lower().endswith(('.png','.jpg','.jpeg','.tif','.tiff','.bmp')):
-            err = LoadIcons(self.filepath)
-            if err is not None:
-                self.report({'ERROR'}, err)
-        else:
-            self.report({'ERROR'}, 'The selected File is not an Image')
-        if self.activatPopUp != "":
-            exec("bpy.ops." + ".".join(self.activatPopUp.split("_OT_")).lower() + "('INVOKE_DEFAULT')")
-        return {"FINISHED"}
-classes.append(AR_OT_AddCustomIcon)
-
-class AR_OT_DeleteCustomIcon(Operator):
-    bl_idname = "ar.deletecustomicon"
-    bl_label = "Delete Icon"
-    bl_description = "Delete a custom added icon"
-
-    class AR_Icon(PropertyGroup):
-        iconId : IntProperty()
-        iconName : StringProperty()
-        select : BoolProperty(default= False, name= 'Select')
-    classes.append(AR_Icon)
-    IconsColl : CollectionProperty(type= AR_Icon)
-    AllIcons : BoolProperty(name= "All Icons", description= "Select all Icons")
-
-    def execute(self, context):
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
-        for ele in self.IconsColl:
-            if ele.select or self.AllIcons:
-                iconpath = ele.iconName[3:]
-                filenames = os.listdir(AR_Var.IconFilePath)
-                names = [os.path.splitext(os.path.basename(path))[0] for path in filenames]
-                if iconpath in names:
-                    os.remove(os.path.join(AR_Var.IconFilePath,  filenames[names.index(iconpath)]))
-                unregisterIcon(preview_collections['ar_custom'], ele.iconName)
-        return {"FINISHED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'AllIcons')
-        box = layout.box()
-        coll = self.IconsColl
-        if self.AllIcons:
-            for ele in coll:
-                row = box.row()
-                row.label(text= '', icon= "CHECKBOX_HLT")
-                row.label(text= ele.iconName[3:], icon_value= ele.iconId)
-        else:
-            for ele in coll:
-                row = box.row()
-                row.prop(ele, 'select', text= '')
-                row.label(text= ele.iconName[3:], icon_value= ele.iconId)
-
-    def invoke(self, context, event):
-        coll = self.IconsColl
-        coll.clear()
-        iconl = list(preview_collections['ar_custom'])
-        iconl_v = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
-        for i in range(len(iconl)):
-            new = coll.add()
-            new.iconId = iconl_v[i]
-            new.iconName = iconl[i]
-        return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_DeleteCustomIcon)
 # endregion
 
 # region Menus
@@ -3050,7 +2888,6 @@ def Initialize_Props():
             kmi = km.keymap_items.new(idname, key, event, ctrl=ctrl, alt=alt, shift=shift)
             if not name is None:
                 kmi.properties.name = name
-    preview_collections['ar_custom'] = bpy.utils.previews.new()
     bpy.app.timers.register(TimerInitSavedPanel, first_interval = 1)
     
 def Clear_Props():
@@ -3081,7 +2918,4 @@ def Clear_Props():
         pass
     bpy.context.window_manager.keyconfigs.addon.keymaps.remove(AR_Prop.addon_keymaps[0])
     AR_Prop.addon_keymaps.clear() #Unregister Preview Collection
-    for pcoll in preview_collections.values():
-        bpy.utils.previews.remove(pcoll)
-    preview_collections.clear()
 # endregion

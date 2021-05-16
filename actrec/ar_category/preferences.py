@@ -3,14 +3,14 @@
 import os
 
 # blender modules
-from actrec.preferences import AR_preferences
 import bpy
-from bpy.types import PropertyGroup
+from bpy.types import PropertyGroup, AddonPreferences
 from bpy.props import IntProperty, CollectionProperty, BoolProperty, StringProperty
 
 # relativ imports
 from .. import ar_category
 from .. import log
+from ..preferences import AR_preferences
 # endregion
 
 classes = []
@@ -60,7 +60,7 @@ classes.append(AR_categories)
 # endregion
 
 # region preferences
-def register_preferences() -> None:
+class Preferences(AddonPreferences):
     def get_storage_path(self) -> str:
         origin_path = self.get('storage_path', 'Fallback')
         if os.path.exists(origin_path):

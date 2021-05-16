@@ -8,8 +8,8 @@ from . import operators, panles, preferences, functions
 
 # region Registration
 def register():
-    pass
+    operators.register()
 
 def unregister():
-    pass
+    operators.unregister()
 # endregion

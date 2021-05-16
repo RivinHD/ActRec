@@ -3,18 +3,20 @@
 import os
 import logging
 import traceback
+import sys
 
 # blender modules
 import bpy
 
 # relative imports
 from ..__init__ import bl_info
+from .preferences import AR_preferences
 # endregion
 
 # region Logsystem 
 class log_system:
     def __init__(self, count: int) -> None:
-        dirc = os.path.join(os.path.dirname(__file__), "logs")
+        dirc = os.path.join(AR_preferences.addon_directory, "logs")
         if not os.path.exists(dirc):
             os.mkdir(dirc)
         all_logs = os.listdir(dirc)
@@ -40,8 +42,8 @@ class log_system:
             logger.info(log_text)
         self.logger = logger
         self.file_handler = file_handler
-
-        os.system.excepthook = self.exception_handler
+        
+        sys.excepthook = self.exception_handler
     
     def exception_handler(self, exc_type, exc_value, exc_tb) -> None:
         traceback.print_exception(exc_type, exc_value, exc_tb)

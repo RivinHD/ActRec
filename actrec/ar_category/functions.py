@@ -7,7 +7,6 @@ import os
 import bpy
 
 # relativ imports
-from .. import ar_category
 from ..preferences import AR_preferences
 
 # endregion 
@@ -23,7 +22,11 @@ def read_category_visbility() -> dict:
         with open(path, 'w', encoding= 'utf-8') as file:
             file.write("{}")
     with open(path, 'r', encoding= 'utf-8') as file:
-       return json.loads(file.read()) 
+       return json.loads(file.read())
+    
+def write_category_visibility(data: dict) -> None:
+    with open(AR_preferences.category_visibility_path, 'w', encoding= 'utf8') as file:
+        file.write(json.dumps(data, indent= 4))
 
 def category_runtime_save(AR) -> None:
     TempSaveCats()
