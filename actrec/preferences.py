@@ -1,39 +1,78 @@
 # region Imports
 # external modules
-import bpy
 import os
 
 # blender modules
+import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
-from bpy.types import PropertyGroup, AddonPreferences
+from bpy.types import PropertyGroup, AddonPreferences, Operator
+from bpy_extras.io_utils import ExportHelper
 import rna_keymap_ui
 
 # relative imports
-from . import log
-from . import ar_category
-from . import ar_global
-from . import update
+from . import categories, globals, update, shared, icon_manager
+from .config import config
 # endregion
 
 classes = []
 
+# region Operators
+class AR_OT_preferences_directory_selector(Operator, ExportHelper):
+    bl_idname = "ar.preferences_directory_selector"
+    bl_label = "Select Directory"
+    bl_description = " "
+    bl_options = {'REGISTER','INTERNAL'}
+
+    filename_ext = "."
+    use_filter_folder = True
+    filepath : StringProperty (name = "File Path", maxlen = 0, default = " ")
+
+    directory : StringProperty()
+
+    def execute(self, context):
+        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        userpath = self.properties.filepath
+        if(not os.path.isdir(userpath)):
+            msg = "Please select a directory not a file\n" + userpath
+            self.report({'ERROR'}, msg)
+            return{'CANCELLED'}
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.storage_path = os.path.join(userpath, self.directory)
+        return{'FINISHED'}
+classes.append(AR_OT_preferences_directory_selector)
+
+class AR_OT_preferences_recover_directory(Operator):
+    bl_idname = "ar.preferences_recover_directory"
+    bl_label = "Recover Standart Directory"
+    bl_description = "Recover the standart Storage directory"
+    bl_options = {'REGISTER','INTERNAL'}
+
+    directory : StringProperty()
+
+    def execute(self, context):
+        AR_Var = context.preferences.addons[__package__].preferences
+        AR_Var.storage_path = os.path.join(os.path.dirname(__file__), self.directory)
+        return{'FINISHED'}
+classes.append(AR_OT_preferences_recover_directory)
+# endregion
+
 # region PropertGroups
-class AR_macro(PropertyGroup):
-    name : StringProperty()
+class AR_macro(shared.id_system, PropertyGroup):
+    label : StringProperty()
     macro : StringProperty()
 classes.append(AR_macro)
 
-class AR_action(PropertyGroup):
-    name: StringProperty()
+class AR_action(shared.id_system, PropertyGroup):
+    label : StringProperty()
     command: CollectionProperty(type= AR_macro)
     icon : IntProperty(default= 101) #Icon BLANK1
 classes.append(AR_action)
 
 # region Preferences
 class AR_preferences(
-    ar_category.preferences.Preferences,
-    ar_global.preferences.Preferences,
-    update.Preferneces,
+    categories.preferences.preferences,
+    globals.preferences.preferences,
+    update.preferneces,
     AddonPreferences):
     bl_idname = __package__
 
@@ -101,34 +140,34 @@ class AR_preferences(
         layout = self.layout
         col = layout.column()
         row = col.row()
-        if AR.Update:
+        if AR.update:
             update.draw_update_button(row, AR)
-            row.operator(AR_OT_ReleaseNotes.bl_idname, text= "Release Notes")
+            row.operator(shared.AR_OT_open_url.bl_idname, text= "Release Notes").url = config['releasNotes_URL']
         else:
-            row.operator(AR_OT_CheckUpdate.bl_idname, text= "Check For Updates")
-            if AR.Restart:
-                row.operator(AR_OT_Restart.bl_idname, text= "Restart to Finsih")
-        if AR.Version != '':
+            row.operator(update.AR_OT_update_check.bl_idname, text= "Check For Updates")
+            if AR.restart:
+                row.operator(update.AR_OT_show_restart_menu.bl_idname, text= "Restart to Finsih")
+        if AR.version != '':
             if AR.Update:
-                col.label(text= "A new Version is available (" + AR.Version + ")")
+                col.label(text= "A new Version is available (" + AR.version + ")")
             else:
-                col.label(text= "You are using the latest Vesion (" + AR.Version + ")")
+                col.label(text= "You are using the latest Vesion (" + AR.version + ")")
         col.separator(factor= 1.5)
         col.label(text= 'Action Storage Folder')
         row = col.row()
-        row.operator(AR_OT_Preferences_DirectorySelector.bl_idname, text= "Select Action Button’s Storage Folder", icon= 'FILEBROWSER').directory = "Storage"
-        row.operator(AR_OT_Preferences_RecoverDirectory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Storage"
+        row.operator(AR_OT_preferences_directory_selector.bl_idname, text= "Select Action Button’s Storage Folder", icon= 'FILEBROWSER').directory = "Storage"
+        row.operator(AR_OT_preferences_recover_directory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Storage"
         box = col.box()
         box.label(text= self.storage_path)
         col.separator(factor= 1.5)
         row = col.row().split(factor= 0.5)
         row.label(text= "Icon Storage Folder")
         row2 = row.row(align= True).split(factor= 0.65, align= True)
-        row2.operator(AR_OT_Add_Custom_Icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS')
-        row2.operator(AR_OT_Delete_Custom_Icon.bl_idname, text= "Delete", icon= 'TRASH')
+        row2.operator(icon_manager.AR_OT_add_custom_icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS')
+        row2.operator(icon_manager.AR_OT_delete_custom_icon.bl_idname, text= "Delete", icon= 'TRASH')
         row = col.row()
-        row.operator(AR_OT_Preferences_DirectorySelector.bl_idname, text= "Select Icon Storage Folder", icon= 'FILEBROWSER').directory = "Icons"
-        row.operator(AR_OT_Preferences_RecoverDirectory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Icons"
+        row.operator(AR_OT_preferences_directory_selector.bl_idname, text= "Select Icon Storage Folder", icon= 'FILEBROWSER').directory = "Icons"
+        row.operator(AR_OT_preferences_recover_directory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Icons"
         box = col.box()
         box.label(text= self.IconFilePath)
         col.separator(factor= 1.5)
@@ -140,18 +179,21 @@ class AR_preferences(
             wm = bpy.context.window_manager
             kc = wm.keyconfigs.user
             km = kc.keymaps['Screen']
-            for (idname, key, event, ctrl, alt, shift, name) in AR_Prop.key_assign_list:
+            for (idname, key, event, ctrl, alt, shift, name) in AR_preferences.key_assign_list:
                 kmi = km.keymap_items[idname]
                 rna_keymap_ui.draw_kmi([], kc, km, kmi, box, 0)
+classes.append(AR_preferences)
 # endregion
 
 # region Regestration
 def register():
-    bpy.utils.register_class(AR_preferences)
+    for cls in classes:
+        bpy.utils.register_class(cls)
     AR_preferences.preview_collections['ar_custom'] = bpy.utils.previews.new()
 
 def unregister():
-    bpy.utils.unregister_class(AR_preferences)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
     for pcoll in AR_preferences.preview_collections.values():
         bpy.utils.previews.remove(pcoll)
     AR_preferences.preview_collections.clear()
