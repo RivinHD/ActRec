@@ -3139,7 +3139,7 @@ class AR_OT_CopyToActRec(Operator):
     @classmethod
     def poll(cls, context):
         AR_Var = context.preferences.addons[__package__].preferences
-        return context.active_object is not None and len(AR_Var.Record_Coll[CheckCommand(0)].Command)
+        return bpy.ops.ui.copy_python_command_button.poll() and len(AR_Var.Record_Coll[CheckCommand(0)].Command)
 
     def execute(self, context):
         bpy.ops.ui.copy_python_command_button()
