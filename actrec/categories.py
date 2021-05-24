@@ -7,12 +7,12 @@ from contextlib import suppress
 
 # blender modules
 import bpy
-from bpy.types import Operator, PropertyGroup, AddonPreferences, Panel
+from bpy.types import Operator, PropertyGroup, Panel
 from bpy.props import StringProperty, EnumProperty, IntProperty, CollectionProperty, BoolProperty, StringProperty
 
 # relativ imports
 from .preferences import AR_preferences
-from . import functions, globals, log
+from . import globals, log, shared
 # endregion 
 
 classes = []
@@ -28,7 +28,7 @@ def read_category_visbility() -> dict:
         with open(path, 'w', encoding= 'utf-8') as file:
             file.write("{}")
     with open(path, 'r', encoding= 'utf-8') as file:
-       return defaultdict(lambda: defaultdict(lambda: {"categories": [], "Mode": {}}) ,json.loads(file.read())) 
+       return defaultdict(lambda: {"categories": [], "Mode": lambda: defaultdict(list)}, json.loads(file.read()))
     
 def write_category_visibility(data: dict) -> None:
     with open(AR_preferences.category_visibility_path, 'w', encoding= 'utf8') as file:
@@ -145,14 +145,9 @@ class AR_OT_category_interface(Operator):
 
     def apply_visibility(self, category_visibility: dict, visibility_options: dict, label: str) -> None:
         for area in visibility_options:
-            category_visibility.setdefault('Area', {})
-            category_visibility['Area'].setdefault(area, {})
-            file_area = category_visibility['Area'][area]
-            file_area.setdefault('categories', [])
+            file_area = category_visibility[area]
             file_area['categories'].append(label)
             for mode in visibility_options[area]:
-                file_area.setdefault('Mode', {})
-                file_area['Mode'].setdefault(mode, [])
                 file_area['Mode'][mode].append(label)
         write_category_visibility(category_visibility)
 
@@ -198,7 +193,7 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         new = AR.categories.add()
-        label = functions.check_for_dublicates([n.label for n in AR.categories], self.label)
+        label = shared.check_for_dublicates([n.label for n in AR.categories], self.label)
         new.label = label
         new.start = len(AR.Instance_Coll)
         new.length = 0
@@ -223,12 +218,12 @@ class AR_OT_category_edit(AR_OT_category_interface ,Operator):
         return len(AR.Categories)
 
     def invoke(self, context, event):
-        self.cancel_data = {}
+        self.cancel_data = defaultdict(list)
         label = self.label
         
         self.category_visibility = read_category_visbility()
-        for area in self.category_visibility.get('Area', {}):
-            category_visibility_area = self.category_visibility['Area'][area]
+        for area in self.category_visibility:
+            category_visibility_area = self.category_visibility[area]
             if label in category_visibility_area.get('categories', []):
                 category_visibility_area['categories'].remove(label)
                 self.cancel_data[area] = []
@@ -258,7 +253,6 @@ class AR_OT_category_apply_visibility(Operator):
     area : StringProperty()
 
     def execute(self, context):
-        AR_preferences.category_visibility_data.setdefault(self.area, [])
         AR_preferences.category_visibility_data[self.area].append(self.mode)
         return {"FINISHED"}
 classes.append(AR_OT_category_apply_visibility)
@@ -378,11 +372,7 @@ def register_unregister_category(index, register = True): #Register/Unregister o
                 layout = self.layout
                 col = layout.column()
                 for i in range(category.Instance_Start, category.Instance_Start + category.Instance_length):
-                    row = col.row(align=True)
-                    row.alert = Data.alert_index == i
-                    row.prop(AR.category_action_enum[i], 'Value' ,toggle = 1, icon= 'LAYER_ACTIVE' if AR.category_action_enum[i].Value else 'LAYER_USED', text= "", event= True)
-                    row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon_value= AR.Instance_Coll[i].icon).index = i
-                    row.operator(AR_OT_Category_Cmd.bl_idname , text= AR.Instance_Coll[i].name).Index = i
+                    globals.draw_actions(col, AR, i)
         AR_PT_category.__name__ = "AR_PT_category_%s_%s" %(index, spaceType)
         if register:
             bpy.utils.register_class(AR_PT_category)
@@ -404,7 +394,6 @@ def register_unregister_category(index, register = True): #Register/Unregister o
 
 # region PropertyGroups
 class AR_selected_category(PropertyGroup):
-
     def get_selected(self) -> bool:
         return self.get("selected", False)
     def set_selected(self, value: bool) -> None:
@@ -422,9 +411,7 @@ class AR_selected_category(PropertyGroup):
     index : IntProperty()
 classes.append(AR_selected_category)
 
-
-class AR_categories(PropertyGroup):
-
+class AR_categories(shared.id_system, PropertyGroup):
     def get_selected(self) -> bool:
         return self.get("selected", False)
     def set_selected(self, value: bool) -> None:
@@ -447,7 +434,7 @@ classes.append(AR_categories)
 # endregion
 
 # region preferences
-class preferences(AddonPreferences):
+class preferences:
     def get_storage_path(self) -> str:
         origin_path = self.get('storage_path', 'Fallback')
         if os.path.exists(origin_path):
@@ -485,7 +472,7 @@ class preferences(AddonPreferences):
 
     AR = bpy.context.preferences.addons[__package__].preferences
     category_visibility_path = os.path.join(AR.exact_storage_path, "Category_Visibility") # set the category visibility path
-    category_visibility_data = {}
+    category_visibility_data = defaultdict(list)
 # endregion
 
 # region Registration 

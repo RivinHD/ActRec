@@ -20,6 +20,15 @@ def set_enum_index(): #Set enum, if out of range to the first enum
         AR.global_actions_enum[enumIndex].selected = True
 # endregion
 
+# region UI functions
+def draw_actions(layout, AR, index: int) -> None:
+    row = layout.row(align=True)
+    row.alert = Data.alert_index == index
+    row.prop(AR.category_action_enum[index], 'selected' ,toggle = 1, icon= 'LAYER_ACTIVE' if AR.category_action_enum[index].selected else 'LAYER_USED', text= "", event= True)
+    row.operator(AR_OT_Category_Cmd_Icon.bl_idname, text= "", icon_value= AR.global_actions[index].icon).index = index
+    row.operator(AR_OT_Category_Cmd.bl_idname , text= AR.global_actions[index].name).index = index
+# endregion
+
 # region Operators
 class AR_OT_gloabal_recategorize_action(Operator):
     bl_idname = "ar.global_recategorize_action"
@@ -49,9 +58,9 @@ class AR_OT_gloabal_recategorize_action(Operator):
                             categories.adjust_categories(categories, current_categorie, -1)
                             break
                     data ={
-                        "name": AR.global_actions[index].name,
+                        "label": AR.global_actions[index].label,
                         "icon": AR.global_actions[index].icon,
-                        "commands": [{"name": command.name, "macro": command.macro} for command in AR.global_actions[index].command]
+                        "commands": [{"label": command.label, "macro": command.macro} for command in AR.global_actions[index].command]
                     }
                     AR.global_actions.remove(index)
                     Inst_Coll_Insert(categorie_end - 1 * (index < categorie_end), data, AR.global_actions)
@@ -71,7 +80,7 @@ class AR_OT_gloabal_recategorize_action(Operator):
         categories = AR.Categories
         layout = self.layout
         for categorie in categories:
-            layout.prop(categorie, 'selected', text= categorie.name)
+            layout.prop(categorie, 'selected', text= categorie.label)
 classes.append(AR_OT_gloabal_recategorize_action)
 # endregion
 

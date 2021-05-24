@@ -30,9 +30,9 @@ def load_icons(filepath: str, only_new: bool = False) -> Optional[str]:
         img.scale(32, 32)
         split = img.name.split('.') # last element is format of file
         img.name = '.'.join(split[:-1])
-        internalpath = os.path.join(AR_Var.IconFilePath, img.name + "." + split[-1])
+        internalpath = os.path.join(AR_Var.IconFilePath, "%s.%s" %(img.name, split[-1]))
         img.save_render(internalpath)
-        register_icon(AR_preferences.preview_collections['ar_custom'], "AR_" + img.name, internalpath, only_new)
+        register_icon(AR_preferences.preview_collections['ar_custom'], "AR_%s" %img.name, internalpath, only_new)
         bpy.data.images.remove(img)
     else:
         bpy.data.images.remove(img)
@@ -45,9 +45,9 @@ def register_icon(pcoll, name: str, filepath: str, only_new: bool):
     except:
         split = name.split('.')
         if len(split) > 1 and split[-1].isnumeric():
-            name = ".".join(split[:-1]) + str(int(split[-1]) + 1)
+            name = "%s%s" %(".".join(split[:-1]), str(int(split[-1]) + 1))
         else:
-            name = name + ".1"
+            name = "%s.1" % name
         register_icon(pcoll, name, filepath)
 
 def unregister_icon(pcoll, name: str):

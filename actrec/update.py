@@ -127,7 +127,9 @@ def get_download_paths() -> Optional[list]:
         if (key_exists and download_file[key] > old_download_file[key]) or not key_exists:
             download_list.append(key)
     return download_list
+# endregion functions
 
+# region UI functions
 def draw_update_button(layout, AR):
     if AR.update_progress >= 0:
         row = layout.row()
@@ -135,15 +137,13 @@ def draw_update_button(layout, AR):
         row.prop(AR, 'update_progress', text= "Progress", slider=True)
     else:
         layout.operator(AR_OT_update.bl_idname, text= 'Update')
-# endregion functions
+# endregion
 
 # region Operator
 class AR_OT_update_check(Operator):
     bl_idname = "ar.update_check"
     bl_label = "Check for Update"
     bl_description = "check for available update"
-
-
 
     def execute(self, context):
         update = check_for_update()
