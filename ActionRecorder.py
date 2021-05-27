@@ -3165,7 +3165,7 @@ class AR_OT_Preferences_DirectorySelector(Operator, ExportHelper):
     bl_description = " "
     bl_options = {'REGISTER','INTERNAL'}
 
-    filename_ext = "."
+    filename_ext = ""
     use_filter_folder = True
     filepath : StringProperty (name = "File Path", maxlen = 0, default = " ")
 
@@ -3605,7 +3605,7 @@ class AR_Prop(AddonPreferences):
             return path
     def set_storage_path(self, origin_path):
         if origin_path != os.path.join(os.path.dirname(__file__), "Storage"):
-            main_version = ".".join(bpy.app.version_string.split(".")[:2])
+            main_version = '.'.join(map(str, bpy.app.version[:2]))
             path = os.path.join(origin_path, main_version)
             if not (os.path.exists(path) and os.path.isdir(path)):
                 os.mkdir(path)
