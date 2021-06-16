@@ -206,14 +206,14 @@ def CreateTempFile():
     tpath = bpy.app.tempdir + "temp.json"
     if not os.path.exists(tpath):
         logger.info(tpath)
-        with open(tpath, 'w', encoding='utf8') as tempfile:
+        with open(tpath, 'w', encoding='utf-8') as tempfile:
             json.dump({"0":[]}, tempfile)
     return tpath
 
 def TempSave(Num):  # write new record to temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:   
+    with open(tpath, 'r+', encoding='utf-8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
         data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
@@ -224,7 +224,7 @@ def TempSave(Num):  # write new record to temp.json file
 def TempUpdate(): # update all records in temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:
+    with open(tpath, 'r+', encoding='utf-8') as tempfile:
         tempfile.truncate(0)    
         tempfile.seek(0)
         data = {}
@@ -235,7 +235,7 @@ def TempUpdate(): # update all records in temp.json file
 def TempUpdateCommand(Key): # update one record in temp.json file
     tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:
+    with open(tpath, 'r+', encoding='utf-8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
         tempfile.truncate(0)
@@ -248,7 +248,7 @@ def TempLoad(dummy): # load records after undo
     ontempload[0] = True
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     if os.path.exists(tpath):
-        with open(tpath, 'r', encoding='utf8') as tempfile:
+        with open(tpath, 'r', encoding='utf-8') as tempfile:
             data = json.load(tempfile)
         command = AR_Var.Record_Coll[CheckCommand(0)].Command
         command.clear()
@@ -535,7 +535,7 @@ def Save(): #Save Buttons to Storage
             os.mkdir(panelpath)
         start = cat.Instance_Start
         for cmd_i in range(start, start + cat.Instance_length):
-            with open(os.path.join(panelpath, f"{cmd_i - start}~" + AR_Var.Instance_Coll[cmd_i].name + "~" + f"{AR_Var.Instance_Coll[cmd_i].icon}" + ".py"), 'w', encoding='utf8') as cmd_file:
+            with open(os.path.join(panelpath, f"{cmd_i - start}~" + AR_Var.Instance_Coll[cmd_i].name + "~" + f"{AR_Var.Instance_Coll[cmd_i].icon}" + ".py"), 'w', encoding='utf-8') as cmd_file:
                 for cmd in AR_Var.Instance_Coll[cmd_i].command:
                     cmd_file.write(cmd.name + "#" + cmd.macro +"\n")
 
@@ -584,7 +584,7 @@ def Load():#Load Buttons from Storage
                         icon = 101 # Icon: BLANK1
                 inst.icon = icon
                 CmdList = []
-                with open(os.path.join(folderpath, txt), 'r', encoding='utf8') as text:
+                with open(os.path.join(folderpath, txt), 'r', encoding='utf-8') as text:
                     for line in text.readlines():
                         cmd = inst.command.add()
                         line_split = line.strip().split('#')
@@ -815,14 +815,14 @@ def TimerInitSavedPanel():
 def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
     tcatpath = bpy.app.tempdir + "tempcats.json"
     if not os.path.exists(tcatpath):
-        with open(tcatpath, 'x', encoding='utf8') as tempfile:
+        with open(tcatpath, 'x', encoding='utf-8') as tempfile:
             logger.info(tcatpath)
     return tcatpath
 
 def TempSaveCats(): # save to the create Tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     tcatpath = CreateTempCats()
-    with open(tcatpath, 'r+', encoding='utf8') as tempfile:
+    with open(tcatpath, 'r+', encoding='utf-8') as tempfile:
         tempfile.truncate(0)
         tempfile.seek(0)
         cats = []
@@ -860,7 +860,7 @@ def TempLoadCats(dummy): #Load the Created tempfile
             RegisterUnregister_Category(ar_category.functions.get_panel_index(cat), False)
     AR_Var.Categories.clear()
     AR_Var.Instance_Coll.clear()
-    with open(tcatpath, 'r', encoding='utf8') as tempfile:
+    with open(tcatpath, 'r', encoding='utf-8') as tempfile:
         data = json.load(tempfile)
         inst_coll = data["Instance_Coll"]
         for i in range(len(inst_coll)):
@@ -1705,7 +1705,7 @@ class AR_OT_Export(Operator, ExportHelper):
                     written = True
                     for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
                         zip_path = os.path.join(folderpath, f"{i}~" + AR_preferences.FileDisp_Name[i] + ".py")
-                        with open(zip_path, 'w', encoding='utf8') as recfile:
+                        with open(zip_path, 'w', encoding='utf-8') as recfile:
                             for cmd in AR_preferences.FileDisp_Command[i]:
                                 recfile.write(cmd + '\n')
                         zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_preferences.FileDisp_Name[i] + f"~{AR_preferences.FileDisp_Icon[i]}" + ".py"))
@@ -1716,7 +1716,7 @@ class AR_OT_Export(Operator, ExportHelper):
                         if scene.ar_filedisp[i].Index:
                             written = True
                             zip_path = os.path.join(folderpath, f"{index}~" + AR_preferences.FileDisp_Name[i] + ".py")
-                            with open(zip_path, 'w', encoding='utf8') as recfile:
+                            with open(zip_path, 'w', encoding='utf-8') as recfile:
                                 for cmd in AR_preferences.FileDisp_Command[i]:
                                     recfile.write(cmd + '\n')
                             zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_preferences.FileDisp_Name[i] + f"~{AR_preferences.FileDisp_Icon[i]}" + ".py"))

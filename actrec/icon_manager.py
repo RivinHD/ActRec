@@ -8,13 +8,10 @@ import bpy
 from bpy.types import Operator, PropertyGroup
 from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty
 from bpy_extras.io_utils import ImportHelper
-
-
-# relative imports
-from .preferences import AR_preferences
 # endregion
 
 classes = []
+preview_collections = {}
 
 # region functions
 def get_icons_values():
@@ -26,13 +23,12 @@ def get_icons():
 def load_icons(filepath: str, only_new: bool = False) -> Optional[str]:
     img = bpy.data.images.load(filepath)
     if img.size[0] == img.size[1]:
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__package__].preferences
         img.scale(32, 32)
-        split = img.name.split('.') # last element is format of file
-        img.name = '.'.join(split[:-1])
-        internalpath = os.path.join(AR_Var.IconFilePath, "%s.%s" %(img.name, split[-1]))
+        name = '.'.join(img.name.split('.')[:-1]) # last element is format of file
+        internalpath = os.path.join(AR.IconFilePath, img.name) # img.name has format included
         img.save_render(internalpath)
-        register_icon(AR_preferences.preview_collections['ar_custom'], "AR_%s" %img.name, internalpath, only_new)
+        register_icon(preview_collections['ar_custom'], "AR_%s" %name, internalpath, only_new)
         bpy.data.images.remove(img)
     else:
         bpy.data.images.remove(img)
@@ -73,12 +69,13 @@ class icontable(Operator):
     bl_label = "Icons"
     bl_description = "Press to select an Icon"
 
-    def draw(self, execute):
+    def draw(self, context):
+        AR = context.preferences.addons[__package__].preferences
         layout = self.layout
         box = layout.box()
         row = box.row()
         row.label(text= "Selected Icon:")
-        row.label(text=" ", icon_value= AR_preferences.icon_selected)
+        row.label(text=" ", icon_value= AR.icon_selected)
         row.prop(self, 'search', text= 'Search:')
         row.operator(AR_OT_icon_selector.bl_idname, text= "Clear Icon").icon = 101 #Icon: BLANK1
         box = layout.box()
@@ -95,8 +92,8 @@ class icontable(Operator):
         row2.operator(AR_OT_add_custom_icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS').activat_pop_up = self.bl_idname
         row2.operator(AR_OT_delete_custom_icon.bl_idname, text= "Delete", icon= 'TRASH')
         gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
-        customIconValues = [icon.icon_id for icon in AR_preferences.preview_collections['ar_custom'].values()]
-        for i, ic in enumerate(list(AR_preferences.preview_collections['ar_custom'])):
+        customIconValues = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
+        for i, ic in enumerate(list(preview_collections['ar_custom'])):
             normalname = ic.lower().replace("_"," ")
             if self.search == '' or self.search.lower() in normalname:
                 gridf.operator(AR_OT_icon_selector.bl_idname, text= "", icon_value= customIconValues[i]).icon = customIconValues[i]
@@ -113,7 +110,8 @@ class AR_OT_icon_selector(Operator):
     icon : IntProperty(default= 101) #Icon: BLANK1
 
     def execute(self, context):
-        AR_preferences.icon_selected = self.icon
+        AR = context.preferences.addons[__package__].preferences
+        AR.icon_selected = self.icon
         return {"FINISHED"}
 classes.append(AR_OT_icon_selector)
 
@@ -127,7 +125,7 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
     activat_pop_up : StringProperty(default= "")
 
     def execute(self, context):
-        if os.path.isfile(self.filepath) and self.filepath.lower().endswith(('.bmp','.sgi','.rgb','.bw','.png','.jpg', '.jpeg', '.jp2', '.j2c', '.jp2', '.tga', '.cin', '.dpx', '.exr', '.hdr', '.tif', '.tiff')): # supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
+        if os.path.isfile(self.filepath) and self.filepath.lower().endswith(tuple(bpy.path.extensions_image)): # supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
             err = load_icons(self.filepath)
             if err is not None:
                 self.report({'ERROR'}, err)
@@ -154,8 +152,8 @@ class AR_OT_delete_custom_icon(Operator):
     def invoke(self, context, event):
         coll = self.icons
         coll.clear()
-        icon_list = list(AR_preferences.preview_collections['ar_custom'])
-        icon_list_values = [icon.icon_id for icon in AR_preferences.preview_collections['ar_custom'].values()]
+        icon_list = list(preview_collections['ar_custom'])
+        icon_list_values = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
         for i in range(len(icon_list)):
             new = coll.add()
             new.icon_id = icon_list_values[i]
@@ -171,7 +169,7 @@ class AR_OT_delete_custom_icon(Operator):
                 names = [os.path.splitext(os.path.basename(path))[0] for path in filenames]
                 if iconpath in names:
                     os.remove(os.path.join(AR_Var.IconFilePath,  filenames[names.index(iconpath)]))
-                unregister_icon(AR_preferences.preview_collections['ar_custom'], ele.icon_name)
+                unregister_icon(preview_collections['ar_custom'], ele.icon_name)
         return {"FINISHED"}
 
     def draw(self, context):
@@ -196,8 +194,12 @@ classes.append(AR_OT_delete_custom_icon)
 def register() -> None:
     for cls in classes:
         bpy.utils.register_class(cls)
+    preview_collections['ar_custom'] = bpy.utils.previews.new()
 
 def unregister() -> None:
     for cls in classes:
         bpy.utils.register_class(cls)
+    for pcoll in preview_collections.values():
+        bpy.utils.previews.remove(pcoll)
+    preview_collections.clear()
 # endregion 

@@ -1,6 +1,6 @@
 # region Import
 # external modules
-from typing import Optional
+from typing import Optional, Union
 import requests
 import json
 import base64
@@ -11,50 +11,53 @@ from collections import defaultdict
 
 # blender modules
 import bpy
-from bpy.types import Operator, AddonPreferences
-from bpy.props import BoolProperty, IntProperty, StringProperty
+from bpy.types import Operator
+from bpy.props import BoolProperty
 from bpy_extras.io_utils import ExportHelper
 
 # realtive imports
 from .config import config
 from .log import logger
-from .preferences import AR_preferences
 # endregion
 
 classes = []
 
+class update_manager:
+    update_responds = {}
+    update_data_chunks = defaultdict(lambda: {"chunks": [], 'progress_length': 0})
+    download_file = {} # used to store downloaded file from "AR_OT_update_check"
+
 # region functions
 def on_start() -> None:
-    check_for_update()
+    bpy.ops.ar.update_check()
 
 def get_json_from_content(content : bytes) -> dict:
     data = json.loads(content)
     content = base64.b64decode(data["content"]).decode("utf-8")
     return json.loads(content)
 
-def check_for_update() -> tuple:
-        download_file = get_online_download_file()
-        if download_file is None:
-            return (False, "No Internet Connection")
-        old_download_file = get_local_download_file()
-        if download_file["version"] > old_download_file["version"]:
-            return (True, download_file["version"])
-        else:
-            return (False, old_download_file["version"])
+def check_for_update(download_file: Optional[dict]) -> tuple[bool, Union[str, tuple[int, int, int]]]:
+    if download_file is None:
+        return (False, "No Internet Connection")
+    old_download_file = get_local_download_file()
+    if download_file["version"] > old_download_file["version"]:
+        return (True, download_file["version"])
+    else:
+        return (False, old_download_file["version"])
 
-def start_update() -> bool:
-    download_paths = get_download_paths()
+def start_update(download_file) -> bool:
+    download_paths = get_download_paths(download_file)
     if download_paths is None:
         return False
     for path in download_paths:
-        AR_preferences.update_responds[path] = requests.get(config["repoSource_URL"] + path, stream= True)
+        update_manager.update_responds[path] = requests.get(config["repoSource_URL"] + path, stream= True)
+    logger.info("Start Update Process")
 
 def update(AR, update_responds: dict, download_chunks: dict) -> bool:
     finished_downloaded = True
     complet_length = 0
     complet_progress = 0
-    for path in update_responds:
-        res = update_responds[path]
+    for path, res in update_responds.items():
         total_length = res.headers.get('content-length', None)
         complet_length += total_length
         if total_length is None:
@@ -73,29 +76,59 @@ def update(AR, update_responds: dict, download_chunks: dict) -> bool:
     AR.update_progress = 100 * complet_progress / complet_length
     return finished_downloaded
 
-def install_update(AR, download_chunks: dict) -> None:
-    zip_path = os.path.join(bpy.app.tempdir, "AR_Update/" + __package__ +".zip")
-    zip_it = zipfile.ZipFile(zip_path, 'w')
+def install_update(AR, download_chunks: dict, download_file: dict) -> None:
     for path in download_chunks:
-        zip_it.writestr(path, get_json_from_content(b''.join(download_chunks['path']["chunks"])))
-    bpy.ops.preferences.addon_install(filepath= zip_path)
+        absolute_path = os.path.join(AR.addon_directory, path)
+        absolute_directory = os.path.dirname(absolute_path)
+        if not os.path.exists(absolute_directory):
+            os.makedirs(absolute_directory)
+        with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
+            ar_file.write(path, get_json_from_content(b''.join(download_chunks[path]["chunks"])))
+    for path in download_file['remove']:
+        remove_path = os.path.join(AR.addon_directory, path)
+        if os.path.exists(remove_path):
+            for root, dirs, files in os.walk(remove_path, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
     version = tuple(AR.version.split("."))
-    logger.info("Updated Action Recorder to Version: " + str(version))
-    os.remove(zip_path)
-    update_download_file(download_chunks.keys(), version)
+    update_download_file(download_chunks.keys(), download_file['remove'], version)
     download_chunks.clear()
+    download_file.clear()
+    logger.info("Updated Action Recorder to Version: " + str(version))
 
-def get_online_download_file() -> Optional[dict]:
+def start_get_online_download_file() -> None:
     try:
-        res = requests.get(config["checkSource_URL"])
-        logger.info("downloaded: download_file")
-        return get_json_from_content(res.content)
+        update_manager.download_file['respond'] = requests.get(config["checkSource_URL"], stream= True)
+        update_manager.download_file['chunk'] = []
+        logger.info("Start Download: download_file")
     except Exception as err:
-        logger.warning("no Connecation (" + err + ")")
+        logger.warning("no Connection (" + err + ")")
+        return None
+
+def get_online_download_file(res: requests.Response) -> Optional[Union[bool, dict]]:
+    try:
+        total_length = res.headers.get('content-length', None)
+        if total_length is None:
+            logger.info("Finsihed Download: download_file")
+            res.close()
+            return get_json_from_content(res.content)
+        else:
+            for chunk in res.iter_content(chunk_size=4096):
+                update_manager.download_file['chunk'].append(chunk)
+            if total_length == len(update_manager.download_file['chunk']):
+                res.close()
+                logger.info("Finsihed Download: download_file")
+                return get_json_from_content(res.content)
+            return True
+    except Exception as err:
+        logger.warning("no Connection (" + err + ")")
         return None
 
 def get_local_download_file() -> dict:
-    path = os.path.join(AR_preferences.addon_directory, "download_file.json")
+    AR = bpy.context.preferences.addons[__package__].preferences
+    path = os.path.join(AR.addon_directory, "download_file.json")
     if not os.path.exists(path):
         new_file = open(path, "w", encoding= 'utf-8')
         new_file.write("{}")
@@ -105,32 +138,33 @@ def get_local_download_file() -> dict:
     download_file.close()
     return json.loads(download_text)
 
-def update_download_file(download_list: list, current_version: tuple) -> None:
+def update_download_file(download_list: list, remove_list: list, current_version: tuple) -> None:
+    AR = bpy.context.preferences.addons[__package__].preferences
     download_file = get_local_download_file()
     files = []
-    for path in download_list: 
+    for path in filter(lambda x: x not in remove_list, download_list + download_file['files']):
         files.append({path : current_version})
     download_file["files"] = files
     download_file["version"] = current_version
-    with open("download_file.json", "w", encoding= "utf-8") as open_files:
+    with open(os.path.join(AR.addon_directory, "download_file.json"), "w", encoding= "utf-8") as open_files:
         open_files.write(json.dumps(download_file))
 
-def get_download_paths() -> Optional[list]:
-    download_file = get_online_download_file()["files"]
-    if download_file is None:
+def get_download_paths(download_file) -> Optional[list]:
+    download_files = download_file["files"]
+    if download_files is None:
         return None
-    old_download_file = get_local_download_file()["files"]
+    old_download_files = get_local_download_file()["files"]
     download_list = []
-    old_keys = old_download_file.keys()
-    for key in download_file.keys():
+    old_keys = old_download_files.keys()
+    for key in download_files.keys():
         key_exists = key in old_keys 
-        if (key_exists and download_file[key] > old_download_file[key]) or not key_exists:
+        if (key_exists and download_files[key] > old_download_files[key]) or not key_exists:
             download_list.append(key)
     return download_list
 # endregion functions
 
 # region UI functions
-def draw_update_button(layout, AR):
+def draw_update_button(layout, AR) -> None:
     if AR.update_progress >= 0:
         row = layout.row()
         row.enable = False
@@ -144,16 +178,38 @@ class AR_OT_update_check(Operator):
     bl_idname = "ar.update_check"
     bl_label = "Check for Update"
     bl_description = "check for available update"
+    
+    def invoke(self, context, event):
+        start_get_online_download_file()
+        self.timer = context.window_manager.event_timer_add(0.1)
+        return context.window_manager.modal_handler_add(self)
+
+    def modal(self, context, event):
+        download_file = get_online_download_file(update_manager.download_file['respond'])
+        if isinstance(download_file, (dict, None)):
+            update_manager.download_file = download_file
+            return self.execute(context)
+        return {'PASS_THROUGH'}
 
     def execute(self, context):
-        update = check_for_update()
+        update = check_for_update(update_manager.download_file)
         AR = context.preferences.addons[__package__].preferences
         AR.Update = update[0]
+        if not update[0]:
+            update_manager.download_file.clear()
         if isinstance(update[1], str):
             AR.version = update[1]
         else:
-            AR.version = ".".join([str(i) for i in update[1]])
+            AR.version = ".".join(map(str, update[1]))
+        context.window_manager.event_timer_remove(self.timer)
         return {"FINISHED"}
+
+    def cancel(self, context):
+        res = update_manager.download_file.get('respond')
+        if res:
+            res.close()
+        update_manager.download_file.clear()
+        context.window_manager.event_timer_remove(self.timer)
 classes.append(AR_OT_update_check)
 
 class AR_OT_update(Operator):
@@ -167,15 +223,16 @@ class AR_OT_update(Operator):
         return AR.update
 
     def invoke(self, context, event):
-        launch = start_update()
+        launch = start_update(update_manager.download_file)
         if launch:
+            self.timer = context.window_manager.event_timer_add(0.1)
             return {'RUNNING_MODAL'}
         self.report({'ERROR'}, "No Internet Connection")
         return {'CANCELLED'}
 
     def modal(self, context, event):
         AR = context.preferences.addons[__package__].preferences
-        if update(AR, AR_preferences.update_responds, AR_preferences.update_data_chunks):
+        if update(AR, update_manager.update_responds, update_manager.update_data_chunks):
             return self.execute(context)
         return {'PASS_THROUGH'}
 
@@ -183,10 +240,18 @@ class AR_OT_update(Operator):
         AR = context.preferences.addons[__package__].preferences
         AR.update = False
         AR.restart = True
-        install_update(AR, AR_preferences.update_data_chunks)
+        install_update(AR, update_manager.update_data_chunks, update_manager.download_file)
         AR.update_progress = -1
+        context.window_manager.event_timer_remove(self.timer)
         bpy.ops.ar.show_restart_menu('INVOKE_DEFAULT')
         return {"FINISHED"}
+
+    def cancel(self, context):
+        for res in update_manager.update_responds.values():
+            res.close()
+        update_manager.update_responds.clear()
+        update_manager.update_data_chunks.clear()
+        context.window_manager.event_timer_remove(self.timer)
 classes.append(AR_OT_update)
 
 class AR_OT_restart(Operator, ExportHelper):
@@ -244,17 +309,6 @@ class AR_OT_show_restart_menu(Operator):
         context.window_manager.popup_menu(self.draw, title= "Action Recorder Restart")
         return {"FINISHED"}
 classes.append(AR_OT_show_restart_menu)
-# endregion
-
-# region Preferences
-class preferences(AddonPreferences):
-    launch_update : BoolProperty()
-    restart : BoolProperty()
-    version : StringProperty()
-    auto_update : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
-    update_progress : IntProperty(name= "Update Progress", default= -1, min= -1, max= 100, soft_min= 0, soft_max= 100, subtype= 'PERCENTAGE') # use as slider
-    update_responds = {}
-    update_data_chunks = defaultdict(lambda: {"chunks": [], 'progress_length': 0})
 # endregion
 
 # region Regestration

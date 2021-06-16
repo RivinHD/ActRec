@@ -5,83 +5,76 @@ import os
 # blender modules
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
-from bpy.types import PropertyGroup, AddonPreferences, Operator
-from bpy_extras.io_utils import ExportHelper
+from bpy.types import AddonPreferences
 import rna_keymap_ui
 
 # relative imports
-from . import categories, globals, update, shared, icon_manager
+from . import properties, functions
 from .config import config
+from .log import logger
 # endregion
 
 classes = []
 
-# region Operators
-class AR_OT_preferences_directory_selector(Operator, ExportHelper):
-    bl_idname = "ar.preferences_directory_selector"
-    bl_label = "Select Directory"
-    bl_description = " "
-    bl_options = {'REGISTER','INTERNAL'}
-
-    filename_ext = "."
-    use_filter_folder = True
-    filepath : StringProperty (name = "File Path", maxlen = 0, default = " ")
-
-    directory : StringProperty()
-
-    def execute(self, context):
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
-        userpath = self.properties.filepath
-        if(not os.path.isdir(userpath)):
-            msg = "Please select a directory not a file\n" + userpath
-            self.report({'ERROR'}, msg)
-            return{'CANCELLED'}
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.storage_path = os.path.join(userpath, self.directory)
-        return{'FINISHED'}
-classes.append(AR_OT_preferences_directory_selector)
-
-class AR_OT_preferences_recover_directory(Operator):
-    bl_idname = "ar.preferences_recover_directory"
-    bl_label = "Recover Standart Directory"
-    bl_description = "Recover the standart Storage directory"
-    bl_options = {'REGISTER','INTERNAL'}
-
-    directory : StringProperty()
-
-    def execute(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.storage_path = os.path.join(os.path.dirname(__file__), self.directory)
-        return{'FINISHED'}
-classes.append(AR_OT_preferences_recover_directory)
-# endregion
-
-# region PropertGroups
-class AR_macro(shared.id_system, PropertyGroup):
-    label : StringProperty()
-    macro : StringProperty()
-classes.append(AR_macro)
-
-class AR_action(shared.id_system, PropertyGroup):
-    label : StringProperty()
-    command: CollectionProperty(type= AR_macro)
-    icon : IntProperty(default= 101) #Icon BLANK1
-classes.append(AR_action)
-
 # region Preferences
-class AR_preferences(
-    categories.preferences.preferences,
-    globals.preferences.preferences,
-    update.preferneces,
-    AddonPreferences):
+class AR_preferences(AddonPreferences):
     bl_idname = __package__
+    addon_directory : StringProperty(name= "addon directory", default= os.path.dirname(os.path.dirname(__file__)), get= lambda self: self.bl_rna.properties['addon_directory'].default)  # get the base addon directory
 
-    addon_directory = os.path.dirname(os.path.dirname(__file__)) # get the base addon directory
-    space_types = [space.identifier for space in bpy.types.Panel.bl_rna.properties['bl_space_type'].enum_items] # get all registered Space Types of Blender
-
-    preview_collections = {}
-    icon_selected = 101 # default icon value for BLANK1
+    icon_selected : IntProperty(name="selected icon", description= "only internal usage", default= 101, min= 0, options= {'HIDDEN'}) # default icon value for BLANK1
     
+    # update
+    launch_update : BoolProperty()
+    restart : BoolProperty()
+    version : StringProperty()
+    auto_update : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
+    update_progress : IntProperty(name= "Update Progress", default= -1, min= -1, max= 100, soft_min= 0, soft_max= 100, subtype= 'PERCENTAGE') # use as slider
+
+    # globals
+    global_actions : CollectionProperty(type= properties.preferences.AR_action)
+    global_actions_enum : CollectionProperty(type= properties.globals.AR_global_actions_enum)
+
+    # categories
+    def get_storage_path(self) -> str:
+        origin_path = self.get('storage_path', 'Fallback')
+        if os.path.exists(origin_path):
+            return self['storage_path']
+        else:
+            path = os.path.join(self.addon_directory, "Storage")
+            if origin_path != 'Fallback':
+                logger.error("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
+            self['storage_path'] = path
+            return path
+    def set_storage_path(self, origin_path) -> str:
+        if origin_path != os.path.join(self.addon_directory, "Storage"):
+            main_version = ".".join(bpy.app.version_string.split(".")[:2])
+            path = os.path.join(origin_path, main_version)
+            if not (os.path.exists(path) and os.path.isdir(path)):
+                os.mkdir(path)
+                transferfolders = []
+                for cat in self.Categories:
+                    transferfolders.append(str(functions.get_panel_index(cat)) + "~" + cat.pn_name)
+                for folder in os.listdir(origin_path):
+                    if folder in transferfolders:
+                        os.rename(os.path.join(origin_path, folder), os.path.join(path, folder))
+            self['storage_path'] = origin_path
+            self['exact_storage_path'] = path
+        else:
+            self['storage_path'] = origin_path
+            self['exact_storage_path'] = origin_path
+            
+    storage_path : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage"), get=get_storage_path, set=set_storage_path)
+    
+    def get_exact_storage_path(self):
+        return self.get('exact_storage_path', os.path.join(self.addon_directory, "Storage"))
+
+    exact_storage_path : StringProperty(description="Is the full path to the Storage Folder (includes the Version)[hidden]", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage"), get= get_exact_storage_path)
+
+    categories : CollectionProperty(type= properties.AR_categories)
+    selected_category : CollectionProperty(type= properties.AR_selected_category)
+    show_all_categories : BoolProperty(name= "Show All Categories", default= False)
+
+
     # =================================================================================================================================
     Rename : StringProperty()
     Autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
@@ -189,12 +182,8 @@ classes.append(AR_preferences)
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    AR_preferences.preview_collections['ar_custom'] = bpy.utils.previews.new()
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    for pcoll in AR_preferences.preview_collections.values():
-        bpy.utils.previews.remove(pcoll)
-    AR_preferences.preview_collections.clear()
 # endregion
