@@ -17,9 +17,9 @@ class AR_global_actions_enum(PropertyGroup):
         if value:
             ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
             if selected_indexes != [] and ctrl_value == 'CANCELLED':
+                AR["global_actions_enum.selected_indexes"].clear()
                 for selected_index in selected_indexes:
                     AR.global_actions_enum[selected_index] = False
-                AR["global_actions_enum.selected_indexes"].clear()
             AR.set_default("global_actions_enum.selected_indexes", [])
             AR["global_actions_enum.selected_indexes"].append(self.index)
             self['selected'] = value
@@ -29,14 +29,4 @@ class AR_global_actions_enum(PropertyGroup):
     selected : BoolProperty(default= False, set= set_value, get= get_value, description= "Select this Action Button", name = 'Select')
     index : IntProperty()
 classes.append(AR_global_actions_enum)
-# endregion
-
-# region Registration
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
 # endregion

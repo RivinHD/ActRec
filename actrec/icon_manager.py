@@ -77,26 +77,26 @@ class icontable(Operator):
         row.label(text= "Selected Icon:")
         row.label(text=" ", icon_value= AR.icon_selected)
         row.prop(self, 'search', text= 'Search:')
-        row.operator(AR_OT_icon_selector.bl_idname, text= "Clear Icon").icon = 101 #Icon: BLANK1
+        row.operator('ar.icon_selector', text= "Clear Icon").icon = 101 #Icon: BLANK1
         box = layout.box()
         gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
         icon_values = get_icons_values()
         for i, icon_name in enumerate(get_icons()):
             normalname = icon_name.lower().replace("_"," ")
             if self.search == '' or self.search.lower() in normalname:
-                gridf.operator(AR_OT_icon_selector.bl_idname, text= "", icon_value= icon_values[i]).icon = icon_values[i]
+                gridf.operator('ar.icon_selector', text= "", icon_value= icon_values[i]).icon = icon_values[i]
         box = layout.box()
         row = box.row().split(factor= 0.5)
         row.label(text= "Custom Icons")
         row2 = row.row()
-        row2.operator(AR_OT_add_custom_icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS').activat_pop_up = self.bl_idname
-        row2.operator(AR_OT_delete_custom_icon.bl_idname, text= "Delete", icon= 'TRASH')
+        row2.operator('ar.add_custom_icon', text= "Add Custom Icon", icon= 'PLUS').activat_pop_up = self.bl_idname
+        row2.operator('ar.delete_custom_icon', text= "Delete", icon= 'TRASH')
         gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
-        customIconValues = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
+        custom_icon_values = [icon.icon_id for icon in preview_collections['ar_custom'].values()]
         for i, ic in enumerate(list(preview_collections['ar_custom'])):
             normalname = ic.lower().replace("_"," ")
             if self.search == '' or self.search.lower() in normalname:
-                gridf.operator(AR_OT_icon_selector.bl_idname, text= "", icon_value= customIconValues[i]).icon = customIconValues[i]
+                gridf.operator('ar.icon_selector', text= "", icon_value= custom_icon_values[i]).icon = custom_icon_values[i]
 
     def check(self, context):
         return True
@@ -137,7 +137,7 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
 classes.append(AR_OT_add_custom_icon)
 
 class AR_OT_delete_custom_icon(Operator):
-    bl_idname = "ar.deletecustomicon"
+    bl_idname = "ar.delete_custom_icon"
     bl_label = "Delete Icon"
     bl_description = "Delete a custom added icon"
 

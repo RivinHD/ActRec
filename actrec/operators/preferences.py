@@ -50,13 +50,3 @@ class AR_OT_preferences_recover_directory(Operator):
         return{'FINISHED'}
 classes.append(AR_OT_preferences_recover_directory)
 # endregion
-
-# region Registration
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-# endregion

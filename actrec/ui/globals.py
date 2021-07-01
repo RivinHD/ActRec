@@ -1,5 +1,3 @@
-from .. import operators
-
 # region UI functions
 def draw_actions(layout, AR, index: int) -> None:
     row = layout.row(align=True)

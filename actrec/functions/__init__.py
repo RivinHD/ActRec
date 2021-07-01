@@ -1,14 +1,18 @@
+"""only relative import from intra-modules: ui"""
+
 from .categories import (
-    get_panel_index,
     read_category_visbility, 
     write_category_visibility, 
     category_runtime_save,
-    get_selected_index,
-    adjust_categories
+    adjust_categories,
+    swap_categories
 )
 
 from .globals import (
-    set_enum_index
+    set_enum_index,
+    add_global_actions_enum,
+    save,
+    load
 )
 
 from .shared import (

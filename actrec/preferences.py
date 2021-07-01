@@ -9,8 +9,9 @@ from bpy.types import AddonPreferences
 import rna_keymap_ui
 
 # relative imports
-from . import properties, functions
-from .config import config
+from . import properties
+from . import config
+from . import update
 from .log import logger
 # endregion
 
@@ -30,9 +31,33 @@ class AR_preferences(AddonPreferences):
     auto_update : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
     update_progress : IntProperty(name= "Update Progress", default= -1, min= -1, max= 100, soft_min= 0, soft_max= 100, subtype= 'PERCENTAGE') # use as slider
 
+    # locals
+    local_actions : CollectionProperty(type= properties.AR_action)
+
+    def get_selected_local_action_index(self):
+        value = self.get('selected_local_action_index', 0)
+        actions_length = len(self.local_actions)
+        return value if value < actions_length else actions_length - 1
+    def set_selected_local_action_index(self, value):
+        actions_length = len(self.local_actions)
+        self['selected_local_action_index'] = value if value < actions_length else actions_length - 1
+    selected_local_action_index : IntProperty(min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
+
+    # macros
+    def get_selected_macro_index(self):
+        value = self.get('selected_macro_index', 0)
+        commands_length = len(self.local_actions[self.selected_local_action_index].commands)
+        return value if value < commands_length else commands_length - 1
+    def set_selected_macro_index(self, value):
+        commands_length = len(self.local_actions[self.selected_local_action_index].commands)
+        self['selected_macro_index'] = value if value < commands_length else commands_length - 1
+    selected_macro_index : IntProperty(min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
+
     # globals
-    global_actions : CollectionProperty(type= properties.preferences.AR_action)
-    global_actions_enum : CollectionProperty(type= properties.globals.AR_global_actions_enum)
+    global_actions : CollectionProperty(type= properties.AR_action)
+    global_actions_enum : CollectionProperty(type= properties.AR_global_actions_enum)
+
+    autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
 
     # categories
     def get_storage_path(self) -> str:
@@ -40,44 +65,27 @@ class AR_preferences(AddonPreferences):
         if os.path.exists(origin_path):
             return self['storage_path']
         else:
-            path = os.path.join(self.addon_directory, "Storage")
+            path = os.path.join(self.addon_directory, "Storage.json")
             if origin_path != 'Fallback':
                 logger.error("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
             self['storage_path'] = path
             return path
-    def set_storage_path(self, origin_path) -> str:
-        if origin_path != os.path.join(self.addon_directory, "Storage"):
-            main_version = ".".join(bpy.app.version_string.split(".")[:2])
-            path = os.path.join(origin_path, main_version)
-            if not (os.path.exists(path) and os.path.isdir(path)):
-                os.mkdir(path)
-                transferfolders = []
-                for cat in self.Categories:
-                    transferfolders.append(str(functions.get_panel_index(cat)) + "~" + cat.pn_name)
-                for folder in os.listdir(origin_path):
-                    if folder in transferfolders:
-                        os.rename(os.path.join(origin_path, folder), os.path.join(path, folder))
-            self['storage_path'] = origin_path
-            self['exact_storage_path'] = path
-        else:
-            self['storage_path'] = origin_path
-            self['exact_storage_path'] = origin_path
-            
-    storage_path : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage"), get=get_storage_path, set=set_storage_path)
-    
-    def get_exact_storage_path(self):
-        return self.get('exact_storage_path', os.path.join(self.addon_directory, "Storage"))
-
-    exact_storage_path : StringProperty(description="Is the full path to the Storage Folder (includes the Version)[hidden]", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage"), get= get_exact_storage_path)
+    def set_storage_path(self, origin_path: str) -> None:
+        self['storage_path'] = origin_path
+        if not(os.path.exists(origin_path)) and os.path.isfile(origin_path):
+            with open(origin_path, 'w') as storage_file:
+                storage_file.write('{}')
+    storage_path : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage.json"), get=get_storage_path, set=set_storage_path)
 
     categories : CollectionProperty(type= properties.AR_categories)
-    selected_category : CollectionProperty(type= properties.AR_selected_category)
+    def get_selected_category(self):
+        return self.get("categories.selected_id", '')
+    selected_category : StringProperty(get= get_selected_category, default= '')
     show_all_categories : BoolProperty(name= "Show All Categories", default= False)
 
 
     # =================================================================================================================================
     Rename : StringProperty()
-    Autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     RecToBtn_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     BtnToRec_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Local"), ("move", "Move", "Move the Action over to Local and Delete it from Global")], name= "Mode")
     SelectedIcon = 101 # Icon: BLANK1
@@ -135,11 +143,11 @@ class AR_preferences(AddonPreferences):
         row = col.row()
         if AR.update:
             update.draw_update_button(row, AR)
-            row.operator(shared.AR_OT_open_url.bl_idname, text= "Release Notes").url = config['releasNotes_URL']
+            row.operator('ar.open_url', text= "Release Notes").url = config.release_notes_url
         else:
-            row.operator(update.AR_OT_update_check.bl_idname, text= "Check For Updates")
+            row.operator('ar.update_check', text= "Check For Updates")
             if AR.restart:
-                row.operator(update.AR_OT_show_restart_menu.bl_idname, text= "Restart to Finsih")
+                row.operator('ar.show_restart_menu', text= "Restart to Finsih")
         if AR.version != '':
             if AR.Update:
                 col.label(text= "A new Version is available (" + AR.version + ")")

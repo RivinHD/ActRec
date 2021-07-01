@@ -520,25 +520,6 @@ def Clear(Num) : # Clear all Macros
     AR_Var.Record_Coll[CheckCommand(Num)].Command.clear()
     UpdateRecordText(Num)
 
-def Save(): #Save Buttons to Storage
-    AR_Var = bpy.context.preferences.addons[__package__].preferences
-    path = AR_Var.exact_storage_path
-    for savedfolder in os.listdir(path):
-        folderpath = os.path.join(path, savedfolder)
-        if os.path.exists(folderpath):
-            for savedfile in os.listdir(folderpath):
-                os.remove(os.path.join(folderpath, savedfile))
-            os.rmdir(folderpath)
-    for cat in AR_Var.Categories:
-        panelpath = os.path.join(path, f"{ar_category.functions.get_panel_index(cat)}~" + cat.pn_name)
-        if not os.path.exists(panelpath):
-            os.mkdir(panelpath)
-        start = cat.Instance_Start
-        for cmd_i in range(start, start + cat.Instance_length):
-            with open(os.path.join(panelpath, f"{cmd_i - start}~" + AR_Var.Instance_Coll[cmd_i].name + "~" + f"{AR_Var.Instance_Coll[cmd_i].icon}" + ".py"), 'w', encoding='utf-8') as cmd_file:
-                for cmd in AR_Var.Instance_Coll[cmd_i].command:
-                    cmd_file.write(cmd.name + "#" + cmd.macro +"\n")
-
 def Load():#Load Buttons from Storage
     logger.info('Load')
     AR_Var = bpy.context.preferences.addons[__package__].preferences
@@ -548,7 +529,7 @@ def Load():#Load Buttons from Storage
     AR_Var.ar_enum.clear()
     AR_Var.Instance_Coll.clear()
     AR_Var.Instance_Index = 0
-    path = AR_Var.exact_storage_path
+    path = AR_Var.storage_path
     for folder in sorted(os.listdir(path)):
         folderpath = os.path.join(path, folder)
         if os.path.isdir(folderpath):
@@ -586,7 +567,7 @@ def Load():#Load Buttons from Storage
                 CmdList = []
                 with open(os.path.join(folderpath, txt), 'r', encoding='utf-8') as text:
                     for line in text.readlines():
-                        cmd = inst.command.add()
+                        cmd = inst.commands.add()
                         line_split = line.strip().split('#')
                         updated_cmd = update_macro(line_split[0])
                         if updated_cmd is None:
@@ -671,7 +652,7 @@ def Instance_to_Recorder():#Convert Button to Record
         Item = AR_Var.Record_Coll[CheckCommand(0)].Command.add()
         Item.cname = CheckForDublicates([cmd.cname for cmd in AR_Var.Record_Coll[CheckCommand(0)].Command], AR_Var.Instance_Coll[Index].name)
         Item.icon = AR_Var.Instance_Coll[Index].icon
-        for Command in AR_Var.Instance_Coll[Index].command:
+        for Command in AR_Var.Instance_Coll[Index].commands:
             Item = AR_Var.Record_Coll[CheckCommand(len(AR_Var.Record_Coll[CheckCommand(0)].Command))].Command.add()
             if Command.macro == '':
                 macro = GetMacro(Command.name)
@@ -692,7 +673,7 @@ def Instance_to_Recorder():#Convert Button to Record
 
 def Execute_Instance(Num): #Execute a Button
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    for cmd in AR_Var.Instance_Coll[Num].command:
+    for cmd in AR_Var.Instance_Coll[Num].commands:
         try:
             exec(cmd.name)
         except:
@@ -753,15 +734,15 @@ def I_Move(Mode): # Move a Button to the upper/lower
         if (2 <= LengthTemp) and (0 <= index1 < LengthTemp) and (0 <= index2 < LengthTemp):
             AR_Var.Instance_Coll[index1].name , AR_Var.Instance_Coll[index2].name = AR_Var.Instance_Coll[index2].name , AR_Var.Instance_Coll[index1].name
             AR_Var.Instance_Coll[index1].icon , AR_Var.Instance_Coll[index2].icon = AR_Var.Instance_Coll[index2].icon , AR_Var.Instance_Coll[index1].icon
-            index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].command]
-            index2cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index2].command]
-            AR_Var.Instance_Coll[index1].command.clear()
-            AR_Var.Instance_Coll[index2].command.clear()
+            index1cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index1].commands]
+            index2cmd = [cmd.name for cmd in AR_Var.Instance_Coll[index2].commands]
+            AR_Var.Instance_Coll[index1].commands.clear()
+            AR_Var.Instance_Coll[index2].commands.clear()
             for cmd in index2cmd:
-                new = AR_Var.Instance_Coll[index1].command.add()
+                new = AR_Var.Instance_Coll[index1].commands.add()
                 new.name = cmd
             for cmd in index1cmd:
-                new = AR_Var.Instance_Coll[index2].command.add()
+                new = AR_Var.Instance_Coll[index2].commands.add()
                 new.name = cmd
             AR_Var.ar_enum[index1].Value = False
             AR_Var.ar_enum[index2].Value = True
@@ -793,7 +774,7 @@ def InitSavedPanel(dummy = None):
     if AR_Var.AutoUpdate:
         bpy.ops.ar.update_check('EXEC_DEFAULT')
     AR_Var.storage_path = AR_Var.storage_path #Update storage_path
-    path = AR_Var.exact_storage_path
+    path = AR_Var.storage_path
     if not os.path.exists(path):
         os.mkdir(path)
     if not os.path.exists(AR_Var.IconFilePath):
@@ -808,46 +789,6 @@ def InitSavedPanel(dummy = None):
 
 def TimerInitSavedPanel():
     InitSavedPanel()
-
-
-
-
-def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
-    tcatpath = bpy.app.tempdir + "tempcats.json"
-    if not os.path.exists(tcatpath):
-        with open(tcatpath, 'x', encoding='utf-8') as tempfile:
-            logger.info(tcatpath)
-    return tcatpath
-
-def TempSaveCats(): # save to the create Tempfile
-    AR_Var = bpy.context.preferences.addons[__package__].preferences
-    tcatpath = CreateTempCats()
-    with open(tcatpath, 'r+', encoding='utf-8') as tempfile:
-        tempfile.truncate(0)
-        tempfile.seek(0)
-        cats = []
-        for cat in AR_Var.Categories:
-            cats.append({
-                "name": cat.name,
-                "pn_name": cat.pn_name,
-                "pn_show": cat.pn_show,
-                "Instance_Start": cat.Instance_Start,
-                "Instance_length": cat.Instance_length
-            })
-        insts = []
-        for inst in AR_Var.Instance_Coll:
-            insts.append({
-                "name": inst.name,
-                "icon": inst.icon,
-                "command": [cmd.name for cmd in inst.command],
-                "macro" : [cmd.macro for cmd in inst.command]
-            })
-        data = {
-            "Instance_Index": AR_Var.Instance_Index,
-            "Categories": cats,
-            "Instance_Coll": insts
-        }
-        json.dump(data, tempfile)
 
 @persistent
 def TempLoadCats(dummy): #Load the Created tempfile
@@ -868,7 +809,7 @@ def TempLoadCats(dummy): #Load the Created tempfile
             inst.name = inst_coll[i]["name"]
             inst.icon = inst_coll[i]["icon"]
             for y in range(len(inst_coll[i]["command"])):
-                cmd = inst.command.add()
+                cmd = inst.commands.add()
                 cmd.name = inst_coll[i]["command"][y]
                 cmd.maro = inst_coll[i]["macro"][y]
         index = data["Instance_Index"]
@@ -906,17 +847,17 @@ def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collectio
     for x in range(len(collection) - 1, index, -1):# go the array backwards
         collection[x].name = collection[x - 1].name
         collection[x].icon = collection[x - 1].icon
-        collection[x].command.clear()
-        for command in collection[x - 1].command:
-            cmd = collection[x].command.add()
+        collection[x].commands.clear()
+        for command in collection[x - 1].commands:
+            cmd = collection[x].commands.add()
             cmd.name = command.name
     collection[index].name = data["name"]
     collection[index].icon = check_icon(data["icon"])
-    collection[index].command.clear()
+    collection[index].commands.clear()
     commands = data["command"]
     macros = data["macro"]
     for i in range(len(commands)):
-        cmd = collection[index].command.add()
+        cmd = collection[index].commands.add()
         cmd.name = commands[i]
         cmd.macro = macros[i]
 
@@ -1057,7 +998,7 @@ def LoadActionFromTexteditor(texts, replace = True):
                 splitlines = line.split("#")
                 Add(len(AR_Var.Record_Coll[0].Command), "#".join(splitlines[:-1]), splitlines[-1])
 
-def showCategory(name, context):
+def show_category(name, context):
     AR_Var = context.preferences.addons[__package__].preferences
     if AR_Var.ShowAllCategories:
         return True
@@ -1141,41 +1082,7 @@ def getFontPath():
     else:
         return bpy.context.preferences.view.font_path_ui
 
-def update_macro(macro: str):
-    if macro.startswith("bpy.ops."):
-        command, values = macro.split("(", 1)
-        values = extract_properties(values[:-1])
-        for i in range(len(values)):
-            values[i] = values[i].strip().split("=")
-        try:
-            props = eval(command + ".get_rna_type().properties[1:]")
-        except:
-            return None
-        inputs = []
-        for prop in props:
-            for value in values:
-                if value[0] == prop.identifier:
-                    inputs.append(value[0] + "=" + value[1])
-                    values.remove(value)
-                    break
-        return command + "(" + ", ".join(inputs) + ")"
-    else:
-        return False
 
-def extract_properties(properties :str):
-    properties = properties.split(",")
-    new_props = []
-    prop_str = ''
-    for prop in properties:
-        prop = prop.split('=')
-        if prop[0].strip().isidentifier() and len(prop) > 1:
-            new_props.append(prop_str)
-            prop_str = ''
-            prop_str += "=".join(prop)
-        else:
-            prop_str += "," + prop[0]
-    new_props.append(prop_str)
-    return new_props[1:]
 # endregion
 
 # region Panels
@@ -1317,9 +1224,9 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
         def draw(self, context):
             layout = self.layout
             AR_Var = context.preferences.addons[__package__].preferences
-            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Manual", icon= 'ASSET_MANAGER').url = config["Manual_URL"]
-            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Hint", icon= 'HELP').url = config["Hint_URL"]
-            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Bug Report", icon= 'URL').url = config["BugReport_URL"]
+            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Manual", icon= 'ASSET_MANAGER').url = config["manual_url"]
+            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Hint", icon= 'HELP').url = config["hint_url"]
+            layout.operator(AR_OT_Help_OpenURL.bl_idname, text= "Bug Report", icon= 'URL').url = config["bug_report_url"]
             row = layout.row()
             if AR_Var.Update:
                 row.operator(AR_OT_update.bl_idname, text= "Update")
@@ -1384,295 +1291,6 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
 # endregion
         
 # region Opertators
-
-
-
-
-
-
-
-class AR_OT_Category_MoveUp(Operator):
-    bl_idname = "ar.category_move_up"
-    bl_label = "Move Up"
-    bl_description = "Move the Category up"
-
-    Index : IntProperty()
-
-    def invoke(self, context, event):
-        AR_Var = context.preferences.addons[__package__].preferences
-        i = self.Index
-        categories = AR_Var.Categories
-        y = i - 1
-        if y >= 0:
-            cat2 = categories[y]
-            while not showCategory(cat2.pn_name, context):
-                y -= 1
-                if y < 0:
-                    return {"CANCELLED"}
-                cat2 = categories[y]
-            cat1 = categories[i]
-            cat1.name, cat2.name = cat2.name, cat1.name
-            cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
-            cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
-            cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
-            cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
-            cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
-            AR_Var.Selected_Category[y].selected = True
-        bpy.context.area.tag_redraw()
-        TempSaveCats()
-        if AR_Var.Autosave:
-            Save()
-        return {"FINISHED"}
-classes.append(AR_OT_Category_MoveUp)
-
-class AR_OT_Category_MoveDown(Operator):
-    bl_idname = "ar.category_move_down"
-    bl_label = "Move Down"
-    bl_description = "Move the Category down"
-
-    Index : IntProperty()
-
-    def invoke(self, context, event):
-        AR_Var = context.preferences.addons[__package__].preferences
-        i = self.Index
-        categories = AR_Var.Categories
-        y = i + 1 
-        if y < len(categories):
-            cat2 = categories[y]
-            while not showCategory(cat2.pn_name, context):
-                y += 1
-                if y >= len(categories):
-                    return {"CANCELLED"}
-                cat2 = categories[y]
-            cat1 = categories[i]
-            cat1.name, cat2.name = cat2.name, cat1.name
-            cat1.pn_name, cat2.pn_name = cat2.pn_name, cat1.pn_name
-            cat1.pn_show, cat2.pn_show = cat2.pn_show, cat1.pn_show
-            cat1.pn_selected, cat2.pn_selected = cat2.pn_selected, cat1.pn_selected
-            cat1.Instance_Start, cat2.Instance_Start = cat2.Instance_Start, cat1.Instance_Start
-            cat1.Instance_length, cat2.Instance_length = cat2.Instance_length, cat1.Instance_length
-            AR_Var.Selected_Category[y].selected = True
-        bpy.context.area.tag_redraw()
-        TempSaveCats()
-        if AR_Var.Autosave:
-            Save()
-        return {"FINISHED"}
-classes.append(AR_OT_Category_MoveDown)
-
-class AR_OT_RecordToButton(Operator):
-    bl_idname = "ar.record_record_to_button"
-    bl_label = "Action to Global"
-    bl_description = "Add the selected Action to a Category"
-
-    @classmethod
-    def poll(cls, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Record_Coll[CheckCommand(0)].Command)
-
-    def execute(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        categories = AR_Var.Categories
-        if len(categories):
-            for cat in categories:
-                if cat.pn_selected:
-                    Recorder_to_Instance(cat)
-                    break
-            if AR_Var.RecToBtn_Mode == 'move':
-                Remove(0)
-                TempUpdate()
-            TempSaveCats()
-            if AR_Var.Autosave:
-                Save()
-            bpy.context.area.tag_redraw()
-            return {"FINISHED"}
-        else:
-            return {'CANCELLED'}
-
-    def draw(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        categories = AR_Var.Categories
-        layout = self.layout
-        if len(categories):
-            for cat in categories:
-                layout.prop(cat, 'pn_selected', text= cat.pn_name)
-        else:
-            box = layout.box()
-            col = box.column()
-            col.scale_y = 0.9
-            col.label(text= 'Please Add a Category first', icon= 'INFO')
-            col.label(text= 'To do that, go to the Advanced menu', icon= 'BLANK1')
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_RecordToButton)
-
-class AR_OT_Import(Operator, ImportHelper):
-    bl_idname = "ar.data_import"
-    bl_label = "Import"
-    bl_description = "Import the Action file into the storage"
-
-    filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
-
-    Category : StringProperty(default= "Imports")
-    AddNewCategory : BoolProperty(default= False)
-    Mode : EnumProperty(name= 'Mode', items= [("add","Add",""),("overwrite", "Overwrite", "")])
-
-    def execute(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        scene = context.scene
-        ar_categories = AR_Var.Categories
-        if self.filepath.endswith(".zip"):
-            if self.AddNewCategory:
-                dirfileslist, sorteddirlist = ImportSortedZip(self.filepath)
-                with zipfile.ZipFile(self.filepath, 'r') as zip_out:
-                    mycat = ar_categories.add()
-                    name = CheckForDublicates([n.pn_name for n in ar_categories], self.Category)
-                    mycat.name = name
-                    mycat.pn_name = name
-                    mycat.Instance_Start = len(AR_Var.Instance_Coll)
-                    RegisterUnregister_Category(ar_category.functions.get_panel_index(mycat))
-                    for dirs in dirfileslist:
-                        for btn_file in dirs:
-                            name_icon = os.path.splitext(os.path.basename(btn_file))[0]
-                            name = "".join(name_icon.split("~")[1:-1])
-                            inst = AR_Var.Instance_Coll.add()
-                            inst.name = CheckForDublicates([AR_Var.Instance_Coll[i].name for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length)], name)
-                            inst.icon = check_icon(name_icon.split("~")[-1])
-                            for line in zip_out.read(btn_file).decode("utf-8").splitlines():
-                                cmd = inst.command.add()
-                                cmd.name = line
-                            new_e = AR_Var.ar_enum.add()
-                            e_index = len(AR_Var.ar_enum) - 1
-                            new_e.name = str(e_index)
-                            new_e.Index = e_index
-                            mycat.Instance_length += 1
-            else:
-                if not len(AR_Var.Importsettings):
-                    if bpy.ops.ar.data_import_options('EXEC_DEFAULT', filepath= self.filepath, fromoperator= True) == {'CANCELLED'}:
-                        self.report({'ERROR'}, "The selected file is not compatible")
-                        return {'CANCELLED'}
-                for icat in AR_Var.Importsettings:
-                    Index = -1
-                    mycat = None
-                    if icat.enum == 'append':
-                        Index = AR_Var.Categories.find(icat.cat_name)
-                    if Index == -1:
-                        mycat = ar_categories.add()
-                        name = icat.cat_name
-                        name = CheckForDublicates([n.pn_name for n in ar_categories], name)
-                        mycat.name = name
-                        mycat.pn_name = name
-                        mycat.Instance_Start = len(AR_Var.Instance_Coll)
-                        RegisterUnregister_Category(ar_category.functions.get_panel_index(mycat))
-                    else:
-                        mycat = ar_categories[Index]
-                        for btn in icat.Buttons:
-                            if btn.enum == 'overwrite':
-                                for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length):
-                                    inst = AR_Var.Instance_Coll[i]
-                                    if btn.btn_name == inst.name:
-                                        inst.name = btn.btn_name
-                                        inst.icon = check_icon(btn.icon)
-                                        inst.command.clear()
-                                        for cmd in btn.command.splitlines():
-                                            new = inst.command.add()
-                                            new.name = cmd
-                                        break
-                                else:
-                                    btn.enum = 'add'
-
-                    for btn in icat.Buttons:
-                        if btn.enum == 'overwrite':
-                            continue
-                        inserti = mycat.Instance_Start + mycat.Instance_length
-                        name = btn.btn_name
-                        icon = btn.icon
-                        data = {"name": CheckForDublicates([AR_Var.Instance_Coll[i].name for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length)], name),
-                                "command": btn.command.splitlines(),
-                                "icon": icon}
-                        Inst_Coll_Insert(inserti, data, AR_Var.Instance_Coll)
-                        new_e = AR_Var.ar_enum.add()
-                        e_index = len(AR_Var.ar_enum) - 1
-                        new_e.name = str(e_index)
-                        new_e.Index = e_index
-                        mycat.Instance_length += 1
-                        if Index != -1:
-                            for cat in ar_categories[Index + 1:] :
-                                cat.Instance_Start += 1
-            set_enum_index()()
-            if AR_Var.Autosave:
-                Save()
-        else:
-            self.report({'ERROR'}, "{ " + self.filepath + " } Select a .zip file")
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.Importsettings.clear()
-        TempSaveCats()
-        return {"FINISHED"}
-    
-    def draw(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        layout = self.layout
-        layout.prop(self, 'AddNewCategory', text= "Append to new Category")
-        if self.AddNewCategory:
-            layout.prop(self, 'Category', text= "Name")
-        else:
-            layout.operator(AR_OT_ImportLoadSettings.bl_idname, text= "Load Importsettings").filepath = self.filepath
-            for cat in AR_Var.Importsettings:
-                box = layout.box()
-                col = box.column()
-                row = col.row()
-                if cat.show:
-                    row.prop(cat, 'show', icon="TRIA_DOWN", text= "", emboss= False)
-                else:
-                    row.prop(cat, 'show', icon="TRIA_RIGHT", text= "", emboss= False)
-                row.label(text= cat.cat_name)
-                row.prop(cat, 'enum', text= "")
-                if cat.show:
-                    col = box.column()
-                    for btn in cat.Buttons:
-                        row = col.row()
-                        row.label(text= btn.btn_name)
-                        if cat.enum == 'append':
-                            row.prop(btn, 'enum', text= "")
-        
-    def cancel(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.Importsettings.clear()
-classes.append(AR_OT_Import)
-
-class AR_OT_ImportLoadSettings(Operator):
-    bl_idname = "ar.data_import_options"
-    bl_label = "Load Importsettings"
-    bl_description = "Load the select the file to change the importsettings"
-
-    filepath : StringProperty()
-    fromoperator : BoolProperty()
-
-    def execute(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        if os.path.exists(self.filepath) and self.filepath.endswith(".zip"):
-            dirfileslist, sorteddirlist = ImportSortedZip(self.filepath)
-            if dirfileslist is None:
-                if not self.fromoperator:
-                    self.report({'ERROR'}, "The selected file is not compatible")
-                self.fromoperator = False
-                return {'CANCELLED'}
-            with zipfile.ZipFile(self.filepath, 'r') as zip_out:
-                AR_Var.Importsettings.clear()
-                for i in range(len(sorteddirlist)):
-                    cat = AR_Var.Importsettings.add()
-                    cat.cat_name = "".join(sorteddirlist[i].split("~")[1:])
-                    for dir_file in dirfileslist[i]:
-                        btn = cat.Buttons.add()
-                        name_icon = os.path.splitext(os.path.basename(dir_file))[0]
-                        btn.btn_name = "".join(name_icon.split("~")[1:-1])
-                        btn.icon = name_icon.split("~")[-1]
-                        btn.command = zip_out.read(dir_file).decode("utf-8")
-                return {"FINISHED"}
-        else:
-            self.report({'ERROR'}, "You need to select a .zip file")
-            return {'CANCELLED'}
-classes.append(AR_OT_ImportLoadSettings)
 
 class AR_OT_Export(Operator, ExportHelper):
     bl_idname = "ar.data_export"
@@ -1768,7 +1386,7 @@ class AR_OT_Export(Operator, ExportHelper):
         for inst in AR_Var.Instance_Coll:
             AR_preferences.FileDisp_Name.append(inst.name)
             AR_preferences.FileDisp_Icon.append(inst.icon)
-            AR_preferences.FileDisp_Command.append([cmd.name for cmd in inst.command])
+            AR_preferences.FileDisp_Command.append([cmd.name for cmd in inst.commands])
         scene.ar_filedisp.clear()
         for i in range(len(AR_Var.ar_enum)):
             scene.ar_filedisp.add()
@@ -2199,10 +1817,10 @@ class AR_OT_Command_Add(Operator):
     def execute(self, context):
         AR_Var = bpy.context.preferences.addons[__package__].preferences
         scene = context.scene
-        if self.command == "":
+        if self.commands == "":
             message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)
         else:
-            message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1, self.command)
+            message = Add(AR_Var.Record_Coll[CheckCommand(0)].Index + 1, self.commands)
         if message == "<Empty>":
             rec = AR_Var.Record_Coll[CheckCommand(AR_Var.Record_Coll[CheckCommand(0)].Index + 1)]
             index = len(rec.Command) - 1

@@ -41,13 +41,3 @@ class AR_OT_open_url(Operator):
         return properties.description
 classes.append(AR_OT_open_url)
 # endregion
-
-# region Registration
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-# endregion

@@ -7,20 +7,62 @@ import bpy
 from bpy.types import Panel
 
 # relative imports
-from .. import functions
+from . import globals
 # endregion
 
 classes = []
-space_types = [space.identifier for space in bpy.types.Panel.bl_rna.properties['bl_space_type'].enum_items] # get all registered Space Types of Blender
+standart_space_types = [space.identifier for space in bpy.types.Panel.bl_rna.properties['bl_space_type'].enum_items] # get all registered Space Types of Blender
+space_mode_attribute = {
+    'IMAGE_EDITOR': 'ui_mode',
+    'NODE_EDITOR': 'texture_type',
+    'SEQUENCE_EDITOR': 'view_type',
+    'CLIP_EDITOR': 'mode',
+    'DOPESHEET_EDITOR': 'ui_mode'
+}
+areas_to_spaces = {
+    'VIEW_3D': 'VIEW_3D', 
+    'IMAGE_EDITOR': 'IMAGE_EDITOR', 
+    'UV': 'IMAGE_EDITOR', 
+    'CompositorNodeTree': 'NODE_EDITOR', 
+    'TextureNodeTree': 'NODE_EDITOR', 
+    'GeometryNodeTree': 'NODE_EDITOR', 
+    'ShaderNodeTree': 'NODE_EDITOR', 
+    'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR', 
+    'CLIP_EDITOR': 'CLIP_EDITOR', 
+    'DOPESHEET': 'DOPESHEET_EDITOR', 
+    'TIMELINE': 'DOPESHEET_EDITOR', 
+    'FCURVES': 'GRAPH_EDITOR', 
+    'DRIVERS': 'GRAPH_EDITOR', 
+    'NLA_EDITOR': 'NLA_EDITOR', 
+    'TEXT_EDITOR': 'TEXT_EDITOR', 
+    'FILES': 'FILE_BROWSER'
+}
 
-# region Panels
-def register_category(index):
-    register_unregister_category(index)
+# region Panel
+def register_category(AR, category):
+    index = AR.categories.find(category.id)
+    space_types = [areas_to_spaces[area.type] for area in category.areas]
+    register_unregister_category(index, space_types)
 
-def unregister_category(index):
-    register_unregister_category(index, False)
+def unregister_category(AR, category):
+    index = AR.categories.find(category.id)
+    register_unregister_category(index, register = False)
 
-def register_unregister_category(index, register = True): #Register/Unregister one Category
+def show_category(context, category):
+    area_type = context.area.ui_type
+    area_space = context.area.type
+    for area in category.areas:
+        if area.type == area_type:
+            if len(area.modes) == 0:
+                return True
+            if area_space == 'VIEW_3D' or area_space == 'FILE_BROWSER':
+                mode = context.mode
+            else:
+                mode = getattr(context.space_data, space_mode_attribute[area_space])
+            return mode in set(mode.type for mode in area.modes)
+    return False
+
+def register_unregister_category(index, space_types = standart_space_types, register = True): #Register/Unregister one Category
     for spaceType in space_types:
         class AR_PT_category(Panel):
             bl_space_type = spaceType
@@ -35,28 +77,25 @@ def register_unregister_category(index, register = True): #Register/Unregister o
             def poll(self, context):
                 AR = context.preferences.addons[__package__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                if len(AR.categories) <= index:
-                    Load()
                 category = AR.categories[index]
-                return showCategory(category.label, context)
+                return show_category(category, context)
 
             def draw_header(self, context):
                 AR = context.preferences.addons[__package__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                category = AR.Categories[index]
+                category = AR.categories[index]
                 layout = self.layout
                 row = layout.row()
-                row.prop(AR.Selected_Category[index], 'selected', text= '', icon= 'LAYER_ACTIVE' if AR.Selected_Category[index].selected else 'LAYER_USED', emboss= False)
+                row.prop(AR.categories[index], 'selected', text= '', icon= 'LAYER_ACTIVE' if AR.categories[index].selected else 'LAYER_USED', emboss= False)
                 row.label(text= category.label)
 
             def draw(self, context):
                 AR = context.preferences.addons[__package__].preferences
-                scene = context.scene
                 index = int(self.bl_idname.split("_")[3])
-                category = AR.Categories[index]
+                category = AR.categories[index]
                 layout = self.layout
                 col = layout.column()
-                for i in range(category.Instance_Start, category.Instance_Start + category.Instance_length):
+                for i in range(category.start, category.start + category.length):
                     globals.draw_actions(col, AR, i)
         AR_PT_category.__name__ = "AR_PT_category_%s_%s" %(index, spaceType)
         if register:
@@ -64,15 +103,11 @@ def register_unregister_category(index, register = True): #Register/Unregister o
             classes.append(AR_PT_category)
         else:
             with suppress(Exception):
-                panel = eval("bpy.types.%s" %AR_PT_category.__name__)
-                bpy.utils.unregister_class(panel)
-                classes.remove(panel)
+                if hasattr(bpy.types, AR_PT_category.__name__):
+                    panel = getattr(bpy.types, AR_PT_category.__name__)
+                    bpy.utils.unregister_class(panel)
+                    classes.remove(panel)
     AR = bpy.context.preferences.addons[__package__].preferences
-    if register:
-        new = AR.selected_category.add()
-        new.index = index
-    else:
-        AR.selected_category.remove(len(AR.Selected_Category) - 1)
-    if functions.get_selected_index(AR.selected_category) is None and len(AR.selected_category):
-        AR.selected_category[0].selected = True
+    if AR.selected_category == '' and len(AR.categories):
+        AR.categories[0].selected = True
 # endregion

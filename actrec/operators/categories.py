@@ -1,18 +1,21 @@
 # region Imports
+# externals modules
+from collections import defaultdict
+
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, EnumProperty
+from bpy.props import StringProperty, EnumProperty, IntProperty
 
 # relative imports
-from .. import functions
+from .. import functions, ui
 # endregion
 
 classes = []
 
 # region Operators
 class AR_OT_category_interface(Operator):
-
+    
     """import bpy
         try:
             bpy.context.area.ui_type = ""
@@ -22,7 +25,8 @@ class AR_OT_category_interface(Operator):
             my_dict = {}
             for item in enum_items:
                 bpy.context.area.ui_type = item
-                my_dict[item] = bpy.context.area.type
+                if "UI" in [region.type for region in bpy.context.area.regions]: #only if ui_type has region UI
+                    my_dict[item] = bpy.context.area.type
             print(my_dict)
             bpy.context.area.ui_type = current_ui_type
     """ # code to get areas_to_spaces
@@ -39,16 +43,11 @@ class AR_OT_category_interface(Operator):
         'CLIP_EDITOR': 'CLIP_EDITOR', 
         'DOPESHEET': 'DOPESHEET_EDITOR', 
         'TIMELINE': 'DOPESHEET_EDITOR', 
-        'FCURVES': 'GRAPH_EDITOR', 
-        'DRIVERS': 'GRAPH_EDITOR', 
+        'FCURVES': 'GRAPH_EDITOR',
+        'DRIVERS': 'GRAPH_EDITOR',
         'NLA_EDITOR': 'NLA_EDITOR', 
         'TEXT_EDITOR': 'TEXT_EDITOR', 
-        'CONSOLE': 'CONSOLE', 
-        'INFO': 'INFO', 
-        'OUTLINER': 'OUTLINER', 
-        'PROPERTIES': 'PROPERTIES', 
-        'FILES': 'FILE_BROWSER', 
-        'PREFERENCES': 'PREFERENCES'
+        'FILES': 'FILE_BROWSER'
     }
 
     modes = {
@@ -61,15 +60,8 @@ class AR_OT_category_interface(Operator):
         'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items], 
         'GRAPH_EDITOR': [], 
         'NLA_EDITOR': [], 
-        'TEXT_EDITOR': [], 
-        'CONSOLE': [], 
-        'INFO': [],  
-        'TOPBAR': [], 
-        'STATUSBAR': [],  
-        'OUTLINER': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items], 
-        'PROPERTIES': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items], 
-        'FILE_BROWSER': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items], 
-        'PREFERENCES': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items]
+        'TEXT_EDITOR': [],
+        'FILE_BROWSER': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items]
     }
 
     area_items = [ # (identifier, name, description, icon, value)
@@ -88,34 +80,31 @@ class AR_OT_category_interface(Operator):
         ('DRIVERS', 'Drivers', '', 'DRIVER', 12),
         ('NLA_EDITOR', 'Nonlinear Animation', '', 'NLA', 13),
         ('TEXT_EDITOR', 'Text Editor', '', 'TEXT', 14),
-        ('CONSOLE', 'Python Console', '', 'CONSOLE', 15),
-        ('INFO', 'Info', '', 'INFO', 16),
-        ('OUTLINER', 'Outliner', '', 'OUTLINER', 17),
-        ('PROPERTIES', 'Properties', '', 'PROPERTIES', 18),
-        ('FILES', 'File Browser', '', 'FILEBROWSER', 19),
-        ('PREFERENCES', 'Preferneces', '', 'PREFERENCES', 20)
+        ('FILES', 'File Browser', '', 'FILEBROWSER', 19)
     ]
     def mode_items(self, context) -> list:
-        return self.modes.get(self.areas_to_spaces[self.area], [])
+        l = self.modes.get(self.areas_to_spaces[self.area], [])
+        l.append(("all", "All", "use in all available modes", "GROUP_VCOL", len(l)))
+        return l
 
-    label : StringProperty(name = "Category Label", default="")
+    id : StringProperty(name = "Category ID", default="")
     area : EnumProperty(items= area_items, name= "Area", description= "Shows all available areas for the panel")
     mode : EnumProperty(items= mode_items, name= "Mode", description= "Shows all available modes for the selected area")
 
-    def apply_visibility(self, category_visibility: dict, visibility_options: dict, label: str) -> None:
-        for area in visibility_options:
-            file_area = category_visibility[area]
-            file_area['categories'].append(label)
-            for mode in visibility_options[area]:
-                file_area['Mode'][mode].append(label)
-        functions.write_category_visibility(category_visibility)
+    category_visibility = []
 
-    def category_visibility_to_list(visibility_options: dict) -> list:
-        l = []
-        for area in visibility_options:
-            for mode in visibility_options[area]:
-                l.append((area, mode))
-        return l
+    def apply_visibility(self, AR, category_visibility: list, id: str) -> None:
+        category = AR.categories[id]
+        visibility = defaultdict(list)
+        for area, mode in category_visibility:
+            visibility[area].append(mode)
+        for area, modes in visibility.items():
+            new_area.type = area
+            new_area = category.areas.add()
+            if None not in modes:
+                for mode in modes:
+                    new_mode = new_area.modes.add()
+                    new_mode.type = mode
 
     def draw(self, context):
         layout = self.layout
@@ -126,40 +115,36 @@ class AR_OT_category_interface(Operator):
         ops = layout.operator(AR_OT_category_apply_visibility.bl_idname)
         ops.area = self.area
         ops.mode = self.mode
-        visibility_options = AR_preferences.category_visibility_data
-        if len(visibility_options) > 0:
+        if len(AR_OT_category_interface.category_visibility) > 0:
             box = layout.box()
             row = box.row()
             row.label(text= "Area")
             row.label(text= "Mode")
             row.label(icon= 'BLANK1')
-            for visbility in self.category_visibility_to_list(visibility_options):
+            for i, (area, mode) in enumerate(AR_OT_category_interface.category_visibility):
                 row = box.row()
-                row.label(text= visbility[0])
-                row.label(text= visbility[1])
-                ops = row.operator(AR_OT_category_delete_visibility.bl_idname, text= '', icon= 'PANEL_CLOSE', emboss= False)
-                ops.area = self.area
-                ops.mode = self.mode
+                row.label(text= area)
+                row.label(text= mode)
+                row.operator(AR_OT_category_delete_visibility.bl_idname, text= '', icon= 'PANEL_CLOSE', emboss= False).index = i
 
 class AR_OT_category_add(AR_OT_category_interface, Operator):
     bl_idname = "ar.category_add"
     bl_label = "Add Category"
 
     def invoke(self, context, event):
-        AR_preferences.category_visibility_data.clear()
+        AR_OT_category_interface.category_visibility.clear()
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         new = AR.categories.add()
-        label = shared.check_for_dublicates([n.label for n in AR.categories], self.label)
-        new.label = label
+        new.label = functions.check_for_dublicates([c.label for c in AR.categories], self.label)
         new.start = len(AR.Instance_Coll)
         new.length = 0
-        register_unregister_category(get_panel_index(new))
+        self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
+        ui.register_category(AR.categories.find(new.id))
         bpy.context.area.tag_redraw()
-        self.apply_visibility(read_category_visbility(), AR_preferences.category_visibility_data, label)
-        category_runtime_save(AR)
+        functions.category_runtime_save(AR)
         return {"FINISHED"}
 classes.append(AR_OT_category_add)
 
@@ -169,7 +154,6 @@ class AR_OT_category_edit(AR_OT_category_interface ,Operator):
     bl_description = "Edit the selected Category"
 
     cancel_data = {}
-    category_visibility = {}
 
     @classmethod
     def poll(cls, context):
@@ -177,28 +161,15 @@ class AR_OT_category_edit(AR_OT_category_interface ,Operator):
         return len(AR.Categories)
 
     def invoke(self, context, event):
-        self.cancel_data = defaultdict(list)
-        label = self.label
-        
-        self.category_visibility = read_category_visbility()
-        for area in self.category_visibility:
-            category_visibility_area = self.category_visibility[area]
-            if label in category_visibility_area.get('categories', []):
-                category_visibility_area['categories'].remove(label)
-                self.cancel_data[area] = []
-                cancel_data_area = self.cancel_data[area]
-            for mode in category_visibility_area.get('Mode', {}):
-                category_visibility_mode = category_visibility_area['Mode'][mode]
-                if label in category_visibility_mode:
-                   category_visibility_mode.remove(label)
-                   cancel_data_area.append(mode)
-        AR_preferences.category_visibility_data = self.cancel_data
+        AR = context.preferences.addons[__package__].preferences
+        id = self.id
+        AR_OT_category_interface.category_visibility = functions.read_category_visbility(AR, id)
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        self.apply_visibility(self.category_visibility, AR_preferences.category_visibility_data, self.label)
-        category_runtime_save(AR)
+        self.apply_visibility(AR_OT_category_interface.category_visibility, self.id)
+        functions.category_runtime_save(AR)
         return {"FINISHED"}
 classes.append(AR_OT_category_edit)
 
@@ -212,7 +183,10 @@ class AR_OT_category_apply_visibility(Operator):
     area : StringProperty()
 
     def execute(self, context):
-        AR_preferences.category_visibility_data[self.area].append(self.mode)
+        if self.mode == 'all':
+            AR_OT_category_interface.category_visibility.append((self.area, None))
+        else:
+            AR_OT_category_interface.category_visibility.append((self.area, self.mode))
         return {"FINISHED"}
 classes.append(AR_OT_category_apply_visibility)
 
@@ -222,15 +196,10 @@ class AR_OT_category_delete_visibility(Operator):
     bl_description = ""
     bl_options = {"INTERNAL"}
 
-    mode : StringProperty()
-    area : StringProperty()
+    index : IntProperty()
 
     def execute(self, context):
-        area = AR_preferences.category_visibility_data.get(self.area, None)
-        if isinstance(area, list) and self.mode in area:
-            AR_preferences.category_visibility_data[area].remove(self.mode)
-            if len(AR_preferences.category_visibility_data[area]) == 0:
-                AR_preferences.category_visibility_data.pop(area)
+        AR_OT_category_interface.category_visibility.pop(self.index)
         return {"FINISHED"}
 classes.append(AR_OT_category_delete_visibility)
 
@@ -250,30 +219,19 @@ class AR_OT_category_delete(Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         categories = AR.categories
-        index = get_selected_index(AR.selected_category)
-        if not index is None:
-            categorie = categories[index]
-            label = categorie.label
-            start = categorie.start
-            for i in range(start, start + categorie.length):
-                AR.category_action_enum.remove(len(AR.category_action_enum) - 1)
+        id = AR.selected_category
+        if id != '':
+            category = categories[id]
+            start = category.start
+            length = category.length
+            for i in range(start, start + length):
                 AR.global_actions.remove(start)
-            adjust_categories(categories, categorie, -categorie.length)
-            categories.remove(index)
-            unregister_category(len(categories))
-            globals.functions.set_enum_index()
-            category_visibility = read_category_visbility()
-            for area in category_visibility.get('Area', {}):
-                if label in category_visibility['Area'][area].get('categories', []): 
-                    category_visibility['Area'][area]['categories'].remove(label)
-                for mode in category_visibility['Area'].get('Mode', {}):
-                    if label in category_visibility['Mode'][mode]:
-                        category_visibility['Mode'][mode].remove(label)
-            write_category_visibility(category_visibility)
+            functions.adjust_categories(categories, category, -length)
+            categories.remove(categories.find(id))
+            ui.unregister_category(AR, category)
+            functions.set_enum_index(AR)
         bpy.context.area.tag_redraw()
-        categories .functions.category_runtime_save(AR)
-        if AR.Autosave:
-            Save()
+        functions.category_runtime_save(AR)
         return {"FINISHED"}
     
     def draw(self, context):    
@@ -281,14 +239,62 @@ class AR_OT_category_delete(Operator):
         layout = self.layout
         layout.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
 classes.append(AR_OT_category_delete)
-# endregion
 
-# region Registration
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
+class AR_OT_category_move_up(Operator):
+    bl_idname = "ar.category_move_up"
+    bl_label = "Move Up"
+    bl_description = "Move the Category up"
 
-def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
+    Index : IntProperty()
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        i = self.Index
+        categories = AR.categories
+        y = i - 1
+        if y >= 0:
+            swap_category = categories[y]
+            while not show_category(swap_category, context): # get next visible category
+                y -= 1
+                if y < 0:
+                    return {"CANCELLED"}
+                swap_category = categories[y]
+            functions.swap_categories(categories[i], swap_category)
+            AR.categories[y].selected = True
+            bpy.context.area.tag_redraw()
+            functions.category_runtime_save(AR)
+            if AR.autosave:
+                Save()
+            return {"FINISHED"}
+        return {'CANCELLED'}
+classes.append(AR_OT_category_move_up)
+
+class AR_OT_category_move_down(Operator):
+    bl_idname = "ar.category_move_down"
+    bl_label = "Move Down"
+    bl_description = "Move the Category down"
+
+    Index : IntProperty()
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        i = self.Index
+        categories = AR.categories
+        y = i + 1 
+        if y < len(categories):
+            swap_category = categories[y]
+            while not show_category(swap_category, context): # get next visible category
+                y += 1
+                if y >= len(categories):
+                    return {"CANCELLED"}
+                swap_category = categories[y]
+            functions.swap_categories(categories[i], swap_category)
+            AR.categories[y].selected = True
+            bpy.context.area.tag_redraw()
+            functions.category_runtime_save(AR)
+            if AR.autosave:
+                Save()
+            return {"FINISHED"}
+        return {'CANCELLED'}
+classes.append(AR_OT_category_move_down)
 # endregion

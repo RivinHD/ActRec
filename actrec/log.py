@@ -9,14 +9,14 @@ import sys
 import bpy
 
 # relative imports
-from ..__init__ import bl_info
-from .preferences import AR_preferences
+from . import config
 # endregion
 
 # region Logsystem 
 class log_system:
     def __init__(self, count: int) -> None:
-        dirc = os.path.join(AR_preferences.addon_directory, "logs")
+        AR = bpy.context.preferences.addons[__package__].preferences
+        dirc = os.path.join(AR.addon_directory, "logs")
         if not os.path.exists(dirc):
             os.mkdir(dirc)
         all_logs = os.listdir(dirc)
@@ -37,7 +37,7 @@ class log_system:
         file_handler.setLevel(logger.level)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-        logger.info("Logging ActRec %s %s %s" %(".".join([str(x) for x in bl_info['version']]), "running on Blender", bpy.app.version_string))
+        logger.info("Logging ActRec %s %s %s" %(".".join([str(x) for x in config.info]), "running on Blender", bpy.app.version_string))
         for log_text in loglater:
             logger.info(log_text)
         self.logger = logger

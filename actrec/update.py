@@ -5,7 +5,6 @@ import requests
 import json
 import base64
 import os
-import zipfile
 import subprocess
 from collections import defaultdict
 
@@ -16,7 +15,7 @@ from bpy.props import BoolProperty
 from bpy_extras.io_utils import ExportHelper
 
 # realtive imports
-from .config import config
+from . import config
 from .log import logger
 # endregion
 
@@ -50,7 +49,7 @@ def start_update(download_file) -> bool:
     if download_paths is None:
         return False
     for path in download_paths:
-        update_manager.update_responds[path] = requests.get(config["repoSource_URL"] + path, stream= True)
+        update_manager.update_responds[path] = requests.get(config.repo_source_url + path, stream= True)
     logger.info("Start Update Process")
 
 def update(AR, update_responds: dict, download_chunks: dict) -> bool:
@@ -100,7 +99,7 @@ def install_update(AR, download_chunks: dict, download_file: dict) -> None:
 
 def start_get_online_download_file() -> None:
     try:
-        update_manager.download_file['respond'] = requests.get(config["checkSource_URL"], stream= True)
+        update_manager.download_file['respond'] = requests.get(config.check_source_url, stream= True)
         update_manager.download_file['chunk'] = []
         logger.info("Start Download: download_file")
     except Exception as err:
@@ -170,7 +169,7 @@ def draw_update_button(layout, AR) -> None:
         row.enable = False
         row.prop(AR, 'update_progress', text= "Progress", slider=True)
     else:
-        layout.operator(AR_OT_update.bl_idname, text= 'Update')
+        layout.operator('ar.update', text= 'Update')
 # endregion
 
 # region Operator
