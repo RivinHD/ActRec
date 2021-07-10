@@ -61,6 +61,8 @@ class Data:
     alert_index = None
     activeareas = []
     ActiveTimers = 0
+    temp_save = {}
+    temp_save_cat = {}
 # endregion
 
 # region UIList
@@ -203,70 +205,45 @@ def Record(Num, Mode):
         bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
         return notadded
 
-def CreateTempFile():
-    tpath = bpy.app.tempdir + "temp.json"
-    if not os.path.exists(tpath):
-        logger.info(tpath)
-        with open(tpath, 'w', encoding='utf8') as tempfile:
-            json.dump({"0":[]}, tempfile)
-    return tpath
-
 def TempSave(Num):  # write new record to temp.json file
-    tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:   
-        data = json.load(tempfile)
-        data.update({str(Num):[]})
-        data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
-        tempfile.truncate(0)
-        tempfile.seek(0)
-        json.dump(data, tempfile)
+    data = Data.temp_save
+    data.update({str(Num):[]})
+    data["0"] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(0)].Command]
 
 def TempUpdate(): # update all records in temp.json file
-    tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:
-        tempfile.truncate(0)    
-        tempfile.seek(0)
-        data = {}
-        for cmd in range(len(AR_Var.Record_Coll[CheckCommand(0)].Command) + 1):
-            data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
-        json.dump(data, tempfile)
+    Data.temp_save.clear()
+    data = Data.temp_save
+    for cmd in range(len(AR_Var.Record_Coll[CheckCommand(0)].Command) + 1):
+        data.update({str(cmd):[{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(cmd)].Command]})
 
 def TempUpdateCommand(Key): # update one record in temp.json file
-    tpath = CreateTempFile()
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    with open(tpath, 'r+', encoding='utf8') as tempfile:
-        data = json.load(tempfile)
-        data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
-        tempfile.truncate(0)
-        tempfile.seek(0)
-        json.dump(data, tempfile)
+    data = Data.temp_save
+    data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR_Var.Record_Coll[CheckCommand(int(Key))].Command]
 
 @persistent
 def TempLoad(dummy): # load records after undo
-    tpath = bpy.app.tempdir + "temp.json"
     ontempload[0] = True
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    if os.path.exists(tpath):
-        with open(tpath, 'r', encoding='utf8') as tempfile:
-            data = json.load(tempfile)
-        command = AR_Var.Record_Coll[CheckCommand(0)].Command
-        command.clear()
-        keys = list(data.keys())
-        for i in range(1, len(data)):
-            Item = command.add()
-            Item.macro = data["0"][i - 1]["macro"]
-            Item.cname = data["0"][i - 1]["name"]
-            Item.icon = data["0"][i - 1]["icon"]
-            record = AR_Var.Record_Coll[CheckCommand(i)].Command
-            record.clear()
-            for j in range(len(data[keys[i]])):
-                Item = record.add()
-                Item.macro = data[keys[i]][j]["macro"]
-                Item.cname = data[keys[i]][j]["name"]
-                Item.icon = data[keys[i]][j]["icon"]
-                Item.active = data[keys[i]][j]["active"]
+    data = Data.temp_save
+    command = AR_Var.Record_Coll[CheckCommand(0)].Command
+    command.clear()
+    keys = list(data.keys())
+    for i in range(1, len(data)):
+        Item = command.add()
+        Item.macro = data["0"][i - 1]["macro"]
+        Item.cname = data["0"][i - 1]["name"]
+        Item.icon = data["0"][i - 1]["icon"]
+        record = AR_Var.Record_Coll[CheckCommand(i)].Command
+        record.clear()
+        for j in range(len(data[keys[i]])):
+            Item = record.add()
+            Item.macro = data[keys[i]][j]["macro"]
+            Item.cname = data[keys[i]][j]["name"]
+            Item.icon = data[keys[i]][j]["icon"]
+            Item.active = data[keys[i]][j]["active"]
     ontempload[0] = False
 
 def getlastoperation(data, i=-1):
@@ -822,47 +799,34 @@ def SetEnumIndex(): #Set enum, if out of range to the first enum
         AR_Var.ar_enum[enumIndex].Value = True
         AR_Var.Instance_Index = enumIndex  
 
-def CreateTempCats(): #Creat temp file to save categories for ignoring Undo
-    tcatpath = bpy.app.tempdir + "tempcats.json"
-    if not os.path.exists(tcatpath):
-        with open(tcatpath, 'x', encoding='utf8') as tempfile:
-            logger.info(tcatpath)
-    return tcatpath
-
 def TempSaveCats(): # save to the create Tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    tcatpath = CreateTempCats()
-    with open(tcatpath, 'r+', encoding='utf8') as tempfile:
-        tempfile.truncate(0)
-        tempfile.seek(0)
-        cats = []
-        for cat in AR_Var.Categories:
-            cats.append({
-                "name": cat.name,
-                "pn_name": cat.pn_name,
-                "pn_show": cat.pn_show,
-                "Instance_Start": cat.Instance_Start,
-                "Instance_length": cat.Instance_length
-            })
-        insts = []
-        for inst in AR_Var.Instance_Coll:
-            insts.append({
-                "name": inst.name,
-                "icon": inst.icon,
-                "command": [cmd.name for cmd in inst.command],
-                "macro" : [cmd.macro for cmd in inst.command]
-            })
-        data = {
-            "Instance_Index": AR_Var.Instance_Index,
-            "Categories": cats,
-            "Instance_Coll": insts
-        }
-        json.dump(data, tempfile)
+    cats = []
+    for cat in AR_Var.Categories:
+        cats.append({
+            "name": cat.name,
+            "pn_name": cat.pn_name,
+            "pn_show": cat.pn_show,
+            "Instance_Start": cat.Instance_Start,
+            "Instance_length": cat.Instance_length
+        })
+    insts = []
+    for inst in AR_Var.Instance_Coll:
+        insts.append({
+            "name": inst.name,
+            "icon": inst.icon,
+            "command": [cmd.name for cmd in inst.command],
+            "macro" : [cmd.macro for cmd in inst.command]
+        })
+    Data.temp_save_cat = {
+        "Instance_Index": AR_Var.Instance_Index,
+        "Categories": cats,
+        "Instance_Coll": insts
+    }
 
 @persistent
 def TempLoadCats(dummy): #Load the Created tempfile
     AR_Var = bpy.context.preferences.addons[__package__].preferences
-    tcatpath = bpy.app.tempdir + "tempcats.json"
     AR_Var.ar_enum.clear()
     reg = bpy.ops.screen.redo_last.poll()
     if reg:
@@ -870,34 +834,33 @@ def TempLoadCats(dummy): #Load the Created tempfile
             RegisterUnregister_Category(GetPanelIndex(cat), False)
     AR_Var.Categories.clear()
     AR_Var.Instance_Coll.clear()
-    with open(tcatpath, 'r', encoding='utf8') as tempfile:
-        data = json.load(tempfile)
-        inst_coll = data["Instance_Coll"]
-        for i in range(len(inst_coll)):
-            inst = AR_Var.Instance_Coll.add()
-            inst.name = inst_coll[i]["name"]
-            inst.icon = inst_coll[i]["icon"]
-            for y in range(len(inst_coll[i]["command"])):
-                cmd = inst.command.add()
-                cmd.name = inst_coll[i]["command"][y]
-                cmd.maro = inst_coll[i]["macro"][y]
-        index = data["Instance_Index"]
-        AR_Var.Instance_Index = index
-        for i in range(len(AR_Var.Instance_Coll)):
-            new_e = AR_Var.ar_enum.add()
-            new_e.name = str(i)
-            new_e.Index = i
-        if len(AR_Var.ar_enum):
-            AR_Var.ar_enum[index].Value = True
-        for cat in data["Categories"]:
-            new = AR_Var.Categories.add()
-            new.name = cat["name"]
-            new.pn_name = cat["pn_name"]
-            new.pn_show = cat["pn_show"]
-            new.Instance_Start = cat["Instance_Start"]
-            new.Instance_length = cat["Instance_length"]
-            if reg:
-                RegisterUnregister_Category(GetPanelIndex(new))
+    data = Data.temp_save_cat
+    inst_coll = data["Instance_Coll"]
+    for i in range(len(inst_coll)):
+        inst = AR_Var.Instance_Coll.add()
+        inst.name = inst_coll[i]["name"]
+        inst.icon = inst_coll[i]["icon"]
+        for y in range(len(inst_coll[i]["command"])):
+            cmd = inst.command.add()
+            cmd.name = inst_coll[i]["command"][y]
+            cmd.maro = inst_coll[i]["macro"][y]
+    index = data["Instance_Index"]
+    AR_Var.Instance_Index = index
+    for i in range(len(AR_Var.Instance_Coll)):
+        new_e = AR_Var.ar_enum.add()
+        new_e.name = str(i)
+        new_e.Index = i
+    if len(AR_Var.ar_enum):
+        AR_Var.ar_enum[index].Value = True
+    for cat in data["Categories"]:
+        new = AR_Var.Categories.add()
+        new.name = cat["name"]
+        new.pn_name = cat["pn_name"]
+        new.pn_show = cat["pn_show"]
+        new.Instance_Start = cat["Instance_Start"]
+        new.Instance_length = cat["Instance_length"]
+        if reg:
+            RegisterUnregister_Category(GetPanelIndex(new))
 
 def CheckForDublicates(l, name, num = 1): #Check for name dublicates and appen .001, .002 etc.
     if name in l:

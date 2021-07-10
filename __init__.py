@@ -8,7 +8,7 @@ import traceback
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version": (3, 6, 7),
+    "version": (3, 6, 8),
     "blender": (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
