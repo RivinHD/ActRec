@@ -8,8 +8,8 @@ from typing import Optional
 import bpy
 
 # relative imports
-from . import globals
-from .. import properties
+from . import globals, shared
+from .. import shared_data
 # endregion
 
 # region functions
@@ -35,14 +35,10 @@ def read_category_visbility(AR, category_id) -> Optional[list]:
                     visibility.append((area['type'], None))
             return visibility
 
-def temp_save_categories(AR):
-    data = properties.data_manager.categories_temp
-
-
-def category_runtime_save(AR) -> None:
+def category_runtime_save(AR, use_autosave: bool = True) -> None:
     """includes autosave"""
-    temp_save_categories(AR)
-    if AR.autosave:
+    shared_data.data_manager.categories_temp = shared.property_to_python(AR.categories)
+    if use_autosave and AR.autosave:
         globals.save(AR)
 
 def adjust_categories(categories, category, change: int) -> None:
@@ -51,11 +47,24 @@ def adjust_categories(categories, category, change: int) -> None:
         if adjust_categorie.start > category.start:
             adjust_categorie.start += change
 
-def swap_categories(category_1, category_2) -> None:
-    category_1.id, category_2.id = category_2.id, category_1.id
-    category_1.label, category_2.label = category_2.label, category_1.label
-    category_1.selected, category_2.selected = category_2.selected, category_1.selected
-    category_1.start, category_2.start = category_2.start, category_1.start
-    category_1.length, category_2.length = category_2.length, category_1.length
-
+def category_visible(category, context) -> bool:
+    if not len(category.areas):
+        return True
+    for area in category.areas:
+        if context.area.ui_type == area.type:
+            if len(area.modes):
+                mode_from_space = {
+                    'IMAGE_EDITOR': 'ui_mode',
+                    'NODE_EDITOR': 'texture_type',
+                    'SEQUENCE_EDITOR': 'view_type',
+                    'CLIP_EDITOR': 'mode',
+                    'DOPESHEET_EDITOR': 'ui_mode',
+                    'FILE_BROWSER': 'mode'
+                }
+                space = context.space_data
+                space_mode = context.mode if space.type == 'VIEW_3D' else getattr(space, mode_from_space[space.type])
+                return space_mode in [mode.type for mode in area.modes]
+            else:
+                return True
+    return False
 # endregion

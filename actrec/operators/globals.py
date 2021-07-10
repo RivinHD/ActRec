@@ -1,15 +1,20 @@
 # region Imports
 # external modules
 import os
+from typing import Optional
+import zipfile
+from collections import defaultdict
+import uuid
+import json
 
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty, EnumProperty
-from bpy_extras.io_utils import ImportHelper
+from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty
+from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
-from .. import functions
+from .. import functions, properties
 # endregion
 
 classes = []
@@ -48,9 +53,7 @@ class AR_OT_gloabal_recategorize_action(Operator):
                     functions.adjust_categories(categories, category, 1)
                 functions.set_enum_index(AR)
                 bpy.context.area.tag_redraw()
-                functions.category_runtime_save(AR)
-                if AR.autosave:
-                    Save()
+                functions.global_runtime_save(AR)
                 return {"FINISHED"}
         return {'CANCELLED'}
 
@@ -70,129 +73,104 @@ class AR_OT_global_import(Operator, ImportHelper):
     filter_glob: StringProperty(default='*.zip;*.json', options={'HIDDEN'})
 
     category : StringProperty(default= "Imports")
-    AddNewCategory : BoolProperty(default= False)
     mode : EnumProperty(name= 'Mode', items= [("add","Add",""),("overwrite", "Overwrite", "")])
+
+    def get_commands_from_file(self, zip_file: zipfile.ZipFile, path: str) -> list:
+        lines = zip_file.read(path).splitlines(False)
+        commands = []
+        for line in lines:
+            split_line = line.split("#")
+            data = {'id' : uuid.uuid1().hex, 'active' : True, 'icon': 101}
+            if len(split_line) >= 2:
+                data['macro'] = "#".join(split_line[:-1])
+                data['label'] = split_line[-1]
+            else:
+                data['macro'] = split_line[0]
+                label = functions.get_name_of_command(split_line[0])
+                data['label'] = label if isinstance(label, str) else split_line[0]
+            commands.append(data)
+        return commands
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        ar_categories = AR.Categories
-        if self.filepath.endswith(".zip"):
-            if self.AddNewCategory:
-                dirfileslist, sorteddirlist = ImportSortedZip(self.filepath)
-                with zipfile.ZipFile(self.filepath, 'r') as zip_out:
-                    mycat = ar_categories.add()
-                    name = CheckForDublicates([n.pn_name for n in ar_categories], self.Category)
-                    mycat.name = name
-                    mycat.pn_name = name
-                    mycat.Instance_Start = len(AR.Instance_Coll)
-                    RegisterUnregister_Category(ar_category.functions.get_panel_index(mycat))
-                    for dirs in dirfileslist:
-                        for btn_file in dirs:
-                            name_icon = os.path.splitext(os.path.basename(btn_file))[0]
-                            name = "".join(name_icon.split("~")[1:-1])
-                            inst = AR.Instance_Coll.add()
-                            inst.name = CheckForDublicates([AR.Instance_Coll[i].name for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length)], name)
-                            inst.icon = check_icon(name_icon.split("~")[-1])
-                            for line in zip_out.read(btn_file).decode("utf-8").splitlines():
-                                cmd = inst.commands.add()
-                                cmd.name = line
-                            new_e = AR.ar_enum.add()
-                            e_index = len(AR.ar_enum) - 1
-                            new_e.name = str(e_index)
-                            new_e.Index = e_index
-                            mycat.Instance_length += 1
-            else:
-                if not len(AR.Importsettings):
-                    if bpy.ops.ar.data_import_options('EXEC_DEFAULT', filepath= self.filepath, fromoperator= True) == {'CANCELLED'}:
-                        self.report({'ERROR'}, "The selected file is not compatible")
-                        return {'CANCELLED'}
-                for icat in AR.Importsettings:
-                    Index = -1
-                    mycat = None
-                    if icat.enum == 'append':
-                        Index = AR.Categories.find(icat.cat_name)
-                    if Index == -1:
-                        mycat = ar_categories.add()
-                        name = icat.cat_name
-                        name = CheckForDublicates([n.pn_name for n in ar_categories], name)
-                        mycat.name = name
-                        mycat.pn_name = name
-                        mycat.Instance_Start = len(AR.Instance_Coll)
-                        RegisterUnregister_Category(ar_category.functions.get_panel_index(mycat))
-                    else:
-                        mycat = ar_categories[Index]
-                        for btn in icat.Buttons:
-                            if btn.enum == 'overwrite':
-                                for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length):
-                                    inst = AR.Instance_Coll[i]
-                                    if btn.btn_name == inst.name:
-                                        inst.name = btn.btn_name
-                                        inst.icon = check_icon(btn.icon)
-                                        inst.commands.clear()
-                                        for cmd in btn.commands.splitlines():
-                                            new = inst.commands.add()
-                                            new.name = cmd
-                                        break
-                                else:
-                                    btn.enum = 'add'
 
-                    for btn in icat.Buttons:
-                        if btn.enum == 'overwrite':
-                            continue
-                        inserti = mycat.Instance_Start + mycat.Instance_length
-                        name = btn.btn_name
-                        icon = btn.icon
-                        data = {"name": CheckForDublicates([AR.Instance_Coll[i].name for i in range(mycat.Instance_Start, mycat.Instance_Start + mycat.Instance_length)], name),
-                                "command": btn.commands.splitlines(),
-                                "icon": icon}
-                        Inst_Coll_Insert(inserti, data, AR.Instance_Coll)
-                        new_e = AR.ar_enum.add()
-                        e_index = len(AR.ar_enum) - 1
-                        new_e.name = str(e_index)
-                        new_e.Index = e_index
-                        mycat.Instance_length += 1
-                        if Index != -1:
-                            for cat in ar_categories[Index + 1:] :
-                                cat.Instance_Start += 1
-            set_enum_index()()
-            if AR.Autosave:
-                Save()
+        if AR.import_extension == ".zip":
+            if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
+                self.report({'ERROR'}, "The selected file is not compatible")
+                return {'CANCELLED'}
+
+            data = defaultdict(list)
+            current_actions_length = 0
+            zip_file = zipfile.ZipFile(self.filepath, mode= 'r')
+            for category in AR.import_settings:
+                if category.use and any(action.use for action in category.actions):
+                    actions = list(filter(lambda x: x.use, category.actions))
+                    data['categories'].append({
+                        'id' : uuid.uuid1().hex,
+                        'label' : category.label,
+                        'start' : current_actions_length,
+                        'length' : len(actions),
+                    })
+                    for action in actions:
+                        data['actions'].append({
+                        'id' : uuid.uuid1().hex,
+                        'label' : action.label,
+                        'commands' : self.get_commands_from_file(zip_file, action.identifier),
+                        'icon' : action.identifier.split("~")[-1]
+                        })
+            functions.import_global_from_dict(AR, data)
+        elif AR.import_extension == ".json":
+            if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
+                self.report({'ERROR'}, "The selected file is not compatible")
+                return {'CANCELLED'}
+
+            with open(self.filepath, 'r', encoding= 'utf-8') as file:
+                data = json.loads(file.read())
+            category_ids = set(category.identifier for category in AR.import_settings)
+            action_ids = []
+            for category in AR.import_settings:
+                action_ids += [action.identifier for action in category.actions]
+            action_ids = set(action_ids)
+
+            data['categories'] = [category for category in data['categories'] if category['id'] not in category_ids]
+            data['actions'] = [action for action in data['actions'] if action['id'] not in action_ids]
+            functions.import_global_from_dict(AR, data)
         else:
-            self.report({'ERROR'}, "{ " + self.filepath + " } Select a .zip file")
+            self.report({'ERROR'}, "Select a .json or .zip file {%s}" %self.filepath)
         AR = context.preferences.addons[__package__].preferences
-        AR.Importsettings.clear()
-        TempSaveCats()
+        AR.import_settings.clear()
+        functions.category_runtime_save(AR)
+        functions.global_runtime_save(AR, False)
         return {"FINISHED"}
-    
+
     def draw(self, context):
         AR = context.preferences.addons[__package__].preferences
         layout = self.layout
-        layout.prop(self, 'AddNewCategory', text= "Append to new Category")
-        if self.AddNewCategory:
-            layout.prop(self, 'Category', text= "Name")
-        else:
-            layout.operator(AR_OT_ImportLoadSettings.bl_idname, text= "Load Importsettings").filepath = self.filepath
-            for cat in AR.Importsettings:
-                box = layout.box()
-                col = box.column()
-                row = col.row()
-                if cat.show:
-                    row.prop(cat, 'show', icon="TRIA_DOWN", text= "", emboss= False)
-                else:
-                    row.prop(cat, 'show', icon="TRIA_RIGHT", text= "", emboss= False)
-                row.label(text= cat.cat_name)
-                row.prop(cat, 'enum', text= "")
-                if cat.show:
-                    col = box.column()
-                    for btn in cat.Buttons:
-                        row = col.row()
-                        row.label(text= btn.btn_name)
-                        if cat.enum == 'append':
-                            row.prop(btn, 'enum', text= "")
+        layout.operator("ar.global_import_settings", text= "Load Importsettings").filepath = self.filepath
+        col = layout.column(align= True)
+        row = col.row(align=True)
+        row.prop(self, 'mode', expand= True)
+        for category in AR.import_settings:
+            box = col.box()
+            sub_col = box.column()
+            row = sub_col.row()
+            if category.show:
+                row.prop(category, 'show', icon="TRIA_DOWN", text= "", emboss= False)
+            else:
+                row.prop(category, 'show', icon="TRIA_RIGHT", text= "", emboss= False)
+            row.prop(category, 'use', text= "")
+            row.label(text= category.label)
+            row.prop(category, 'mode', text= "", expand= True)
+            if category.show:
+                sub_col = box.column()
+                for action in category.actions:
+                    row = sub_col.row()
+                    row.prop(action, 'use', text= "")
+                    row.label(text= action.label)
         
     def cancel(self, context):
         AR = context.preferences.addons[__package__].preferences
-        AR.Importsettings.clear()
+        AR.import_settings.clear()
 classes.append(AR_OT_global_import)
 
 class AR_OT_global_import_settings(Operator):
@@ -201,31 +179,131 @@ class AR_OT_global_import_settings(Operator):
     bl_description = "Load the select the file to change the importsettings"
 
     filepath : StringProperty()
-    fromoperator : BoolProperty()
+    from_operator : BoolProperty(default= False)
+
+    def valid_file(self, file: str) -> bool:
+        if file.endswith(".py") and file.count('~') == 2:
+            index, name, icon = file.split("~")
+            return index.isdigit() and (icon.isupper() or icon.isdigit())
+        return False
+    
+    def valid_directory(self, directroy: str) -> bool:
+        if directroy.count('~') == 1:
+            index, name = directroy.split('~')
+            return index.isdigit()
+        return False
+
+    def import_sorted_zip(self, filepath: str) -> Optional[dict]:
+        with zipfile.ZipFile(filepath, 'r') as zip_file:
+            filepaths = sorted(zip_file.namelist())
+        categories = defaultdict(list) 
+
+        for file in filepaths:
+            category, action_file = file.split("/")
+            if not (self.valid_file(action_file) and self.valid_directory(category)):
+                return None
+            categories[category].append(file)
+        for item in categories.values():
+            item.sort(key= lambda x: int(x.split('~')[0]))
+        return categories
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        if os.path.exists(self.filepath) and self.filepath.endswith(".zip"):
-            dirfileslist, sorteddirlist = ImportSortedZip(self.filepath)
-            if dirfileslist is None:
-                if not self.fromoperator:
+        AR.import_settings.clear()
+        
+        if os.path.exists(self.filepath):
+            if self.filepath.endswith(".zip"):
+                AR.import_extension = ".zip"
+                categories_path = self.import_sorted_zip(self.filepath)
+                if categories_path is None and not self.from_operator:
                     self.report({'ERROR'}, "The selected file is not compatible")
-                self.fromoperator = False
-                return {'CANCELLED'}
-            with zipfile.ZipFile(self.filepath, 'r') as zip_out:
-                AR.Importsettings.clear()
-                for i in range(len(sorteddirlist)):
-                    cat = AR.Importsettings.add()
-                    cat.cat_name = "".join(sorteddirlist[i].split("~")[1:])
-                    for dir_file in dirfileslist[i]:
-                        btn = cat.Buttons.add()
-                        name_icon = os.path.splitext(os.path.basename(dir_file))[0]
-                        btn.btn_name = "".join(name_icon.split("~")[1:-1])
-                        btn.icon = name_icon.split("~")[-1]
-                        btn.commands = zip_out.read(dir_file).decode("utf-8")
+                    return {'CANCELLED'}
+                for key, item in sorted(categories_path.items(), key= lambda x: int(x[0].split('~')[0])):
+                    new_category = AR.import_settings.add()
+                    new_category.identifier = key
+                    new_category.label = key.split('~')[1]
+                    for file in item:
+                        new_action = new_category.actions.add()
+                        new_action.identifier = file
+                        new_action.label = file.split("/")[1].split('~')[1]
                 return {"FINISHED"}
-        else:
-            self.report({'ERROR'}, "You need to select a .zip file")
-            return {'CANCELLED'}
+            elif self.filepath.endswith(".json"):
+                AR.import_extension = ".json"
+                with open(self.filepath, 'r') as file:
+                    data = json.loads(file.read())
+                actions = data['actions']
+                for category in data['categories']:
+                    new_category = AR.import_settings.add()
+                    new_category.identifier = category['id']
+                    new_category.label = category['label']
+                    for action in actions[category['start'] : category['length']]:
+                        new_action = new_category.actions.add()
+                        new_action.identifier = action['id']
+                        new_action.label = action['label']
+        if not self.from_operator:
+            self.report({'ERROR'}, "You need to select a .json or .zip file")
+        self.from_operator = False
+        return {'CANCELLED'}
 classes.append(AR_OT_global_import_settings)
+
+class AR_OT_Export(Operator, ExportHelper):
+    bl_idname = "ar.data_export"
+    bl_label = "Export"
+    bl_description = "Export the Action file as a ZIP"
+
+    filter_glob: StringProperty(default= '*.json', options= {'HIDDEN'})
+    filename_ext = ".json"
+    filepath : StringProperty(name= "File Path", maxlen= 1024, default= "ActionRecorderButtons")
+
+    all_categories : BoolProperty(name= "All", description= "Export all category")
+    export_categories : CollectionProperty(type= properties.AR_global_export_categories)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions)
+
+    def execute(self, context):
+        data = defaultdict(list)
+        export_category_ids = set(category.id for category in self.export_categories if category.use)
+        export_action_ids = []
+        for category in self.export_categories:
+            export_action_ids += set(action.id for action in category.actions if action.use)
+            
+        return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        box.prop(self, 'all_categories', text= "All")
+        for category in self.export_categories:
+            box = layout.box()
+            col = box.column()
+            row = col.row()
+            row.prop(category, 'show', icon="TRIA_DOWN" if category.show else "TRIA_RIGHT", text= "", emboss= False)
+            row.label(text= category.label)
+            row.prop(category, 'use', text= "")
+            if category.show:
+                col = box.column(align= False)
+                for action in self.export_actions[category.start : category.start + category.length]:
+                    subrow = col.row()
+                    subrow.prop(action, 'use' , text= '') 
+                    subrow.label(text= action.label)
+
+    def invoke(self, context, event):
+        AR = context.preferences.addons[__package__].preferences
+        for category in AR.categories:
+            new_category = self.export_categories.add()
+            new_category.id = category.id
+            new_category.label = category.label
+            for action in AR.global_actions[category.start : category.start + category.length]:
+                new_action = new_category.actions.add()
+                new_action.id = action.id
+                new_action.label = action.label
+        return ExportHelper.invoke(self, context, event)
+    
+    def cancel(self, context):
+        self.export_categories.clear()
+        self.all_categories = True
+classes.append(AR_OT_Export)
 # endregion

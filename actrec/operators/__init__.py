@@ -1,3 +1,5 @@
+"""only relative import from intra-modules: functions, ui, properties"""
+
 from .categories import (
     AR_OT_category_add,
     AR_OT_category_edit,
@@ -8,7 +10,9 @@ from .categories import (
 )
 
 from .globals import (
-    AR_OT_gloabal_recategorize_action
+    AR_OT_gloabal_recategorize_action,
+    AR_OT_global_import,
+    AR_OT_global_import_settings
 )
 
 from .locals import (
@@ -32,4 +36,3 @@ def get_classes() -> list:
     from .preferences import classes as preferences_classes
     from .shared import classes as shared_classes
     return categories_classes + globals_classes + locals_classes + preferences_classes + shared_classes
-

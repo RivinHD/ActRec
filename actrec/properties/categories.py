@@ -14,24 +14,28 @@ from . import shared
 classes = []
 
 # region PropertyGroups
-class AR_categories_modes(PropertyGroup):
+class AR_category_modes(PropertyGroup):
     def get_name(self):
         self['name'] = self.type
         return self['name']
 
     name : StringProperty(get= get_name)
     type : StringProperty()
-classes.append(AR_categories_modes)
+classes.append(AR_category_modes)
 
-class AR_categories_areas(PropertyGroup):
+class AR_category_areas(PropertyGroup):
     def get_name(self):
         self['name'] = self.type
         return self['name']
 
     name : StringProperty(get= get_name)
     type : StringProperty()
-    modes : CollectionProperty(type= AR_categories_modes)
-classes.append(AR_categories_areas)
+    modes : CollectionProperty(type= AR_category_modes)
+classes.append(AR_category_areas)
+
+class AR_category_actions(shared.id_system, PropertyGroup):
+    pass
+classes.append(AR_category_actions)
 
 class AR_categories(shared.id_system, PropertyGroup):
     def get_selected(self) -> bool:
@@ -49,8 +53,7 @@ class AR_categories(shared.id_system, PropertyGroup):
 
     label : StringProperty()
     selected : BoolProperty(description= 'Select this Category', name= 'Select', get= get_selected, set= set_selected)
-    start : IntProperty(default= 0)
-    length : IntProperty(default= 0)
-    areas : CollectionProperty(type= AR_categories_areas)
+    actions : CollectionProperty(type= AR_category_actions)
+    areas : CollectionProperty(type= AR_category_areas)
 classes.append(AR_categories)
 # endregion

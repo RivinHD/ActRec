@@ -123,23 +123,6 @@ def Get_Recent(Return_Bool):
     elif Return_Bool == 'Reports_Length':
         return len(bpy.data.texts['Recent Reports'].lines)
 
-def GetMacro(name):
-    if name.startswith("bpy.ops"):
-        try:
-            return eval(name.split("(")[0] + ".get_rna_type().name")
-        except:
-            return name
-    elif name.startswith('bpy.data.window_managers["WinMan"].(null)'):
-        return True
-    elif name.startswith('bpy.context'):
-        split = name.split('=')
-        if len(split) > 1:
-            return split[0].split('.')[-1] + " = " + split[1]
-        else:
-            return ".".join(split[0].split('.')[-2:])
-    else:
-        return None
-
 def Record(Num, Mode):
     AR_Var = bpy.context.preferences.addons[__package__].preferences
     Recent = Get_Recent('Reports_All')
@@ -861,41 +844,6 @@ def Inst_Coll_Insert(index, data, collection): # Insert in "Inst_Coll" Collectio
         cmd.name = commands[i]
         cmd.macro = macros[i]
 
-def ImportSortedZip(filepath):
-    with zipfile.ZipFile(filepath, 'r') as zip_out:
-        filepaths = sorted(zip_out.namelist())
-        dirlist = []
-        tempdirfiles = []
-        dirfileslist = []
-        for btn_file in filepaths:
-            btn_dirc = btn_file.split("/")[0]
-            if btn_dirc not in dirlist:
-                if len(tempdirfiles):
-                    dirfileslist.append(tempdirfiles[:])
-                dirlist.append(btn_dirc)
-                tempdirfiles.clear()
-            tempdirfiles.append(btn_file)
-        else:
-            if len(tempdirfiles):
-                dirfileslist.append(tempdirfiles)
-
-        sorteddirlist = [None] * len(dirlist)
-        for i in range(len(dirlist)):
-            if "~" in dirlist[i]:
-                new_i = int(dirlist[i].split("~")[0])
-                sorteddirlist[new_i] = dirlist[i]
-                dirfileslist[new_i], dirfileslist[i] = dirfileslist[i], dirfileslist[new_i]
-                sortedfilelist = [None] * len(dirfileslist[new_i])
-                for fil in dirfileslist[new_i]:
-                    if fil.count("~") == 3 and fil.endswith('.py'):
-                        sortedfilelist[int(os.path.basename(fil).split("~")[0])] = fil
-                    else:
-                        return (None, None)
-                dirfileslist[new_i] = sortedfilelist
-            else:
-                return (None, None)
-        return (dirfileslist, sorteddirlist)
-
 def CreateNewProp(prop):
     name = "Edit_Command_%s" % prop.identifier
     exec("bpy.types.Scene.%s = prop" % name)
@@ -1291,108 +1239,6 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
 # endregion
         
 # region Opertators
-
-class AR_OT_Export(Operator, ExportHelper):
-    bl_idname = "ar.data_export"
-    bl_label = "Export"
-    bl_description = "Export the Action file as a ZIP"
-
-    filter_glob: StringProperty( default='*.zip', options={'HIDDEN'} )
-    filename_ext = ".zip"
-    filepath : StringProperty (name = "File Path", maxlen = 1024, default = "ActionRecorderButtons")
-    allcats : BoolProperty(name= "All", description= "Export every Category")
-
-    @classmethod
-    def poll(cls, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        return len(AR_Var.Instance_Coll)
-
-    def execute(self, context):
-        scene = context.scene
-        temppath = bpy.app.tempdir + "AR_Zip"
-        if not os.path.exists(temppath):
-            os.mkdir(temppath)
-        with zipfile.ZipFile(self.filepath, 'w') as zip_it:
-            catindex = 0
-            written = False
-            for cat in scene.ar_filecategories:
-                folderpath = os.path.join(temppath, f"{catindex}~" + cat.pn_name)
-                if not os.path.exists(folderpath):
-                    os.mkdir(folderpath)
-                if cat.pn_selected or self.allcats:
-                    written = True
-                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                        zip_path = os.path.join(folderpath, f"{i}~" + AR_preferences.FileDisp_Name[i] + ".py")
-                        with open(zip_path, 'w', encoding='utf-8') as recfile:
-                            for cmd in AR_preferences.FileDisp_Command[i]:
-                                recfile.write(cmd + '\n')
-                        zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{i - cat.FileDisp_Start}~"+ AR_preferences.FileDisp_Name[i] + f"~{AR_preferences.FileDisp_Icon[i]}" + ".py"))
-                        os.remove(zip_path)
-                else:
-                    index = 0
-                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                        if scene.ar_filedisp[i].Index:
-                            written = True
-                            zip_path = os.path.join(folderpath, f"{index}~" + AR_preferences.FileDisp_Name[i] + ".py")
-                            with open(zip_path, 'w', encoding='utf-8') as recfile:
-                                for cmd in AR_preferences.FileDisp_Command[i]:
-                                    recfile.write(cmd + '\n')
-                            zip_it.write(zip_path, os.path.join(f"{catindex}~" + cat.pn_name, f"{index}~" + AR_preferences.FileDisp_Name[i] + f"~{AR_preferences.FileDisp_Icon[i]}" + ".py"))
-                            os.remove(zip_path)
-                            index += 1
-                if written:
-                    catindex += 1
-                    written = False
-                os.rmdir(folderpath)
-        return {'FINISHED'}
-
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        box = layout.box()
-        box.prop(self, 'allcats', text= "All")
-        for cat in scene.ar_filecategories:
-            box = layout.box()
-            col = box.column()
-            row = col.row()
-            if cat.pn_show:
-                row.prop(cat, 'pn_show', icon="TRIA_DOWN", text= "", emboss= False)
-            else:
-                row.prop(cat, 'pn_show', icon="TRIA_RIGHT", text= "", emboss= False)
-            row.label(text= cat.pn_name)
-            row.prop(cat, 'pn_selected', text= "")
-            if cat.pn_show:
-                col = box.column(align= False)
-                if self.allcats or cat.pn_selected:
-                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                        col.label(text= AR_preferences.FileDisp_Name[i], icon= 'CHECKBOX_HLT')
-                else:
-                    for i in range(cat.FileDisp_Start, cat.FileDisp_Start + cat.FileDisp_length):
-                        col.prop(scene.ar_filedisp[i], 'Index' , text= AR_preferences.FileDisp_Name[i])
-    
-    def invoke(self, context, event):
-        AR_Var = context.preferences.addons[__package__].preferences
-        scene = context.scene
-        scene.ar_filecategories.clear()
-        for cat in AR_Var.Categories:
-            new = scene.ar_filecategories.add()
-            new.name = cat.name
-            new.pn_name = cat.pn_name
-            new.FileDisp_Start = cat.Instance_Start
-            new.FileDisp_length = cat.Instance_length
-        AR_preferences.FileDisp_Name.clear()
-        AR_preferences.FileDisp_Command.clear()
-        AR_preferences.FileDisp_Icon.clear()
-        for inst in AR_Var.Instance_Coll:
-            AR_preferences.FileDisp_Name.append(inst.name)
-            AR_preferences.FileDisp_Icon.append(inst.icon)
-            AR_preferences.FileDisp_Command.append([cmd.name for cmd in inst.commands])
-        scene.ar_filedisp.clear()
-        for i in range(len(AR_Var.ar_enum)):
-            scene.ar_filedisp.add()
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-classes.append(AR_OT_Export)
 
 class AR_OT_Record_Add(Operator):
     bl_idname = "ar.record_add"
@@ -2315,7 +2161,7 @@ class AR_CategorizeFileDisp(PropertyGroup):
     FileDisp_length : IntProperty(default= 0)
 classes.append(AR_CategorizeFileDisp)
 
-
+"""
 class AR_ImportButton(PropertyGroup):
     btn_name: StringProperty()
     icon: StringProperty()
@@ -2329,7 +2175,7 @@ class AR_ImportCategory(PropertyGroup):
     enum: EnumProperty(items= [("new", "New", "Create a new Category"),("append", "Append", "Append to an existing Category")], name= "Import Mode")
     show : BoolProperty(default= True)
 classes.append(AR_ImportCategory)
-
+"""
 
 class AR_CommandEditProp(PropertyGroup):
     prop : bpy.types.Property

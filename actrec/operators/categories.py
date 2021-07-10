@@ -31,36 +31,24 @@ class AR_OT_category_interface(Operator):
             bpy.context.area.ui_type = current_ui_type
     """ # code to get areas_to_spaces
     # don't use it, because it's based on an error message and it doesn't contains enough data
-    areas_to_spaces = {
-        'VIEW_3D': 'VIEW_3D', 
-        'IMAGE_EDITOR': 'IMAGE_EDITOR', 
-        'UV': 'IMAGE_EDITOR', 
-        'CompositorNodeTree': 'NODE_EDITOR', 
-        'TextureNodeTree': 'NODE_EDITOR', 
-        'GeometryNodeTree': 'NODE_EDITOR', 
-        'ShaderNodeTree': 'NODE_EDITOR', 
-        'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR', 
-        'CLIP_EDITOR': 'CLIP_EDITOR', 
-        'DOPESHEET': 'DOPESHEET_EDITOR', 
-        'TIMELINE': 'DOPESHEET_EDITOR', 
-        'FCURVES': 'GRAPH_EDITOR',
-        'DRIVERS': 'GRAPH_EDITOR',
-        'NLA_EDITOR': 'NLA_EDITOR', 
-        'TEXT_EDITOR': 'TEXT_EDITOR', 
+    areas_to_spaces_with_mode = {
+        'VIEW_3D': 'VIEW_3D',
+        'IMAGE_EDITOR': 'IMAGE_EDITOR',
+        'TextureNodeTree': 'NODE_EDITOR',
+        'ShaderNodeTree': 'NODE_EDITOR',
+        'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR',
+        'CLIP_EDITOR': 'CLIP_EDITOR',
+        'DOPESHEET': 'DOPESHEET_EDITOR',
         'FILES': 'FILE_BROWSER'
     }
 
     modes = {
-        'EMPTY': [],
-        'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items], 
-        'IMAGE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceImageEditor.bl_rna.properties['ui_mode'].enum_items], 
-        'NODE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in  bpy.types.SpaceNodeEditor.bl_rna.properties['texture_type'].enum_items], 
-        'SEQUENCE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items], 
-        'CLIP_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items], 
-        'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items], 
-        'GRAPH_EDITOR': [], 
-        'NLA_EDITOR': [], 
-        'TEXT_EDITOR': [],
+        'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items],
+        'IMAGE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceImageEditor.bl_rna.properties['ui_mode'].enum_items],
+        'NODE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in  bpy.types.SpaceNodeEditor.bl_rna.properties['texture_type'].enum_items],
+        'SEQUENCE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items],
+        'CLIP_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items],
+        'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items],
         'FILE_BROWSER': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items]
     }
 
@@ -83,7 +71,7 @@ class AR_OT_category_interface(Operator):
         ('FILES', 'File Browser', '', 'FILEBROWSER', 19)
     ]
     def mode_items(self, context) -> list:
-        l = self.modes.get(self.areas_to_spaces[self.area], [])
+        l = self.modes.get(self.areas_to_spaces_with_mode[self.area], [])
         l.append(("all", "All", "use in all available modes", "GROUP_VCOL", len(l)))
         return l
 
@@ -99,8 +87,8 @@ class AR_OT_category_interface(Operator):
         for area, mode in category_visibility:
             visibility[area].append(mode)
         for area, modes in visibility.items():
-            new_area.type = area
             new_area = category.areas.add()
+            new_area.type = area
             if None not in modes:
                 for mode in modes:
                     new_mode = new_area.modes.add()
@@ -254,17 +242,15 @@ class AR_OT_category_move_up(Operator):
         y = i - 1
         if y >= 0:
             swap_category = categories[y]
-            while not show_category(swap_category, context): # get next visible category
+            while not functions.category_visible(swap_category, context): # get next visible category
                 y -= 1
                 if y < 0:
                     return {"CANCELLED"}
                 swap_category = categories[y]
-            functions.swap_categories(categories[i], swap_category)
+            functions.swap_collection_items(categories[i], swap_category)
             AR.categories[y].selected = True
             bpy.context.area.tag_redraw()
             functions.category_runtime_save(AR)
-            if AR.autosave:
-                Save()
             return {"FINISHED"}
         return {'CANCELLED'}
 classes.append(AR_OT_category_move_up)
@@ -283,7 +269,7 @@ class AR_OT_category_move_down(Operator):
         y = i + 1 
         if y < len(categories):
             swap_category = categories[y]
-            while not show_category(swap_category, context): # get next visible category
+            while not functions.category_visible(swap_category, context): # get next visible category
                 y += 1
                 if y >= len(categories):
                     return {"CANCELLED"}
@@ -292,8 +278,6 @@ class AR_OT_category_move_down(Operator):
             AR.categories[y].selected = True
             bpy.context.area.tag_redraw()
             functions.category_runtime_save(AR)
-            if AR.autosave:
-                Save()
             return {"FINISHED"}
         return {'CANCELLED'}
 classes.append(AR_OT_category_move_down)

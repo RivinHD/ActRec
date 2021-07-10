@@ -43,6 +43,8 @@ class AR_preferences(AddonPreferences):
         self['selected_local_action_index'] = value if value < actions_length else actions_length - 1
     selected_local_action_index : IntProperty(min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
 
+    local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
+
     # macros
     def get_selected_macro_index(self):
         value = self.get('selected_macro_index', 0)
@@ -58,6 +60,9 @@ class AR_preferences(AddonPreferences):
     global_actions_enum : CollectionProperty(type= properties.AR_global_actions_enum)
 
     autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
+
+    import_settings : CollectionProperty(type= properties.AR_global_import_category)
+    import_extension : StringProperty()
 
     # categories
     def get_storage_path(self) -> str:
@@ -86,7 +91,6 @@ class AR_preferences(AddonPreferences):
 
     # =================================================================================================================================
     Rename : StringProperty()
-    RecToBtn_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     BtnToRec_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Local"), ("move", "Move", "Move the Action over to Local and Delete it from Global")], name= "Mode")
     SelectedIcon = 101 # Icon: BLANK1
 

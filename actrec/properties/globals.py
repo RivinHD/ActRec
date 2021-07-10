@@ -2,31 +2,69 @@
 # blender modules
 import bpy
 from bpy.types import PropertyGroup
-from bpy.props import BoolProperty, IntProperty
+from bpy.props import BoolProperty, IntProperty, StringProperty, CollectionProperty, EnumProperty
+
+# relative Imports
+from . import shared
 # endregion
 
 classes = []
 
 # region PropertyGroups
 class AR_global_actions_enum(PropertyGroup):
-    def get_value(self) -> bool:
-        return self.get("selected", False)
-    def set_value(self, value: bool) -> None:
-        AR = bpy.context.preferences.addons[__package__].preferences
-        selected_indexes = AR.get("global_actions_enum.selected_indexes", [])
-        if value:
-            ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
-            if selected_indexes != [] and ctrl_value == 'CANCELLED':
-                AR["global_actions_enum.selected_indexes"].clear()
-                for selected_index in selected_indexes:
-                    AR.global_actions_enum[selected_index] = False
-            AR.set_default("global_actions_enum.selected_indexes", [])
-            AR["global_actions_enum.selected_indexes"].append(self.index)
-            self['selected'] = value
-        elif not (self.index in selected_indexes):
-            self['selected'] = value
-
-    selected : BoolProperty(default= False, set= set_value, get= get_value, description= "Select this Action Button", name = 'Select')
     index : IntProperty()
 classes.append(AR_global_actions_enum)
+
+class AR_global_import_action(PropertyGroup):
+    def get_use(self):
+        return self.get("use", True) and self.get('category.use', True)
+    def set_use(self, value):
+        if self.get('category.use', True):
+            self['use'] = value
+    
+    label : StringProperty()
+    identifier : StringProperty()
+    use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to import the action", get= get_use, set= set_use)
+classes.append(AR_global_import_action)
+
+class AR_global_import_category(PropertyGroup):
+    def get_use(self):
+        return self.get("use", True)
+    def set_use(self, value):
+        self['use'] = value
+        for action in self.actions:
+            action['category.use'] = value
+
+    label : StringProperty()
+    identifier : StringProperty()
+    actions : CollectionProperty(type= AR_global_import_action)
+    mode : EnumProperty(items= [("new", "New", "Create a new Category"),("append", "Append", "Append to an existing Category")], name= "Import Mode")
+    show : BoolProperty(default= True)
+    use : BoolProperty(default= True, name= "Import Category", description= "Decide whether to import the category", get= get_use, set= set_use)
+classes.append(AR_global_import_category)
+
+class AR_global_export_action(shared.id_system, PropertyGroup):
+    def get_use(self):
+        return self.get("use", True) and self.get('category.use', True)
+    def set_use(self, value):
+        if self.get('category.use', True):
+            self['use'] = value
+    
+    label : StringProperty()
+    use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to import the action", get= get_use, set= set_use)
+classes.append(AR_global_export_action)
+
+class AR_global_export_categories(shared.id_system, PropertyGroup):
+    def get_use(self):
+        return self.get("use", True)
+    def set_use(self, value):
+        self['use'] = value
+        for action in self.actions:
+            action['category.use'] = value
+
+    label : StringProperty()
+    actions : CollectionProperty(type= AR_global_import_action)
+    show : BoolProperty(default= True)
+    use : BoolProperty(default= True, name= "Export Category", description= "Decide whether to export the category", get= get_use, set= set_use)
+classes.append(AR_global_export_categories)
 # endregion

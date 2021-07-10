@@ -30,7 +30,8 @@ class AR_OT_local_to_global(Operator):
                     "label" : command.label,
                     "macro" : command.macro,
                     "active" : command.active,
-                    "icon" : command.icon
+                    "icon" : command.icon,
+                    "is_available" : command.is_available
                 } for command in action.commands
             ],
             "icon" : action.icon
@@ -49,12 +50,10 @@ class AR_OT_local_to_global(Operator):
                 if category.selected:
                     self.local_to_global(AR, category, AR.local_actions[AR.selected_local_action_index])
                     break
-            if AR.RecToBtn_Mode == 'move':
-                Remove(0)
-                TempUpdate()
+            if AR.local_to_global_mode == 'move':
+                AR.local_actions.remove(AR.selected_local_action_index)
             functions.category_runtime_save(AR)
-            if AR.autosave:
-                Save()
+            functions.global_runtime_save(AR, autosave= False)
             bpy.context.area.tag_redraw()
             return {"FINISHED"}
         else:
