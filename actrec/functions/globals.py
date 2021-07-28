@@ -10,17 +10,6 @@ from . import shared
 # endregion
 
 # region Functions
-def set_enum_index(AR): #Set enum, if out of range to the first enum
-    if len(AR.global_actions_enum):
-        global_actions_selections= AR.get("global_actions_enum.selected_indexes", [0])
-        actions_selection = global_actions_selections[0] if 0 < len(global_actions_selections) else 0
-        enum_index = actions_selection * (actions_selection < len(AR.global_actions_enum))
-        AR.global_actions_enum[enum_index].selected = True
-
-def add_global_actions_enum(AR):
-    new = AR.global_actions_enum.add()
-    new.index = len(AR.global_actions_enum) - 1
-
 def extract_properties(properties :str):
     properties = properties.split(",")
     new_props = []
@@ -59,8 +48,7 @@ def update_macro(macro: str):
 
 def global_runtime_save(AR, use_autosave: bool = True):
     """includes autosave"""
-    shared_data.data_manager.global_temp = shared.property_to_python(AR.global_actions)
-    shared_data.data_manager.global_enum_temp = shared.property_to_python(AR.global_actions_enum)
+    shared_data.global_temp = shared.property_to_python(AR.global_actions)
     if use_autosave and AR.autosave:
         save(AR)
 
@@ -71,8 +59,11 @@ def save(AR):
         categories_data.append({
             'id': category.id,
             'label': category.label,
-            'start': category.start,
-            'length': category.length,
+            'actions': [
+                {
+                    "id": id_action.id
+                } for id_action in category.actions
+            ],
             'areas': [
                 {
                     'type': area.type,
@@ -103,26 +94,26 @@ def save(AR):
         })
     data['actions'] = actions_data
     with open(AR.storage_path, 'w', encoding= 'utf-8') as storage_file:
-        storage_file.write(data)
+        json.dumps(data, storage_file, ensure_ascii= False, indent= 4)
     logger.info('saved global actions')
 
 def load(AR) -> bool:
     """return Succeses"""
     if os.path.exist(AR.storage_path):
         with open(AR.storage_path, 'r', encoding= 'utf-8') as storage_file:
-            data = json.loads(storage_file.read())
+            
+            data = json.load(storage_file)
         logger.info('load global actions')
         # cleanup
         for category in AR.categories:
             ui.unregister_category(category)
         AR.categories.clear()
         AR.global_actions.clear()
-        AR.global_actions_enum.clear()
         import_global_from_dict(AR, data)
         if len(AR.categories):
             AR.categories[0].selected = True
-        if len(AR.global_actions_enum):
-            AR.global_actions_enum[0].selected = True
+        if len(AR.global_actions):
+            AR.global_actions[0].selected = True
         return True
     return False
 
@@ -132,8 +123,9 @@ def import_global_from_dict(AR, data: dict) -> None:
         new_category = AR.categories.add()
         new_category.id = category['id']
         new_category.label = category['label']
-        new_category.start = i + category['start']
-        new_category.length = category['length']
+        for action in category['actions']:
+            new_action = new_category.actions.add()
+            new_action.id = action['id']
         for area in category['areas']:
             new_area = new_category.areas.add()
             new_area.type = area['type']
@@ -141,7 +133,7 @@ def import_global_from_dict(AR, data: dict) -> None:
                 new_mode = new_area.modes.add()
                 new_mode.type = mode
     # load global actions
-    for i, action in enumerate(data['actions'], len(AR.global_actions_enum)):
+    for action in data['actions']:
         new_action = AR.global_actions.add()
         new_action.id = action['id']
         new_action.label = action['label']
@@ -155,6 +147,18 @@ def import_global_from_dict(AR, data: dict) -> None:
             new_command.icon = commmand['icon']
             new_command.is_available = result is not None
         new_action.icon = action['icon']
-        new_enum = AR.global_actions_enum.add()
-        new_enum.index = i
+
+def get_global_action_id(AR, id, index):
+    if AR.global_actions.find(id) == -1 and len(AR.global_actions) > index and index >= 0:
+        id = AR.global_actions[index].id
+    else:
+        return None
+    return id
+
+def get_global_action_ids(AR, id, index):
+    id = get_global_action_id(AR, id, index)
+    if id is None:
+        return AR.get("global_actions.selected_ids", [])
+    return [id]
+    
 # endregion

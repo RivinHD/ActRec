@@ -95,8 +95,8 @@ def register_unregister_category(index, space_types = standart_space_types, regi
                 category = AR.categories[index]
                 layout = self.layout
                 col = layout.column()
-                for i in range(category.start, category.start + category.length):
-                    globals.draw_actions(col, AR, i)
+                for id in [x.id for x in category.actions]:
+                    globals.draw_actions(col, AR, id)
         AR_PT_category.__name__ = "AR_PT_category_%s_%s" %(index, spaceType)
         if register:
             bpy.utils.register_class(AR_PT_category)

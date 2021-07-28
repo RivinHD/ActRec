@@ -68,6 +68,8 @@ def check_icon(icon):
 class icontable(Operator):
     bl_label = "Icons"
     bl_description = "Press to select an Icon"
+    
+    search : StringProperty(name= "Icon Search", description= "search Icon by name", options= {'TEXTEDIT_UPDATE'})
 
     def draw(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -75,7 +77,7 @@ class icontable(Operator):
         box = layout.box()
         row = box.row()
         row.label(text= "Selected Icon:")
-        row.label(text=" ", icon_value= AR.icon_selected)
+        row.label(text=" ", icon_value= AR.selected_icon)
         row.prop(self, 'search', text= 'Search:')
         row.operator('ar.icon_selector', text= "Clear Icon").icon = 101 #Icon: BLANK1
         box = layout.box()
@@ -111,7 +113,7 @@ class AR_OT_icon_selector(Operator):
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        AR.icon_selected = self.icon
+        AR.selected_icon = self.icon
         return {"FINISHED"}
 classes.append(AR_OT_icon_selector)
 
@@ -161,14 +163,14 @@ class AR_OT_delete_custom_icon(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__package__].preferences
         for ele in self.icons:
             if ele.select or self.select_all:
                 iconpath = ele.icon_name[3:]
-                filenames = os.listdir(AR_Var.IconFilePath)
+                filenames = os.listdir(AR.IconFilePath)
                 names = [os.path.splitext(os.path.basename(path))[0] for path in filenames]
                 if iconpath in names:
-                    os.remove(os.path.join(AR_Var.IconFilePath,  filenames[names.index(iconpath)]))
+                    os.remove(os.path.join(AR.IconFilePath,  filenames[names.index(iconpath)]))
                 unregister_icon(preview_collections['ar_custom'], ele.icon_name)
         return {"FINISHED"}
 

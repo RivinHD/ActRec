@@ -1,5 +1,4 @@
-class data_manager:
-    local_temp = {}
-    global_temp = {}
-    global_enum_temp = {}
-    categories_temp = {}
+# only mutable types define immutable with BlenderProperty
+local_temp = {}
+global_temp = {}
+categories_temp = {}

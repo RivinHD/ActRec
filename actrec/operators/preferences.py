@@ -25,14 +25,14 @@ class AR_OT_preferences_directory_selector(Operator, ExportHelper):
     directory : StringProperty()
 
     def execute(self, context):
-        AR_Var = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__package__].preferences
         userpath = self.properties.filepath
         if(not os.path.isdir(userpath)):
             msg = "Please select a directory not a file\n" + userpath
             self.report({'ERROR'}, msg)
             return{'CANCELLED'}
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.storage_path = os.path.join(userpath, self.directory)
+        AR = context.preferences.addons[__package__].preferences
+        AR.storage_path = os.path.join(userpath, self.directory)
         return{'FINISHED'}
 classes.append(AR_OT_preferences_directory_selector)
 
@@ -45,8 +45,8 @@ class AR_OT_preferences_recover_directory(Operator):
     directory : StringProperty()
 
     def execute(self, context):
-        AR_Var = context.preferences.addons[__package__].preferences
-        AR_Var.storage_path = os.path.join(os.path.dirname(__file__), self.directory)
+        AR = context.preferences.addons[__package__].preferences
+        AR.storage_path = os.path.join(os.path.dirname(__file__), self.directory)
         return{'FINISHED'}
 classes.append(AR_OT_preferences_recover_directory)
 # endregion

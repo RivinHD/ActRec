@@ -10,11 +10,11 @@ import json
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
-from .. import functions, properties
+from .. import functions, properties, icon_manager
 # endregion
 
 classes = []
@@ -25,10 +25,13 @@ class AR_OT_gloabal_recategorize_action(Operator):
     bl_label = "Recategoize Action Button"
     bl_description = "Move the selected Action Button of a Category to Another Category"
 
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__package__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions_enum.selected_indexes", []))
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def invoke(self, context: bpy.context, event: bpy.types.Event):
         return context.window_manager.invoke_props_dialog(self)
@@ -36,26 +39,20 @@ class AR_OT_gloabal_recategorize_action(Operator):
     def execute(self, context: bpy.context):
         AR = context.preferences.addons[__package__].preferences
         categories = AR.categories
+        action_ids = functions.get_global_action_ids(AR, self.id, self.index)
+        if all(category.selected for category in categories): 
+            return {"CANCELLED"}
         for category in categories:
             if category.selected:
-                adjust_offset = 0
-                for index in AR["global_actions_enum.selected_indexes"]:
-                    index = index - adjust_offset
-                    categorie_end = category.start + category.length
-                    for current_categorie in categories:
-                        if index >= current_categorie.start and index < current_categorie.start + current_categorie.length: # change length of category of selected action
-                            current_categorie.length -= 1
-                            functions.adjust_categories(categories, current_categorie, -1)
-                            break
-                    AR.global_actions.move(index, categorie_end - 1 * (index < categorie_end))
-                    adjust_offset += 1 * (index < categorie_end)
-                    category.length += 1
-                    functions.adjust_categories(categories, category, 1)
-                functions.set_enum_index(AR)
-                bpy.context.area.tag_redraw()
-                functions.global_runtime_save(AR)
-                return {"FINISHED"}
-        return {'CANCELLED'}
+                for id in set(x.id for x in category.actions).difference(action_ids):
+                    new_action = category.actions.add()
+                    new_action.id = id
+            else:
+                for id in action_ids:
+                    category.actions.remove(category.actions.find(id))
+        functions.global_runtime_save(AR)
+        context.area.tag_redraw()
+        return {"FINISHED"}
 
     def draw(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -141,6 +138,7 @@ class AR_OT_global_import(Operator, ImportHelper):
         AR.import_settings.clear()
         functions.category_runtime_save(AR)
         functions.global_runtime_save(AR, False)
+        context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -231,12 +229,13 @@ class AR_OT_global_import_settings(Operator):
                 AR.import_extension = ".json"
                 with open(self.filepath, 'r') as file:
                     data = json.loads(file.read())
-                actions = data['actions']
+                actions = {action.id : action for action in data['actions']}
                 for category in data['categories']:
                     new_category = AR.import_settings.add()
                     new_category.identifier = category['id']
                     new_category.label = category['label']
-                    for action in actions[category['start'] : category['length']]:
+                    for id in category['actions']:
+                        action = actions[id]
                         new_action = new_category.actions.add()
                         new_action.identifier = action['id']
                         new_action.label = action['label']
@@ -246,14 +245,15 @@ class AR_OT_global_import_settings(Operator):
         return {'CANCELLED'}
 classes.append(AR_OT_global_import_settings)
 
-class AR_OT_Export(Operator, ExportHelper):
-    bl_idname = "ar.data_export"
+class AR_OT_global_export(Operator, ExportHelper):
+    bl_idname = "ar.global_export"
     bl_label = "Export"
     bl_description = "Export the Action file as a ZIP"
 
     filter_glob: StringProperty(default= '*.json', options= {'HIDDEN'})
     filename_ext = ".json"
-    filepath : StringProperty(name= "File Path", maxlen= 1024, default= "ActionRecorderButtons")
+    
+    filepath: StringProperty(name="File Path", description="Filepath used for exporting the file", maxlen=1024, subtype='FILE_PATH', default= "ActionRecorderButtons")
 
     all_categories : BoolProperty(name= "All", description= "Export all category")
     export_categories : CollectionProperty(type= properties.AR_global_export_categories)
@@ -263,14 +263,49 @@ class AR_OT_Export(Operator, ExportHelper):
         AR = context.preferences.addons[__package__].preferences
         return len(AR.global_actions)
 
+    def invoke(self, context, event):
+        AR = context.preferences.addons[__package__].preferences
+        for category in AR.categories:
+            new_category = self.export_categories.add()
+            new_category.id = category.id
+            new_category.label = category.label
+            for id_action in category.actions:
+                action = AR.global_actions.get(id_action.id, None)
+                if action is None:
+                    category.actions.remove(category.actions.find(id_action.id))
+                    continue
+                new_action = new_category.actions.add()
+                new_action.id = action.id
+                new_action.label = action.label
+        return ExportHelper.invoke(self, context, event)
+
     def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        if not os.path.exists(os.path.dirname(self.filepath)):
+            self.report({'ERROR', "Directory doesn't exist"})
+            return {'CANCELLED'}
+        if not self.filepath.endswith(".json"):
+            self.report({'ERROR', "File has to be a json file"})
+            return {'CANCELLED'}
         data = defaultdict(list)
         export_category_ids = set(category.id for category in self.export_categories if category.use)
         export_action_ids = []
         for category in self.export_categories:
             export_action_ids += set(action.id for action in category.actions if action.use)
-            
+        for category in AR.categories:
+            if category.id in export_category_ids:
+                data['categories'].append(functions.property_to_python(category, ['name', 'selected']))
+        for action in AR.global_actions:
+            if action.id in export_action_ids:
+                data['actions'].append(functions.property_to_python(category, ['name', 'alert', 'selected', 'commands.name', 'commands.alert', 'commands.is_available']))
+        with open(self.filepath, 'w', encoding= 'utf-8') as file:
+            json.dump(data, file, ensure_ascii= False, indent= 4)
+        self.cancel(context)
         return {'FINISHED'}
+    
+    def cancel(self, context):
+        self.export_categories.clear()
+        self.all_categories = True
 
     def draw(self, context):
         layout = self.layout
@@ -285,25 +320,236 @@ class AR_OT_Export(Operator, ExportHelper):
             row.prop(category, 'use', text= "")
             if category.show:
                 col = box.column(align= False)
-                for action in self.export_actions[category.start : category.start + category.length]:
+                for action in category.actions:
                     subrow = col.row()
                     subrow.prop(action, 'use' , text= '') 
                     subrow.label(text= action.label)
+classes.append(AR_OT_global_export)
+
+class AR_OT_global_save(Operator):
+    bl_idname = "ar.global_save"
+    bl_label = "Save"
+    bl_description = "Save all Global Actions to the Storage"
+
+    def execute(self, context):
+        functions.save(context.preferences.addons[__package__].preferences)
+        return {"FINISHED"}
+classes.append(AR_OT_global_save)
+
+class AR_OT_global_load(Operator):
+    bl_idname = "ar.global_load"
+    bl_label = "Load"
+    bl_description = "Load all Action data from the Storage"
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        functions.load(AR)
+        functions.category_runtime_save(AR, False)
+        functions.global_runtime_save(AR, False)
+        context.area.tag_redraw()
+        return {"FINISHED"}
+classes.append(AR_OT_global_load)
+
+class AR_OT_global_to_local(Operator):
+    bl_idname = "ar.global_to_local"
+    bl_label = "Action Button to Local"
+    bl_description = "Add the selected Action Button as a Local"
+
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+
+    def global_to_local(self, AR, action) -> None:
+        id = uuid.uuid1() if action.id in [x.id for x in AR.local_actions] else action.id
+        data = { # properties 'name'(read-only), 'alert'(only temporary set) ignored
+            "id" : id,
+            "label" : action.label,
+            "commands" : [
+                {
+                    "id" : command.id,
+                    "label" : command.label,
+                    "macro" : command.macro,
+                    "active" : command.active,
+                    "icon" : command.icon,
+                    "is_available" : command.is_available
+                } for command in action.commands
+            ],
+            "icon" : action.icon
+        }
+        functions.add_data_to_collection(AR.local_actions, data)
+        AR.selected_local_action_index = len(AR.local_actions)
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        for id in functions.get_global_action_ids(AR, self.id, self.index):
+            self.global_to_local(AR, AR.global_actions[id])
+            if AR.global_to_local_mode == 'move':
+                AR.global_actions.remove(AR.global_actions.find(id))
+                for category in AR.categories:
+                    category.actions.remove(category.actions.find(id))
+        functions.category_runtime_save(AR)
+        functions.global_runtime_save(AR, False)
+        context.area.tag_redraw()
+        return {"FINISHED"}
+classes.append(AR_OT_global_to_local)
+
+class AR_OT_global_remove(Operator):
+    bl_idname = "ar.global_remove"
+    bl_label = "Remove Action"
+    bl_description = "Remove the selected actions"
+
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        for id in functions.get_global_action_ids(AR, self.id, self.index):
+            AR.global_actions.remove(AR.global_actions.find(id))
+            for category in AR.categories:
+                category.actions.remove(category.actions.find(id))
+        functions.category_runtime_save(AR)
+        functions.global_runtime_save(AR, False)
+        context.area.tag_redraw()
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+classes.append(AR_OT_global_remove)
+
+class AR_OT_global_move_up(Operator):
+    bl_idname = "ar.global_move_up"
+    bl_label = "Move Action Up"
+    bl_description = "Move the selected actions Up"
+    
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        ids = set(functions.get_global_action_ids(AR, self.id, self.index))
+        for category in AR.categories:
+            for id_action in category.actions:
+                if id_action.id in ids:
+                    index = category.actions.find(id_action.id)
+                    category.actions.move(index, index - 1)
+        functions.category_runtime_save(AR)
+        context.area.tag_redraw()
+        return {"FINISHED"}
+classes.append(AR_OT_global_move_up)
+
+class AR_OT_global_move_down(Operator):
+    bl_idname = "ar.global_move_down"
+    bl_label = "Move Action Down"
+    bl_description = "Move the selected actions Down"
+
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        ids = set(functions.get_global_action_ids(AR, self.id, self.index))
+        for category in AR.categories:
+            for id_action in list(category.actions).reverse():
+                if id_action.id in ids:
+                    index = category.actions.find(id_action.id)
+                    category.actions.move(index, index + 1)
+        functions.category_runtime_save(AR)
+        context.area.tag_redraw()
+        return {"FINISHED"}
+classes.append(AR_OT_global_move_up)
+
+class AR_OT_global_rename(Operator):
+    bl_idname = "ar.global_rename"
+    bl_label = "Rename Button"
+    bl_description = "Rename the selected Button"
+    
+    label : StringProperty()
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", [])) == 1
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        ids = functions.get_global_action_ids(AR, self.id, self.index)
+        if len(ids) == 1:
+            id = ids[0]
+            if AR.global_actions.find(id) == -1:
+                return {'CANCELLED'}
+            AR.global_actions[id].label = self.label
+            functions.global_runtime_save(AR)
+            context.area.tag_redraw()
+            return {"FINISHED"}
+        else:
+            return {'CANCELLED'}    
+classes.append(AR_OT_global_rename)
+
+class AR_OT_global_execute_action(Operator):
+    bl_idname = 'ar.global_execute_action'
+    bl_label = 'ActRec Action Button'
+    bl_description = 'Play this Action Button'
+    bl_options = {'UNDO', 'INTERNAL'}
+
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        id = functions.get_global_action_id(AR, self.id, self.index)
+        if id is None:
+            return {'CANCELLED'}
+        try:
+            for command in AR.global_actions[id].commands:
+                exec(command.macro)
+        except Exception as err:
+            AR.global_alert_index = AR.global_actions.find(id)
+            context.area.tag_redraw()
+        return{'FINISHED'}
+classes.append(AR_OT_global_execute_action)
+
+class AR_OT_Category_Cmd_Icon(icon_manager.icontable, Operator):
+    bl_idname = "ar.category_cmd_icon"
+
+    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
+    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        AR.global_actions[self.id].icon = AR.selected_icon
+        AR.selected_icon = 101 #Icon: BLANK1
+        functions.global_runtime_save(AR)
+        bpy.context.area.tag_redraw()
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         AR = context.preferences.addons[__package__].preferences
-        for category in AR.categories:
-            new_category = self.export_categories.add()
-            new_category.id = category.id
-            new_category.label = category.label
-            for action in AR.global_actions[category.start : category.start + category.length]:
-                new_action = new_category.actions.add()
-                new_action.id = action.id
-                new_action.label = action.label
-        return ExportHelper.invoke(self, context, event)
-    
-    def cancel(self, context):
-        self.export_categories.clear()
-        self.all_categories = True
-classes.append(AR_OT_Export)
+        id = functions.get_global_action_id(AR, self.id, self.index)
+        if id is None:
+            return {'CANCELLED'}
+        AR.selected_icon = AR.global_actions[id].icon
+        self.search = ''
+        return context.window_manager.invoke_props_dialog(self, width=1000)
+classes.append(AR_OT_Category_Cmd_Icon)
 # endregion

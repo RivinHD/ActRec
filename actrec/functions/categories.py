@@ -37,15 +37,9 @@ def read_category_visbility(AR, category_id) -> Optional[list]:
 
 def category_runtime_save(AR, use_autosave: bool = True) -> None:
     """includes autosave"""
-    shared_data.data_manager.categories_temp = shared.property_to_python(AR.categories)
+    shared_data.categories_temp = shared.property_to_python(AR.categories)
     if use_autosave and AR.autosave:
         globals.save(AR)
-
-def adjust_categories(categories, category, change: int) -> None:
-    """adjust the 'start'-property of the categories after the 'category' by the 'change' value"""
-    for adjust_categorie in categories:
-        if adjust_categorie.start > category.start:
-            adjust_categorie.start += change
 
 def category_visible(category, context) -> bool:
     if not len(category.areas):

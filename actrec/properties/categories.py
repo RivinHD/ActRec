@@ -33,7 +33,7 @@ class AR_category_areas(PropertyGroup):
     modes : CollectionProperty(type= AR_category_modes)
 classes.append(AR_category_areas)
 
-class AR_category_actions(shared.id_system, PropertyGroup):
+class AR_category_actions(shared.id_system, PropertyGroup): # holds id's of actions
     pass
 classes.append(AR_category_actions)
 

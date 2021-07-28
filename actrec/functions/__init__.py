@@ -3,18 +3,24 @@
 from .categories import (
     read_category_visbility,
     category_runtime_save,
-    adjust_categories,
     category_visible
 )
 
 from .globals import (
-    set_enum_index,
-    add_global_actions_enum,
     update_macro,
     save,
     load,
     global_runtime_save,
-    import_global_from_dict
+    import_global_from_dict,
+    get_global_action_id,
+    get_global_action_ids
+)
+
+from .locals import(
+    local_runtime_save,
+    save_local_to_scene,
+    get_local_action_index,
+    load_local_action
 )
 
 from .shared import (

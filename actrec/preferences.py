@@ -22,7 +22,7 @@ class AR_preferences(AddonPreferences):
     bl_idname = __package__
     addon_directory : StringProperty(name= "addon directory", default= os.path.dirname(os.path.dirname(__file__)), get= lambda self: self.bl_rna.properties['addon_directory'].default)  # get the base addon directory
 
-    icon_selected : IntProperty(name="selected icon", description= "only internal usage", default= 101, min= 0, options= {'HIDDEN'}) # default icon value for BLANK1
+    selected_icon : IntProperty(name="selected icon", description= "only internal usage", default= 101, min= 0, options= {'HIDDEN'}) # default icon value for BLANK1
     
     # update
     launch_update : BoolProperty()
@@ -32,7 +32,7 @@ class AR_preferences(AddonPreferences):
     update_progress : IntProperty(name= "Update Progress", default= -1, min= -1, max= 100, soft_min= 0, soft_max= 100, subtype= 'PERCENTAGE') # use as slider
 
     # locals
-    local_actions : CollectionProperty(type= properties.AR_action)
+    local_actions : CollectionProperty(type= properties.AR_local_actions)
 
     def get_selected_local_action_index(self):
         value = self.get('selected_local_action_index', 0)
@@ -44,7 +44,7 @@ class AR_preferences(AddonPreferences):
     selected_local_action_index : IntProperty(min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
 
     local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
-
+    
     # macros
     def get_selected_macro_index(self):
         value = self.get('selected_macro_index', 0)
@@ -56,10 +56,20 @@ class AR_preferences(AddonPreferences):
     selected_macro_index : IntProperty(min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
 
     # globals
-    global_actions : CollectionProperty(type= properties.AR_action)
-    global_actions_enum : CollectionProperty(type= properties.AR_global_actions_enum)
+    global_actions : CollectionProperty(type= properties.AR_global_actions)
 
+    global_to_local_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
+    global_rename : StringProperty(name= "Rename", description= "Rename the selected Action")
+    def get_global_alert_index(self):
+        return self.get('global_alert_index', -1)
+    def set_global_alert_index(self, value):
+        self['global_alert_index'] = value
+        if value > 0:
+            def reset():
+                self['global_alert_index'] = -1
+            bpy.app.timers.register(reset, first_interval= 1, persistent= True)
+    global_alert_index : IntProperty(name= "Alert Index", description= "Internal use", default= -1, get=get_global_alert_index, set= set_global_alert_index)
 
     import_settings : CollectionProperty(type= properties.AR_global_import_category)
     import_extension : StringProperty()
@@ -141,7 +151,7 @@ class AR_preferences(AddonPreferences):
     ]
 
     def draw(self, context):
-        AR = bpy.context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__package__].preferences
         layout = self.layout
         col = layout.column()
         row = col.row()

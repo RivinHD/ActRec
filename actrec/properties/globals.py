@@ -11,9 +11,25 @@ from . import shared
 classes = []
 
 # region PropertyGroups
-class AR_global_actions_enum(PropertyGroup):
-    index : IntProperty()
-classes.append(AR_global_actions_enum)
+class AR_global_actions(shared.AR_action, PropertyGroup):
+    def get_value(self) -> bool:
+        return self.get("selected", False)
+    def set_value(self, value: bool) -> None:
+        AR = bpy.context.preferences.addons[__package__].preferences
+        selected_ids = AR.get("global_actions.selected_ids", [])
+        if value:
+            ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
+            if selected_ids != [] and ctrl_value == 'CANCELLED':
+                AR["global_actions.selected_ids"].clear()
+                for selected_id in selected_ids:
+                    AR.global_actions[selected_id].selected = False
+            AR.set_default("global_actions.selected_ids", [])
+            AR["global_actions.selected_ids"].append(self.id)
+            self['selected'] = value
+        elif not (self.id in selected_ids):
+            self['selected'] = value
+    selected : BoolProperty(default= False, set= set_value, get= get_value, description= "Select this Action Button\n use ctrl to select muliple", name = 'Select')
+classes.append(AR_global_actions)
 
 class AR_global_import_action(PropertyGroup):
     def get_use(self):

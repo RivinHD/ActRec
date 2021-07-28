@@ -146,7 +146,7 @@ def update_download_file(download_list: list, remove_list: list, current_version
     download_file["files"] = files
     download_file["version"] = current_version
     with open(os.path.join(AR.addon_directory, "download_file.json"), "w", encoding= "utf-8") as open_files:
-        open_files.write(json.dumps(download_file))
+        json.dump(download_file, open_files, ensure_ascii= False, indent= 4)
 
 def get_download_paths(download_file) -> Optional[list]:
     download_files = download_file["files"]

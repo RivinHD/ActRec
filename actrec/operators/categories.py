@@ -127,11 +127,9 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
         AR = context.preferences.addons[__package__].preferences
         new = AR.categories.add()
         new.label = functions.check_for_dublicates([c.label for c in AR.categories], self.label)
-        new.start = len(AR.Instance_Coll)
-        new.length = 0
         self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
         ui.register_category(AR.categories.find(new.id))
-        bpy.context.area.tag_redraw()
+        context.area.tag_redraw()
         functions.category_runtime_save(AR)
         return {"FINISHED"}
 classes.append(AR_OT_category_add)
@@ -210,15 +208,12 @@ class AR_OT_category_delete(Operator):
         id = AR.selected_category
         if id != '':
             category = categories[id]
-            start = category.start
-            length = category.length
-            for i in range(start, start + length):
-                AR.global_actions.remove(start)
-            functions.adjust_categories(categories, category, -length)
+            for id_action in category.actions:
+                AR.global_actions.remove(AR.global_actions.find(id_action.id))
             categories.remove(categories.find(id))
             ui.unregister_category(AR, category)
             functions.set_enum_index(AR)
-        bpy.context.area.tag_redraw()
+        context.area.tag_redraw()
         functions.category_runtime_save(AR)
         return {"FINISHED"}
     
@@ -249,7 +244,7 @@ class AR_OT_category_move_up(Operator):
                 swap_category = categories[y]
             functions.swap_collection_items(categories[i], swap_category)
             AR.categories[y].selected = True
-            bpy.context.area.tag_redraw()
+            context.area.tag_redraw()
             functions.category_runtime_save(AR)
             return {"FINISHED"}
         return {'CANCELLED'}
@@ -276,7 +271,7 @@ class AR_OT_category_move_down(Operator):
                 swap_category = categories[y]
             functions.swap_categories(categories[i], swap_category)
             AR.categories[y].selected = True
-            bpy.context.area.tag_redraw()
+            context.area.tag_redraw()
             functions.category_runtime_save(AR)
             return {"FINISHED"}
         return {'CANCELLED'}
