@@ -123,68 +123,6 @@ def Get_Recent(Return_Bool):
     elif Return_Bool == 'Reports_Length':
         return len(bpy.data.texts['Recent Reports'].lines)
 
-def Record(Num, Mode):
-    AR = bpy.context.preferences.addons[__package__].preferences
-    Recent = Get_Recent('Reports_All')
-    if Mode == 'Start':
-        AR_preferences.Record = True
-        AR_preferences.Temp_Num = len(Recent)
-        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
-    else:
-        AR_preferences.Record = False
-        notadded = []
-        startCommand = ""
-        lastCommand = ""
-        for i in range(AR_preferences.Temp_Num, len(Recent)):
-            TempText = Recent[i - 1].body
-            if TempText.count('bpy'):
-                name = TempText[TempText.find('bpy'):]
-                if lastCommand.split("(", 1)[0] == name.split("(", 1)[0] and startCommand != name:
-                    lastCommand = name
-                    continue
-                macro = GetMacro(name)
-                if macro is True:
-                    continue
-                if startCommand != lastCommand:
-                    lastMacro = GetMacro(lastCommand)
-                    if lastMacro is None:
-                        notadded.append(name)
-                        if AR.CreateEmpty:
-                            Item = AR.Record_Coll[CheckCommand(Num)].Command[-1]
-                            Item.macro = "<Empty>"
-                            Item.cname = ""
-                    else:
-                        Item = AR.Record_Coll[CheckCommand(Num)].Command[-1]
-                        Item.macro = lastMacro
-                        Item.cname = lastCommand
-                lastCommand = name
-                startCommand = name
-                if macro is None:
-                    notadded.append(name)
-                    if AR.CreateEmpty:
-                        Item = AR.Record_Coll[CheckCommand(Num)].Command.add()
-                        Item.macro = "<Empty>"
-                        Item.cname = ""
-                else:
-                    Item = AR.Record_Coll[CheckCommand(Num)].Command.add()
-                    Item.macro = macro
-                    Item.cname = name
-        if startCommand != lastCommand:
-            lastMacro = GetMacro(lastCommand)
-            if lastMacro is None:
-                notadded.append(name)
-                if AR.CreateEmpty:
-                    Item = AR.Record_Coll[CheckCommand(Num)].Command[-1]
-                    Item.macro = "<Empty>"
-                    Item.cname = ""
-            else:
-                Item = AR.Record_Coll[CheckCommand(Num)].Command[-1]
-                Item.macro = lastMacro
-                Item.cname = lastCommand
-        UpdateRecordText(Num)
-        bpy.data.texts.remove(bpy.data.texts['Recent Reports'])
-        return notadded
-
 def CreateTempFile():
     tpath = bpy.app.tempdir + "temp.json"
     if not os.path.exists(tpath):
@@ -322,14 +260,6 @@ def Add(Num, command = None, macro = None):
     if not AR.hideLocal:
         bpy.data.texts.new(Item.cname)
 
-def UpdateRecordText(Num):
-    AR = bpy.context.preferences.addons[__package__].preferences
-    RecName = AR.Record_Coll[CheckCommand(0)].Command[Num - 1].cname
-    if bpy.data.texts.find(RecName) == -1:
-        bpy.data.texts.new(RecName)
-    bpy.data.texts[RecName].clear()
-    bpy.data.texts[RecName].write("".join([cmd.cname + "#" + cmd.macro +"\n" for cmd in AR.Record_Coll[CheckCommand(Num)].Command]))
-
 def Remove(Num): # Remove Record or Macro
     AR = bpy.context.preferences.addons[__package__].preferences
     index = AR.Record_Coll[CheckCommand(Num)].Index
@@ -373,21 +303,6 @@ def Select_Command(Mode): # Select the upper/lower Record
         else:
             AR.Record_Coll[CheckCommand(0)].Index = currentIndex + 1
 
-def RespAlert(Command, index, CommandIndex):
-    AR = bpy.context.preferences.addons[__package__].preferences
-    if CommandIndex == AR.Record_Coll[CheckCommand(index + 1)].Index:
-        if AR.Record_Coll[CheckCommand(index + 1)].Index == 0:
-            if len(AR.Record_Coll[CheckCommand(index + 1)].Command) > 1:
-                AR.Record_Coll[CheckCommand(index + 1)].Index = 1
-                bpy.context.area.tag_redraw()
-        else:
-            AR.Record_Coll[CheckCommand(index + 1)].Index = 0
-            bpy.context.area.tag_redraw()
-        bpy.app.timers.register(functools.partial(Alert, Command, index, CommandIndex), first_interval= 0.01)
-    else:
-        Alert(Command, index, CommandIndex)
-    return True
-
 def Alert(Command, index, CommandIndex):
     AR = bpy.context.preferences.addons[__package__].preferences
     Command.alert = True
@@ -398,105 +313,6 @@ def Alert(Command, index, CommandIndex):
         bpy.context.area.tag_redraw()
     except:
         redrawLocalANDMacroPanels()
-
-def Play(Commands, index, AllLoops = None, extension = 0, offset = 0): #Execute the Macro
-    if AllLoops is None:
-        AllLoops = getAllLoops(Commands)
-    first_event = len(Commands)
-    for i, Command in enumerate(Commands):
-        if Command.active:
-            split = Command.cname.split(":")
-            if split[0] == 'ar.event': # non-realtime events
-                data = json.loads(":".join(split[1:]))
-                if data['Type'] == 'Render Complet':
-                    Data.Commands_RenderComplete.append((index, Commands[i + 1:], i + 1))
-                    first_event = i
-                    break
-                elif data['Type'] == 'Render Init':
-                    Data.Commands_RenderInit.append((index, Commands[i + 1:], i + 1))
-                    first_event = i
-                    break
-                else:
-                    return RespAlert(Command, index, i + offset)
-    for i, Command in enumerate(Commands[:first_event]):
-        if Command.active:
-            split = Command.cname.split(":")
-            if split[0] == 'ar.event': # realtime events
-                data = json.loads(":".join(split[1:]))
-                if data['Type'] == 'Timer':
-                    bpy.app.timers.register(functools.partial(TimerCommads, Commands[i + 1:], index, i + 1), first_interval = data['Time'])
-                    Data.ActiveTimers += 1
-                    bpy.ops.ar.command_run_queued('INVOKE_DEFAULT')
-                    return
-                elif data['Type'] == 'Loop' :
-                    loopi = getIndexInLoop(i + extension, AllLoops, 'Loop')
-                    if loopi == None:
-                        continue
-                    else:
-                        AllLoops[loopi].pop('Loop', None)
-                    if data['StatementType'] == 'python':
-                        try:
-                            while eval(data["PyStatement"]):
-                                BackLoops = Play(Commands[int(i) + 1:], index, copy.deepcopy(AllLoops), extension + 2)
-                                if BackLoops == True:
-                                    return True
-                            else:
-                                AllLoops = BackLoops
-                            continue
-                        except:
-                            return RespAlert(Command, index, i + offset)
-                    else:
-                        for k in np.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
-                            BackLoops = Play(Commands[int(i) + 1:], index, copy.deepcopy(AllLoops), extension + 2)
-                            if BackLoops == True:
-                                return True
-                        else:
-                            AllLoops = BackLoops    
-                        AllLoops[loopi].pop('End', None)
-                        continue
-                elif data['Type'] == 'EndLoop':
-                    loopi = getIndexInLoop(i + extension, AllLoops, 'End')
-                    if loopi == None:
-                        continue
-                    else:
-                        if 'Loop' not in AllLoops[loopi]:
-                            return AllLoops
-                elif data['Type'] == 'Select Object':
-                    obj = bpy.data.objects[data['Object']]
-                    objs = bpy.context.view_layer.objects
-                    if obj in [o for o in objs]:
-                        objs.active = obj
-                    else:
-                        return RespAlert(Command, index, i + offset)
-                    continue
-                elif data['Type'] == 'Select Vertices':
-                    obj = bpy.context.object
-                    mode = bpy.context.active_object.mode
-                    bpy.ops.object.mode_set(mode = 'EDIT') 
-                    bpy.ops.mesh.select_mode(type="VERT")
-                    bpy.ops.mesh.select_all(action = 'DESELECT')
-                    bpy.ops.object.mode_set(mode = 'OBJECT')
-                    mesh = bpy.context.object.data
-                    objverts = mesh.vertices
-                    verts = data['Verts']
-                    if max(verts) < len(objverts):
-                        for vert in objverts:
-                            vert.select = False
-                        for i in verts:
-                            objverts[i].select = True
-                        mesh.update()
-                    else:
-                        bpy.ops.object.mode_set(mode=mode)
-                        return RespAlert(Command, index, i + offset)
-                    bpy.ops.object.mode_set(mode=mode)
-                    continue
-                else:
-                    return RespAlert(Command, index, i + offset)
-            try:
-                exec(Command.cname)
-            except Exception as err:
-                logger.error(err)
-                return RespAlert(Command, index, i + offset)
 
 def Clear(Num) : # Clear all Macros
     AR = bpy.context.preferences.addons[__package__].preferences
@@ -552,7 +368,7 @@ def Load():#Load Buttons from Storage
                     for line in text.readlines():
                         cmd = inst.commands.add()
                         line_split = line.strip().split('#')
-                        updated_cmd = update_macro(line_split[0])
+                        updated_cmd = update_command(line_split[0])
                         if updated_cmd is None:
                             cmd.macro = "ERROR N/A"
                             cmd.name = "The command <%s> no longer exists in this version of Blender" %line_split[0]
@@ -824,28 +640,6 @@ def DeleteProps(address):
 def TimerCommads(Commands, index, offset):
     execution_queue.put(functools.partial(Play, Commands, index, offset=offset))
 
-def getAllLoops(Commands):
-    datal = []
-    for i, Command in enumerate(Commands):
-        if Command.active:
-            split = Command.cname.split(":")
-            if split[0] == 'ar.event':
-                data = json.loads(":".join(split[1:]))
-                if data['Type'] == 'Loop':
-                    datal.append({'Loop': i})
-                elif data['Type'] == 'EndLoop':
-                    index = CheckForLoopEnd(datal)
-                    if index != -1:
-                        datal[index]['End'] = i
-    return [obj for obj in datal if 'End' in obj]
-
-def CheckForLoopEnd(data):
-    if len(data) < 1:
-        return -1
-    if 'End' in data[-1]:
-        return CheckForLoopEnd(data[:-1])
-    else:
-        return len(data) - 1 
 
 def getIndexInLoop(i, AllLoops, identifier):
     for li in range(len(AllLoops)):
@@ -1208,100 +1002,6 @@ def panelFactory(spaceType): #Create Panels for every spacetype with UI
         
 # region Opertators
 
-class AR_OT_Record_SelectorUp(Operator):
-    bl_idname = 'ar.record_selector_up'
-    bl_label = 'ActRec Selection Up'
-
-    def execute(self, context):
-        Select_Command('Up')
-        bpy.context.area.tag_redraw()
-        return{'FINISHED'}
-classes.append(AR_OT_Record_SelectorUp)
-
-class AR_OT_Record_SelectorDown(Operator):
-    bl_idname = 'ar.record_selector_down'
-    bl_label = 'ActRec Selection Down'
-
-    def execute(self, context):
-        Select_Command('Down')
-        bpy.context.area.tag_redraw()
-        return{'FINISHED'}
-classes.append(AR_OT_Record_SelectorDown)
-
-class AR_OT_Record_Play(Operator):
-    bl_idname = 'ar.record_play'
-    bl_label = 'ActRec Play'
-    bl_description = 'Play the selected Action.'
-    bl_options = {'REGISTER','UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
-        return len(AR.Record_Coll[CheckCommand(AR.Record_Coll[CheckCommand(0)].Index + 1)].Command)
-
-    def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
-        index = AR.Record_Coll[CheckCommand(0)].Index
-        Play(AR.Record_Coll[CheckCommand(index + 1)].Command, index)
-        return{'FINISHED'}
-classes.append(AR_OT_Record_Play)
-
-class AR_OT_Record_Start(Operator):
-    bl_idname = "ar.record_start"
-    bl_label = "Start Recording"
-    bl_description = "Starts Recording the Macros"
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
-        return len(AR.Record_Coll[CheckCommand(0)].Command)
-
-    def execute(self, context):
-        AR = bpy.context.preferences.addons[__package__].preferences
-        scene = bpy.context.scene
-        Record(AR.Record_Coll[CheckCommand(0)].Index + 1 , 'Start')
-        bpy.context.area.tag_redraw()
-        return {"FINISHED"}
-classes.append(AR_OT_Record_Start)
-
-class AR_OT_Record_Stop(Operator):
-    bl_idname = "ar.record_stop"
-    bl_label = "Stop Recording"
-    bl_description = "Stops Recording the Macros"
-
-    def execute(self, context):
-        AR = bpy.context.preferences.addons[__package__].preferences
-        scene = bpy.context.scene
-        messages = Record(AR.Record_Coll[CheckCommand(0)].Index + 1 , 'Stop')
-        if len(messages):
-            self.report({'ERROR'}, "Not all actions were added because they are not of type Operator:\n    %s" % "\n    ".join(messages))
-        TempUpdateCommand(AR.Record_Coll[CheckCommand(0)].Index + 1)
-        bpy.context.area.tag_redraw()
-        SaveToDataHandler(None)
-        return {"FINISHED"}
-classes.append(AR_OT_Record_Stop)
-
-class AR_OT_Record_Icon(icontable, Operator):
-    bl_idname = "ar.record_icon"
-
-    index : IntProperty()
-    search : StringProperty(name= "Icon Search", description= "search Icon by name", options= {'TEXTEDIT_UPDATE'})
-
-    def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
-        AR.Record_Coll[0].Command[self.index].icon = AR_preferences.SelectedIcon
-        AR_preferences.SelectedIcon = 101 #Icon: BLANK1
-        bpy.context.area.tag_redraw()
-        SaveToDataHandler(None)
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        self.search = ''
-        AR = context.preferences.addons[__package__].preferences
-        AR_preferences.SelectedIcon = AR.Record_Coll[0].Command[self.index].icon
-        return context.window_manager.invoke_props_dialog(self, width=1000)
-classes.append(AR_OT_Record_Icon)
-
 class AR_OT_Record_Execute(Operator):
     bl_idname = "ar.record_execute"
     bl_label = "Execute Action"
@@ -1571,157 +1271,6 @@ class AR_OT_Command_Edit(Operator):
     def cancel(self, context):
         self.Edit = False
 classes.append(AR_OT_Command_Edit)
-
-class AR_OT_Command_Run_Queued(Operator):
-    bl_idname = "ar.command_run_queued"
-    bl_label = "Run Queued Commands"
-    bl_options ={'INTERNAL'}
-
-    _timer = None
-
-    def execute(self, context):
-        while not execution_queue.empty():
-            function = execution_queue.get()
-            function()
-            Data.ActiveTimers -= 1
-        return {"FINISHED"}
-    
-    def modal(self, context, event):
-        if Data.ActiveTimers > 0:
-            self.execute(context)
-            return {'PASS_THROUGH'}
-        else:
-            self.cancel(context)
-            return {'FINISHED'}
-
-    def invoke(self, context, event):
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(0.05, window=context.window)
-        wm.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
-    
-    def cancel(self, context):
-        wm = context.window_manager
-        wm.event_timer_remove(self._timer)
-classes.append(AR_OT_Command_Run_Queued)
-
-class AR_OT_AddEvent(Operator):
-    bl_idname = "ar.addevent"
-    bl_label = "Add Event"
-    bl_description = "Add a Event which wait until the Event is Triggered"
-
-    TypesList = [('Timer', 'Timer', 'Wait the chosen Time and continue with the Macros', 'SORTTIME', 0),
-                ('Render Complet', 'Render complet', 'Wait until the rendering has finished', 'IMAGE_RGB_ALPHA', 1),
-                ('Render Init', 'Render Init', 'Wait until the rendering has started', 'IMAGE_RGB', 2),
-                ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
-                ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
-                ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
-                ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6) #,
-                #('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7),
-                #('Select Vertices', 'Select Vertices', 'Select the choosen verts', 'GROUP_VERTEX', 8)
-                ]
-    Type : EnumProperty(items= TypesList, name= "Event Type", description= 'Shows all possible Events', default= 'Timer')
-    time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
-    Statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Startnumber with the Stepnumber to the Endnumber, \nStop when Number > Endnumber', '', 0),
-                                    ('python', 'Python Statment', 'Create a custom statement with python code', '', 1)])
-    Startnumber : FloatProperty(name= "Startnumber", description= "Startnumber of the Count statements", default=0)
-    Stepnumber : FloatProperty(name= "Stepnumber", description= "Stepnumber of the Count statements", default= 1)
-    Endnumber : FloatProperty(name= "Endnumber", description= "Endnumber of the Count statements", default= 1)
-    PythonStatement : StringProperty(name= "Statement", description= "Statment for the Python Statement")
-    Num : IntProperty(default= -1)
-    SelectedObject : StringProperty(name= "Object", description= "Choose an Object which get select when this Event is played")
-    VertObj : StringProperty(name= "Object", description= "Choose an Object to get the selected verts from")
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
-        return len(AR.Record_Coll[CheckCommand(0)].Command)
-
-    def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
-        selected_action = CheckCommand(AR.Record_Coll[CheckCommand(0)].Index + 1)
-        if self.Num == -1:
-            Item = AR.Record_Coll[selected_action].Command.add()
-        else:
-            Item = AR.Record_Coll[selected_action].Command[self.Num]
-        selected_action = CheckCommand(AR.Record_Coll[CheckCommand(0)].Index + 1)
-        rec = AR.Record_Coll[selected_action]
-        index = len(rec.Command) - 1
-        rec.Index = index
-        if self.Type == 'Clipboard':
-            cmd = context.window_manager.clipboard
-            macro = GetMacro(cmd)
-            if type(macro) != str:
-                macro = cmd
-            Item.macro = macro
-            Item.cname = cmd
-        elif self.Type == 'Empty':
-            Item.macro = "<Empty>"
-            Item.cname = ""
-            bpy.ops.ar.command_edit('INVOKE_DEFAULT', index= index, Edit= True)
-        else:
-            Item.macro = "Event: " + self.Type
-            data = {'Type': self.Type}
-            if self.Type == 'Timer':
-                data['Time'] = self.time
-            elif self.Type == 'Loop':
-                data['StatementType'] = self.Statements
-                if self.Statements == 'python':
-                    data["PyStatement"] = self.PythonStatement
-                else:
-                    data["Startnumber"] = self.Startnumber
-                    data["Endnumber"] = self.Endnumber
-                    data["Stepnumber"] = self.Stepnumber
-            elif self.Type == 'Select Object':
-                data['Object'] = self.SelectedObject
-            elif self.Type == 'Select Vertices':
-                data['Object'] = self.VertObj
-                selverts = []
-                obj = bpy.context.view_layer.objects[self.VertObj]
-                obj.update_from_editmode()
-                verts = obj.data.vertices
-                for v in verts:
-                    if v.select:
-                        selverts.append(v.index)
-                data['Verts'] = selverts
-            Item.cname = "ar.event:" + json.dumps(data)
-        TempUpdateCommand(selected_action)
-        if not AR.hideLocal:
-            UpdateRecordText(selected_action)
-        return {"FINISHED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'Type')
-        if self.Type == 'Timer':
-            box = layout.box()
-            box.prop(self, 'time')
-        elif self.Type == 'Loop':
-            box = layout.box()
-            box.prop(self, 'Statements')
-            box.separator()
-            if self.Statements == 'python':
-                box.prop(self, 'PythonStatement')
-            else:
-                box.prop(self, 'Startnumber')
-                box.prop(self, 'Endnumber')
-                box.prop(self, 'Stepnumber')
-        elif self.Type == 'Select Object':
-            box = layout.box()
-            box.prop_search(self, 'SelectedObject', bpy.context.view_layer, 'objects')
-        elif self.Type == 'Select Vertices':
-            box = layout.box()
-            box.prop_search(self, 'VertObj', bpy.data, 'meshes')
-
-    def invoke(self, context, event):
-        if bpy.context.object != None:
-            obj = bpy.context.object.name
-            self.SelectedObject = obj
-            index = bpy.data.meshes.find(obj)
-            if index != -1:
-                self.VertObj = obj
-        return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_AddEvent)
 
 class AR_OT_CopyToActRec(Operator):
     bl_idname = "ar.copy_to_actrec"

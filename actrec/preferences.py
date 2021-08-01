@@ -44,14 +44,24 @@ class AR_preferences(AddonPreferences):
     selected_local_action_index : IntProperty(min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
 
     local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
-    
+    local_record_macros : BoolProperty(name= "Record Macros", default= False)
+    def hide_show_local_in_texteditor(self, context):
+        if self.hideLocal:
+            for text in bpy.data.texts:
+                if text.lines[0].body.strip().startswith("###AR###"):
+                    bpy.data.texts.remove(text)
+        else:
+            for i in range(1, len(self.Record_Coll)):
+                UpdateRecordText(i)
+    hide_local_text : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update=hide_show_local_in_texteditor)
+
     # macros
     def get_selected_macro_index(self):
         value = self.get('selected_macro_index', 0)
-        commands_length = len(self.local_actions[self.selected_local_action_index].commands)
+        commands_length = len(self.local_actions[self.selected_local_action_index].macros)
         return value if value < commands_length else commands_length - 1
     def set_selected_macro_index(self, value):
-        commands_length = len(self.local_actions[self.selected_local_action_index].commands)
+        commands_length = len(self.local_actions[self.selected_local_action_index].macros)
         self['selected_macro_index'] = value if value < commands_length else commands_length - 1
     selected_macro_index : IntProperty(min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
 
@@ -61,15 +71,6 @@ class AR_preferences(AddonPreferences):
     global_to_local_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     global_rename : StringProperty(name= "Rename", description= "Rename the selected Action")
-    def get_global_alert_index(self):
-        return self.get('global_alert_index', -1)
-    def set_global_alert_index(self, value):
-        self['global_alert_index'] = value
-        if value > 0:
-            def reset():
-                self['global_alert_index'] = -1
-            bpy.app.timers.register(reset, first_interval= 1, persistent= True)
-    global_alert_index : IntProperty(name= "Alert Index", description= "Internal use", default= -1, get=get_global_alert_index, set= set_global_alert_index)
 
     import_settings : CollectionProperty(type= properties.AR_global_import_category)
     import_extension : StringProperty()
@@ -124,16 +125,6 @@ class AR_preferences(AddonPreferences):
     LastLineIndex : IntProperty()
     LastLine : StringProperty(default= "<Empty>")
     LastLineCmd : StringProperty()
-    def hide_show_local_in_texteditor(self, context):
-        if self.hideLocal:
-            actio_names = [cmd.cname for cmd in self.Record_Coll[0].Command]
-            for text in bpy.data.texts:
-                if text.name in actio_names:
-                    bpy.data.texts.remove(text)
-        else:
-            for i in range(1, len(self.Record_Coll)):
-                UpdateRecordText(i)
-    hideLocal : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update=hide_show_local_in_texteditor)
 
     IconFilePath : StringProperty(name= "Icon Path", description= "The Path to the Storage for the added Icons", default= os.path.join(os.path.dirname(__file__), "Icons"))
 

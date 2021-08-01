@@ -7,7 +7,6 @@ from .categories import (
 )
 
 from .globals import (
-    update_macro,
     save,
     load,
     global_runtime_save,
@@ -20,7 +19,9 @@ from .locals import(
     local_runtime_save,
     save_local_to_scene,
     get_local_action_index,
-    load_local_action
+    load_local_action,
+    local_action_to_text,
+    add_report_as_macro
 )
 
 from .shared import (
@@ -29,5 +30,7 @@ from .shared import (
     insert_to_collection,
     swap_collection_items,
     property_to_python,
-    get_name_of_command
+    get_name_of_command,
+    update_command,
+    play
 )

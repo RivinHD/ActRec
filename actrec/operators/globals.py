@@ -15,18 +15,16 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
 from .. import functions, properties, icon_manager
+from . import shared
 # endregion
 
 classes = []
 
 # region Operators
-class AR_OT_gloabal_recategorize_action(Operator):
+class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
     bl_idname = "ar.global_recategorize_action"
     bl_label = "Recategoize Action Button"
     bl_description = "Move the selected Action Button of a Category to Another Category"
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -52,6 +50,7 @@ class AR_OT_gloabal_recategorize_action(Operator):
                     category.actions.remove(category.actions.find(id))
         functions.global_runtime_save(AR)
         context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -72,21 +71,21 @@ class AR_OT_global_import(Operator, ImportHelper):
     category : StringProperty(default= "Imports")
     mode : EnumProperty(name= 'Mode', items= [("add","Add",""),("overwrite", "Overwrite", "")])
 
-    def get_commands_from_file(self, zip_file: zipfile.ZipFile, path: str) -> list:
+    def get_macros_from_file(self, zip_file: zipfile.ZipFile, path: str) -> list:
         lines = zip_file.read(path).splitlines(False)
-        commands = []
+        macros = []
         for line in lines:
             split_line = line.split("#")
             data = {'id' : uuid.uuid1().hex, 'active' : True, 'icon': 101}
             if len(split_line) >= 2:
-                data['macro'] = "#".join(split_line[:-1])
+                data['command'] = "#".join(split_line[:-1])
                 data['label'] = split_line[-1]
             else:
-                data['macro'] = split_line[0]
+                data['command'] = split_line[0]
                 label = functions.get_name_of_command(split_line[0])
                 data['label'] = label if isinstance(label, str) else split_line[0]
-            commands.append(data)
-        return commands
+            macros.append(data)
+        return macros
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -112,7 +111,7 @@ class AR_OT_global_import(Operator, ImportHelper):
                         data['actions'].append({
                         'id' : uuid.uuid1().hex,
                         'label' : action.label,
-                        'commands' : self.get_commands_from_file(zip_file, action.identifier),
+                        'macros' : self.get_macros_from_file(zip_file, action.identifier),
                         'icon' : action.identifier.split("~")[-1]
                         })
             functions.import_global_from_dict(AR, data)
@@ -297,7 +296,7 @@ class AR_OT_global_export(Operator, ExportHelper):
                 data['categories'].append(functions.property_to_python(category, ['name', 'selected']))
         for action in AR.global_actions:
             if action.id in export_action_ids:
-                data['actions'].append(functions.property_to_python(category, ['name', 'alert', 'selected', 'commands.name', 'commands.alert', 'commands.is_available']))
+                data['actions'].append(functions.property_to_python(category, ['name', 'alert', 'selected', 'macros.name', 'macros.alert', 'macros.is_available']))
         with open(self.filepath, 'w', encoding= 'utf-8') as file:
             json.dump(data, file, ensure_ascii= False, indent= 4)
         self.cancel(context)
@@ -350,13 +349,10 @@ class AR_OT_global_load(Operator):
         return {"FINISHED"}
 classes.append(AR_OT_global_load)
 
-class AR_OT_global_to_local(Operator):
+class AR_OT_global_to_local(shared.id_based, Operator):
     bl_idname = "ar.global_to_local"
     bl_label = "Action Button to Local"
     bl_description = "Add the selected Action Button as a Local"
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -368,15 +364,15 @@ class AR_OT_global_to_local(Operator):
         data = { # properties 'name'(read-only), 'alert'(only temporary set) ignored
             "id" : id,
             "label" : action.label,
-            "commands" : [
+            "macros" : [
                 {
-                    "id" : command.id,
-                    "label" : command.label,
-                    "macro" : command.macro,
-                    "active" : command.active,
-                    "icon" : command.icon,
-                    "is_available" : command.is_available
-                } for command in action.commands
+                    "id" : macro.id,
+                    "label" : macro.label,
+                    "command" : macro.command,
+                    "active" : macro.active,
+                    "icon" : macro.icon,
+                    "is_available" : macro.is_available
+                } for macro in action.macros
             ],
             "icon" : action.icon
         }
@@ -394,16 +390,14 @@ class AR_OT_global_to_local(Operator):
         functions.category_runtime_save(AR)
         functions.global_runtime_save(AR, False)
         context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 classes.append(AR_OT_global_to_local)
 
-class AR_OT_global_remove(Operator):
+class AR_OT_global_remove(shared.id_based, Operator):
     bl_idname = "ar.global_remove"
     bl_label = "Remove Action"
     bl_description = "Remove the selected actions"
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -419,19 +413,17 @@ class AR_OT_global_remove(Operator):
         functions.category_runtime_save(AR)
         functions.global_runtime_save(AR, False)
         context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 classes.append(AR_OT_global_remove)
 
-class AR_OT_global_move_up(Operator):
+class AR_OT_global_move_up(shared.id_based, Operator):
     bl_idname = "ar.global_move_up"
     bl_label = "Move Action Up"
     bl_description = "Move the selected actions Up"
-    
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -448,16 +440,14 @@ class AR_OT_global_move_up(Operator):
                     category.actions.move(index, index - 1)
         functions.category_runtime_save(AR)
         context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 classes.append(AR_OT_global_move_up)
 
-class AR_OT_global_move_down(Operator):
+class AR_OT_global_move_down(shared.id_based, Operator):
     bl_idname = "ar.global_move_down"
     bl_label = "Move Action Down"
     bl_description = "Move the selected actions Down"
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -474,17 +464,16 @@ class AR_OT_global_move_down(Operator):
                     category.actions.move(index, index + 1)
         functions.category_runtime_save(AR)
         context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 classes.append(AR_OT_global_move_up)
 
-class AR_OT_global_rename(Operator):
+class AR_OT_global_rename(shared.id_based, Operator):
     bl_idname = "ar.global_rename"
     bl_label = "Rename Button"
     bl_description = "Rename the selected Button"
     
     label : StringProperty()
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     @classmethod
     def poll(cls, context):
@@ -501,46 +490,39 @@ class AR_OT_global_rename(Operator):
             AR.global_actions[id].label = self.label
             functions.global_runtime_save(AR)
             context.area.tag_redraw()
+            self.clear()
             return {"FINISHED"}
         else:
             return {'CANCELLED'}    
 classes.append(AR_OT_global_rename)
 
-class AR_OT_global_execute_action(Operator):
+class AR_OT_global_execute_action(shared.id_based, Operator):
     bl_idname = 'ar.global_execute_action'
     bl_label = 'ActRec Action Button'
     bl_description = 'Play this Action Button'
     bl_options = {'UNDO', 'INTERNAL'}
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         id = functions.get_global_action_id(AR, self.id, self.index)
         if id is None:
             return {'CANCELLED'}
-        try:
-            for command in AR.global_actions[id].commands:
-                exec(command.macro)
-        except Exception as err:
-            AR.global_alert_index = AR.global_actions.find(id)
-            context.area.tag_redraw()
+        action = AR.global_actions[id]
+        functions.play(action.macros, action, 'global_actions')
+        self.clear()
         return{'FINISHED'}
 classes.append(AR_OT_global_execute_action)
 
-class AR_OT_Category_Cmd_Icon(icon_manager.icontable, Operator):
-    bl_idname = "ar.category_cmd_icon"
-
-    id : StringProperty(name= "id", description= "id of the action (1 indicator)")
-    index : IntProperty(name= "index", description= "index of the action (2 indicator)", default= -1)
+class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
+    bl_idname = "ar.global_icon"
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         AR.global_actions[self.id].icon = AR.selected_icon
-        AR.selected_icon = 101 #Icon: BLANK1
+        AR.selected_icon = 0 #Icon: NONE
         functions.global_runtime_save(AR)
         bpy.context.area.tag_redraw()
+        self.clear()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -551,5 +533,5 @@ class AR_OT_Category_Cmd_Icon(icon_manager.icontable, Operator):
         AR.selected_icon = AR.global_actions[id].icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
-classes.append(AR_OT_Category_Cmd_Icon)
+classes.append(AR_OT_global_icon)
 # endregion

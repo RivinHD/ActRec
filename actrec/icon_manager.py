@@ -70,6 +70,7 @@ class icontable(Operator):
     bl_description = "Press to select an Icon"
     
     search : StringProperty(name= "Icon Search", description= "search Icon by name", options= {'TEXTEDIT_UPDATE'})
+    default_icon_value : IntProperty(name= "Defalut Icon", description= "Default icon that get set when clear is pressed", default= 0)
 
     def draw(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -79,7 +80,7 @@ class icontable(Operator):
         row.label(text= "Selected Icon:")
         row.label(text=" ", icon_value= AR.selected_icon)
         row.prop(self, 'search', text= 'Search:')
-        row.operator('ar.icon_selector', text= "Clear Icon").icon = 101 #Icon: BLANK1
+        row.operator('ar.icon_selector', text= "Clear Icon").icon = self.default_icon_value
         box = layout.box()
         gridf = box.grid_flow(row_major=True, columns= 35, even_columns= True, even_rows= True, align= True)
         icon_values = get_icons_values()
@@ -109,7 +110,7 @@ class AR_OT_icon_selector(Operator):
     bl_options = {'REGISTER','INTERNAL'}
     bl_description = "Select the Icon"
 
-    icon : IntProperty(default= 101) #Icon: BLANK1
+    icon : IntProperty(default= 0) #Icon: NONE
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences

@@ -1,8 +1,18 @@
 # region Imports
 # external modules
-from typing import Union
+from typing import Optional
 from contextlib import suppress
 from collections import defaultdict
+import json
+import time
+
+# blender modules
+import bpy
+from bpy.app.handlers import persistent
+
+# relative imports
+from ..log import logger
+from .. import shared_data
 # endregion
 
 # region functions
@@ -66,20 +76,136 @@ def swap_collection_items(collection, index_1: int, index_2: int) -> None:
     collection.move(index_1, index_2)
     collection.move(index_2 + 1, index_1)
 
-def get_name_of_command(command: str) -> Union[None, str, True]:
+def get_name_of_command(command: str) -> Optional[str]:
     if command.startswith("bpy.ops"):
         try:
             return eval("%s.get_rna_type().name" %command.split("(")[0])
         except:
-            return command
-    elif command.startswith('bpy.data.window_managers["WinMan"].(null)'):
-        return True
+            return None
     elif command.startswith('bpy.context'):
-        split = command.split('=')
+        split = command.split(' = ')
         if len(split) > 1:
-            return split[0].split('.')[-1] + " = " + split[1]
+            return "%s = %s" %(split[0].split('.')[-1], split[1])
         else:
             return ".".join(split[0].split('.')[-2:])
     else:
         return None
+
+def extract_properties(properties :str):
+    properties = properties.split(",")
+    new_props = []
+    prop_str = ''
+    for prop in properties:
+        prop = prop.split('=')
+        if prop[0].strip().isidentifier() and len(prop) > 1:
+            new_props.append(prop_str)
+            prop_str = ''
+            prop_str += "=".join(prop)
+        else:
+            prop_str += ",%s" %prop[0]
+    new_props.append(prop_str)
+    return new_props[1:]
+
+def update_command(command: str) -> Optional[str]:
+    if command.startswith("bpy.ops."):
+        command, values = command.split("(", 1)
+        values = extract_properties(values[:-1])
+        for i in range(len(values)):
+            values[i] = values[i].strip().split("=")
+        try:
+            props = eval("%s.get_rna_type().properties[1:]" %command)
+        except:
+            return None
+        inputs = []
+        for prop in props:
+            for value in values:
+                if value[0] == prop.identifier:
+                    inputs.append("%s=%s" %(value[0], value[1]))
+                    values.remove(value)
+                    break
+        return "%s(%s)" %(command, ", ".join(inputs))
+    else:
+        return None
+
+def play(macros, action, action_type: str): # non-realtime events, execute before macros get executed run
+    macros = [macro for macro in macros if macro.active]
+    for i, macro in enumerate(macros):
+        split = macro.command.split(":")
+        if split[0] == 'ar.event': 
+            data = json.loads(":".join(split[1:]))
+            if data['Type'] == 'Render Init':
+                shared_data.render_init_macros.append((action_type, action.id, i + 1))
+                return
+            elif data['Type'] == 'Render Complet':
+                shared_data.render_complete_macros.append((action_type, action.id, i + 1))
+                return
+
+    for i, macro in enumerate(macros): # realtime events
+        split = macro.command.split(":")
+        if split[0] == 'ar.event': 
+            data = json.loads(":".join(split[1:]))
+            if data['Type'] == 'Timer':
+                shared_data.timed_macros.append((time.time() + data['Time'], action_type, action.id, i + 1))
+                bpy.ops.ar.command_run_queued('INVOKE_DEFAULT')
+                return
+            elif data['Type'] == 'Loop':
+                end_index = i + 1
+                loop_count = 1
+                for i, macro in enumerate(macros[i + 1:], i + 1):
+                    if macro.active:
+                        split = macro.command.split(":")
+                        if split[0] == 'ar.event': # realtime events
+                            data = json.loads(":".join(split[1:]))
+                            if data['Type'] == 'Loop':
+                                loop_count += 1
+                            elif data['Type'] == 'EndLoop':
+                                loop_count -= 1
+                    if loop_count == 0:
+                        end_index = i
+                        break
+                if loop_count != 0:
+                    continue
+                loop_macros = macros[i + 1: end_index]
+
+                if data['StatementType'] == 'python':
+                    try:
+                        while eval(data["PyStatement"]):
+                            play(loop_macros, action, action_type)
+                    except Exception as err:
+                        logger.error(err)
+                        action.alert = macro.alert = True
+                        return
+                else:
+                    for k in range(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
+                        play(loop_macros, action, action_type)
+            elif data['Type'] == 'Select Object':
+                obj = bpy.data.objects[data['Object']]
+                objs = bpy.context.view_layer.objects
+                if obj in [o for o in objs]:
+                    objs.active = obj
+                else:
+                    action.alert = macro.alert = True
+                    return
+                continue
+        try:
+            exec(macro.command)
+        except Exception as err:
+            logger.error(err)
+            action.alert = macro.alert = True
+            return 
+
+@persistent
+def execute_render_init(dummy = None):
+    AR = bpy.context.preferences.addons[__package__].preferences
+    for action_type, action_id, start in shared_data.render_init_macros:
+        action = getattr(AR, action_type)[action_id]
+        play(action.macros[start: ], action, action_type)
+
+@persistent
+def execute_render_complete(dummy = None):
+    AR = bpy.context.preferences.addons[__package__].preferences
+    for action_type, action_id, start in shared_data.render_complete_macros:
+        action = getattr(AR, action_type)[action_id]
+        play(action.macros[start: ], action, action_type)
+
 # endregion

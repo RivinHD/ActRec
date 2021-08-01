@@ -2,6 +2,7 @@
 # external modules
 import json
 import os
+from typing import Optional
 
 # relative imports
 from ..log import logger
@@ -10,42 +11,6 @@ from . import shared
 # endregion
 
 # region Functions
-def extract_properties(properties :str):
-    properties = properties.split(",")
-    new_props = []
-    prop_str = ''
-    for prop in properties:
-        prop = prop.split('=')
-        if prop[0].strip().isidentifier() and len(prop) > 1:
-            new_props.append(prop_str)
-            prop_str = ''
-            prop_str += "=".join(prop)
-        else:
-            prop_str += ",%s" %prop[0]
-    new_props.append(prop_str)
-    return new_props[1:]
-
-def update_macro(macro: str):
-    if macro.startswith("bpy.ops."):
-        command, values = macro.split("(", 1)
-        values = extract_properties(values[:-1])
-        for i in range(len(values)):
-            values[i] = values[i].strip().split("=")
-        try:
-            props = eval("%s.get_rna_type().properties[1:]" %command)
-        except:
-            return None
-        inputs = []
-        for prop in props:
-            for value in values:
-                if value[0] == prop.identifier:
-                    inputs.append("%s=%s" %(value[0], value[1]))
-                    values.remove(value)
-                    break
-        return "%s(%s)" %(command, ", ".join(inputs))
-    else:
-        return False
-
 def global_runtime_save(AR, use_autosave: bool = True):
     """includes autosave"""
     shared_data.global_temp = shared.property_to_python(AR.global_actions)
@@ -81,14 +46,14 @@ def save(AR):
         actions_data.append({
             'id': action.id,
             'label': action.label,
-            'commands': [
+            'macros': [
                 {
-                    'id': command.id,
-                    'label': command.label,
-                    'macro': command.macro,
-                    'active': command.active,
-                    'icon': command.icon
-                } for command in action.commands
+                    'id': macro.id,
+                    'label': macro.label,
+                    'macro': macro.macro,
+                    'active': macro.active,
+                    'icon': macro.icon
+                } for macro in action.macros
             ],
             'icon': action.icon
         })
@@ -137,15 +102,15 @@ def import_global_from_dict(AR, data: dict) -> None:
         new_action = AR.global_actions.add()
         new_action.id = action['id']
         new_action.label = action['label']
-        for commmand in action['commands']:
-            result = update_macro(commmand['macro'])
-            new_command = new_action.commands.add()
-            new_command.id = commmand['id']
-            new_command.label = commmand['label']
-            new_command.macro = result if isinstance(result, str) else commmand['macro']
-            new_command.active = commmand['active']
-            new_command.icon = commmand['icon']
-            new_command.is_available = result is not None
+        for macro in action['macros']:
+            result = update_command(macro['macro'])
+            new_macro = new_action.macros.add()
+            new_macro.id = macro['id']
+            new_macro.label = macro['label']
+            new_macro.macro = result if isinstance(result, str) else macro['macro']
+            new_macro.active = macro['active']
+            new_macro.icon = macro['icon']
+            new_macro.is_available = result is not None
         new_action.icon = action['icon']
 
 def get_global_action_id(AR, id, index):
