@@ -10,7 +10,6 @@ from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionPrope
 from bpy_extras.io_utils import ImportHelper
 # endregion
 
-classes = []
 preview_collections = {}
 
 # region functions
@@ -26,7 +25,7 @@ def load_icons(filepath: str, only_new: bool = False) -> Optional[str]:
         AR = bpy.context.preferences.addons[__package__].preferences
         img.scale(32, 32)
         name = '.'.join(img.name.split('.')[:-1]) # last element is format of file
-        internalpath = os.path.join(AR.IconFilePath, img.name) # img.name has format included
+        internalpath = os.path.join(AR.icon_path, img.name) # img.name has format included
         img.save_render(internalpath)
         register_icon(preview_collections['ar_custom'], "AR_%s" %name, internalpath, only_new)
         bpy.data.images.remove(img)
@@ -116,7 +115,6 @@ class AR_OT_icon_selector(Operator):
         AR = context.preferences.addons[__package__].preferences
         AR.selected_icon = self.icon
         return {"FINISHED"}
-classes.append(AR_OT_icon_selector)
 
 class AR_OT_add_custom_icon(Operator, ImportHelper):
     bl_idname = "ar.add_custom_icon"
@@ -137,19 +135,17 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
         if self.activat_pop_up != "":
             exec("bpy.ops.%s%s" %(".".join(self.activat_pop_up.split("_OT_")).lower(), "('INVOKE_DEFAULT')"))
         return {"FINISHED"}
-classes.append(AR_OT_add_custom_icon)
 
 class AR_OT_delete_custom_icon(Operator):
     bl_idname = "ar.delete_custom_icon"
     bl_label = "Delete Icon"
     bl_description = "Delete a custom added icon"
 
-    class AR_Icon(PropertyGroup):
+    class AR_icon(PropertyGroup):
         icon_id : IntProperty()
         icon_name : StringProperty()
         selected : BoolProperty(default= False, name= 'Select')
-    classes.append(AR_Icon)
-    icons : CollectionProperty(type= AR_Icon)
+    icons : CollectionProperty(type= AR_icon)
     select_all : BoolProperty(name= "All Icons", description= "Select all Icons")
 
     def invoke(self, context, event):
@@ -168,10 +164,10 @@ class AR_OT_delete_custom_icon(Operator):
         for ele in self.icons:
             if ele.select or self.select_all:
                 iconpath = ele.icon_name[3:]
-                filenames = os.listdir(AR.IconFilePath)
+                filenames = os.listdir(AR.icon_path)
                 names = [os.path.splitext(os.path.basename(path))[0] for path in filenames]
                 if iconpath in names:
-                    os.remove(os.path.join(AR.IconFilePath,  filenames[names.index(iconpath)]))
+                    os.remove(os.path.join(AR.icon_path,  filenames[names.index(iconpath)]))
                 unregister_icon(preview_collections['ar_custom'], ele.icon_name)
         return {"FINISHED"}
 
@@ -190,16 +186,22 @@ class AR_OT_delete_custom_icon(Operator):
                 row = box.row()
                 row.prop(ele, 'select', text= '')
                 row.label(text= ele.icon_name[3:], icon_value= ele.icon_id)
-classes.append(AR_OT_delete_custom_icon)
 # endregion
 
+classes = [
+    AR_OT_icon_selector,
+    AR_OT_add_custom_icon,
+    AR_OT_delete_custom_icon.AR_icon,
+    AR_OT_delete_custom_icon
+]
+
 # region Registration 
-def register() -> None:
+def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     preview_collections['ar_custom'] = bpy.utils.previews.new()
 
-def unregister() -> None:
+def unregister():
     for cls in classes:
         bpy.utils.register_class(cls)
     for pcoll in preview_collections.values():

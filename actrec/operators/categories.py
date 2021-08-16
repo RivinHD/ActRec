@@ -8,10 +8,9 @@ from bpy.types import Operator
 from bpy.props import StringProperty, EnumProperty, IntProperty
 
 # relative imports
-from .. import functions, ui
+from .. import functions, ui_functions
+from . import shared
 # endregion
-
-classes = []
 
 # region Operators
 class AR_OT_category_interface(Operator):
@@ -75,7 +74,7 @@ class AR_OT_category_interface(Operator):
         l.append(("all", "All", "use in all available modes", "GROUP_VCOL", len(l)))
         return l
 
-    id : StringProperty(name = "Category ID", default="")
+    label : StringProperty(name= "Category Label")
     area : EnumProperty(items= area_items, name= "Area", description= "Shows all available areas for the panel")
     mode : EnumProperty(items= mode_items, name= "Mode", description= "Shows all available modes for the selected area")
 
@@ -128,13 +127,12 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
         new = AR.categories.add()
         new.label = functions.check_for_dublicates([c.label for c in AR.categories], self.label)
         self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
-        ui.register_category(AR.categories.find(new.id))
+        ui_functions.register_category(AR, new)
         context.area.tag_redraw()
         functions.category_runtime_save(AR)
         return {"FINISHED"}
-classes.append(AR_OT_category_add)
 
-class AR_OT_category_edit(AR_OT_category_interface ,Operator):
+class AR_OT_category_edit(shared.id_based, AR_OT_category_interface ,Operator):
     bl_idname = "ar.category_edit"
     bl_label = "Edit Category"
     bl_description = "Edit the selected Category"
@@ -144,20 +142,24 @@ class AR_OT_category_edit(AR_OT_category_interface ,Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__package__].preferences
-        return len(AR.Categories)
+        return len(AR.categories)
 
     def invoke(self, context, event):
         AR = context.preferences.addons[__package__].preferences
-        id = self.id
+        id = self.id = functions.get_category_id(AR, self.id, self.index)
         AR_OT_category_interface.category_visibility = functions.read_category_visbility(AR, id)
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
+        category = AR.categories[self.id]
+        category.areas.clear()
+        ui_functions.unregister_category(AR, category)
         self.apply_visibility(AR_OT_category_interface.category_visibility, self.id)
+        ui_functions.register_category(AR, category)
         functions.category_runtime_save(AR)
+        self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_category_edit)
 
 class AR_OT_category_apply_visibility(Operator):
     bl_idname = "ar.category_apply_visibility"
@@ -174,7 +176,6 @@ class AR_OT_category_apply_visibility(Operator):
         else:
             AR_OT_category_interface.category_visibility.append((self.area, self.mode))
         return {"FINISHED"}
-classes.append(AR_OT_category_apply_visibility)
 
 class AR_OT_category_delete_visibility(Operator):
     bl_idname = "ar.category_delete_visibility"
@@ -187,9 +188,8 @@ class AR_OT_category_delete_visibility(Operator):
     def execute(self, context):
         AR_OT_category_interface.category_visibility.pop(self.index)
         return {"FINISHED"}
-classes.append(AR_OT_category_delete_visibility)
 
-class AR_OT_category_delete(Operator):
+class AR_OT_category_delete(shared.id_based, Operator):
     bl_idname = "ar.category_delete"
     bl_label = "Delete Category"
     bl_description = "Delete the selected Category"
@@ -205,35 +205,34 @@ class AR_OT_category_delete(Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         categories = AR.categories
-        id = AR.selected_category
+        id = functions.get_category_id(AR, self.id, self.index)
+        self.clear()
         if id != '':
             category = categories[id]
             for id_action in category.actions:
                 AR.global_actions.remove(AR.global_actions.find(id_action.id))
             categories.remove(categories.find(id))
-            ui.unregister_category(AR, category)
+            ui_functions.unregister_category(AR, category)
             functions.set_enum_index(AR)
-        context.area.tag_redraw()
-        functions.category_runtime_save(AR)
+            context.area.tag_redraw()
+            functions.category_runtime_save(AR)
         return {"FINISHED"}
     
-    def draw(self, context):    
-        AR = context.preferences.addons[__package__].preferences    
+    def draw(self, context):
         layout = self.layout
         layout.label(text= "All Actions in this Category will be deleted", icon= 'ERROR')
-classes.append(AR_OT_category_delete)
 
-class AR_OT_category_move_up(Operator):
+class AR_OT_category_move_up(shared.id_based, Operator):
     bl_idname = "ar.category_move_up"
     bl_label = "Move Up"
     bl_description = "Move the Category up"
 
-    Index : IntProperty()
-
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        i = self.Index
+        id = functions.get_category_id(AR, self.id, self.index)
+        self.clear()
         categories = AR.categories
+        i = categories.find(id)
         y = i - 1
         if y >= 0:
             swap_category = categories[y]
@@ -242,25 +241,29 @@ class AR_OT_category_move_up(Operator):
                 if y < 0:
                     return {"CANCELLED"}
                 swap_category = categories[y]
-            functions.swap_collection_items(categories[i], swap_category)
+            category = categories[i]
+            ui_functions.unregister_category(AR, category)
+            ui_functions.unregister_category(AR, swap_category)
+            functions.swap_collection_items(category, swap_category)
+            ui_functions.register_category(AR, category)
+            ui_functions.register_category(AR, swap_category)
             AR.categories[y].selected = True
             context.area.tag_redraw()
             functions.category_runtime_save(AR)
             return {"FINISHED"}
         return {'CANCELLED'}
-classes.append(AR_OT_category_move_up)
 
-class AR_OT_category_move_down(Operator):
+class AR_OT_category_move_down(shared.id_based, Operator):
     bl_idname = "ar.category_move_down"
     bl_label = "Move Down"
     bl_description = "Move the Category down"
 
-    Index : IntProperty()
-
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
-        i = self.Index
+        id = functions.get_category_id(AR, self.id, self.index)
+        self.clear()
         categories = AR.categories
+        i = categories.find(id)
         y = i + 1 
         if y < len(categories):
             swap_category = categories[y]
@@ -269,11 +272,36 @@ class AR_OT_category_move_down(Operator):
                 if y >= len(categories):
                     return {"CANCELLED"}
                 swap_category = categories[y]
-            functions.swap_categories(categories[i], swap_category)
+            category = categories[i]
+            ui_functions.unregister_category(AR, category)
+            ui_functions.unregister_category(AR, swap_category)
+            functions.swap_collection_items(category, swap_category)
+            ui_functions.register_category(AR, category)
+            ui_functions.register_category(AR, swap_category)
             AR.categories[y].selected = True
             context.area.tag_redraw()
             functions.category_runtime_save(AR)
             return {"FINISHED"}
+        self.clear()
         return {'CANCELLED'}
-classes.append(AR_OT_category_move_down)
+# endregion
+
+classes = [
+    AR_OT_category_add,
+    AR_OT_category_edit,
+    AR_OT_category_apply_visibility,
+    AR_OT_category_delete_visibility,
+    AR_OT_category_delete,
+    AR_OT_category_move_up,
+    AR_OT_category_move_down
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

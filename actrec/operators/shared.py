@@ -12,8 +12,6 @@ from bpy.props import StringProperty, IntProperty
 from .. import shared_data, functions
 # endregion
 
-classes = []
-
 # region Operators
 class AR_OT_check_ctrl(Operator):
     bl_idname = "ar.check_ctrl"
@@ -27,28 +25,11 @@ class AR_OT_check_ctrl(Operator):
         if event.ctrl:
             return {"FINISHED"}
         return {"CANCELLED"}
-classes.append(AR_OT_check_ctrl)
 
-class AR_OT_open_url(Operator):
-    bl_idname = "ar.url_open"
-    bl_label = "Open URL"
-
-    url : StringProperty()
-    description : StringProperty()
-
-    def execute(self, context):
-        webbrowser.open(self.url)
-        return {"FINISHED"}
-
-    @classmethod
-    def description(context, properties):
-        return properties.description
-classes.append(AR_OT_open_url)
-
-class AR_OT_Command_Run_Queued(Operator):
-    bl_idname = "ar.command_run_queued"
+class AR_OT_run_queued_macros(Operator):
+    bl_idname = "ar.run_queued_macros"
     bl_label = "Run Queued Commands"
-    bl_options ={'INTERNAL'}
+    bl_options = {'INTERNAL'}
 
     timer = None
 
@@ -57,7 +38,7 @@ class AR_OT_Command_Run_Queued(Operator):
         for execute_time, action_type, action_id, start in shared_data.timed_macros:
             if time.time() == execute_time:
                 action = getattr(AR, action_type)[action_id]
-                functions.play(action.macros[start: ], action, action_type)
+                functions.play(context.copy(), action.macros[start: ], action, action_type)
         return {"FINISHED"}
     
     def modal(self, context, event):
@@ -71,7 +52,7 @@ class AR_OT_Command_Run_Queued(Operator):
     def invoke(self, context, event):
         if self.timer is None:
             wm = context.window_manager
-            self.timer = wm.event_timer_add(0.05, window=context.window)
+            self.timer = wm.event_timer_add(0.05, window= context.window)
             wm.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         return {'CANCELLED'}
@@ -81,13 +62,27 @@ class AR_OT_Command_Run_Queued(Operator):
             wm = context.window_manager
             wm.event_timer_remove(self._timer)
             self.timer = None
-classes.append(AR_OT_Command_Run_Queued)
 
 class id_based(Operator):
     id : StringProperty(name= "id", description= "id of the action (1. indicator)")
     index : IntProperty(name= "index", description= "index of the action (2. indicator)", default= -1)
 
-    def cancel(self, context):
+    def clear(self):
         self.id = ""
         self.index = -1
+# endregion
+
+classes = [
+    AR_OT_check_ctrl,
+    AR_OT_run_queued_macros
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

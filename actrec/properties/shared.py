@@ -1,7 +1,6 @@
 # region Imports
 # external modules
 import uuid
-from collections import defaultdict
 
 # blender modules
 import bpy
@@ -9,10 +8,8 @@ from bpy.types import PropertyGroup
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty
 
 # relative imports
-from ..log import logger
+from .. import shared_data, functions
 # endregion
-
-classes = []
 
 # region PropertyGroups
 class id_system: 
@@ -45,15 +42,21 @@ class alert_system:
 class AR_macro(id_system, alert_system, PropertyGroup):
     def get_active(self):
         return self.get('active', True) and self.is_available
-    def set_active(self, value):
+    def set_active(self, value): 
         self['active'] = value
+    def update_temp_save(self, context):
+        for i, x in enumerate(shared_data.local_temp):
+            if x.id == self.id:
+                shared_data.local_temp[i] = functions.property_to_python(self)
+                return
 
     label : StringProperty()
     command : StringProperty()
     active : BoolProperty(default= True, description= 'Toggles Macro on and off.', get= get_active, set= set_active)
     icon : IntProperty(default= 0) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)
     is_available : BoolProperty(default= True)
-classes.append(AR_macro)
+    ui_type : StringProperty(default= "")
+    use_temp_screen : BoolProperty(default= False)
 
 class AR_action(id_system, alert_system):
     def get_alert(self):
@@ -73,5 +76,20 @@ class AR_action(id_system, alert_system):
 
 class AR_scene_data(PropertyGroup): # as Scene PointerProperty
     local : StringProperty(name= "Local", description= 'Scene Backup-Data of AddonPreference.local_actions (json format)', default= '{}')
-classes.append(AR_scene_data)
+    record_undo_end : BoolProperty(name= "Undo End", description= "Used to get the undo step before the record started to compare the undo steps (INTERNAL)", default= False)
+# endregion
+
+classes = [
+    AR_macro,
+    AR_scene_data
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

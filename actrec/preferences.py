@@ -9,9 +9,7 @@ from bpy.types import AddonPreferences
 import rna_keymap_ui
 
 # relative imports
-from . import properties
-from . import config
-from . import update
+from . import properties, functions, config, update, keymap
 from .log import logger
 # endregion
 
@@ -21,8 +19,32 @@ classes = []
 class AR_preferences(AddonPreferences):
     bl_idname = __package__
     addon_directory : StringProperty(name= "addon directory", default= os.path.dirname(os.path.dirname(__file__)), get= lambda self: self.bl_rna.properties['addon_directory'].default)  # get the base addon directory
+    prefernece_tab : EnumProperty(items=[
+            ('settings', "Settings", "")
+            ('path', "Paths", ""),
+            ('keymap', "Keymaps", ""),
+            ('update', "Update", "")
+        ],
+        name= "Tab", description= "Switch between preferenc tabs"
+    )
 
-    selected_icon : IntProperty(name="selected icon", description= "only internal usage", default= 101, min= 0, options= {'HIDDEN'}) # default icon value for BLANK1
+    # icon manager
+    def get_icon_path(self) -> str:
+        origin_path = self.get('icon_path', 'Fallback')
+        if os.path.exists(origin_path):
+            return self['icon_path']
+        else:
+            path = os.path.join(self.addon_directory, "Icons")
+            if origin_path != 'Fallback':
+                logger.error("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
+            self['icon_path'] = path
+            return path
+    def set_icon_path(self, origin_path: str) -> None:
+        self['icon_path'] = origin_path
+        if not(os.path.exists(origin_path) and os.path.isdir(origin_path)):
+            os.makedirs(origin_path)
+    icon_path : StringProperty(name= "Icons Path", description= "The Path to the Storage for the added Icons", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage.json"), get=get_icon_path, set=set_icon_path)
+    selected_icon : IntProperty(name="selected icon", description= "only internal usage", default= 0, min= 0, options= {'HIDDEN'}) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)
     
     # update
     launch_update : BoolProperty()
@@ -51,19 +73,14 @@ class AR_preferences(AddonPreferences):
                 if text.lines[0].body.strip().startswith("###AR###"):
                     bpy.data.texts.remove(text)
         else:
-            for i in range(1, len(self.Record_Coll)):
-                UpdateRecordText(i)
+            for action in self.local_actions:
+                functions.local_action_to_text(action)
     hide_local_text : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update=hide_show_local_in_texteditor)
+    local_create_empty : BoolProperty(default= True, name= "Create Empty", description= "Create Empty Macro on Error")
 
     # macros
-    def get_selected_macro_index(self):
-        value = self.get('selected_macro_index', 0)
-        commands_length = len(self.local_actions[self.selected_local_action_index].macros)
-        return value if value < commands_length else commands_length - 1
-    def set_selected_macro_index(self, value):
-        commands_length = len(self.local_actions[self.selected_local_action_index].macros)
-        self['selected_macro_index'] = value if value < commands_length else commands_length - 1
-    selected_macro_index : IntProperty(min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
+    last_macro_label : StringProperty(name= "last label", default= "label of the last macro")
+    last_macro_command : StringProperty(name= "last command", default= "command of the last macro")
 
     # globals
     global_actions : CollectionProperty(type= properties.AR_global_actions)
@@ -88,7 +105,8 @@ class AR_preferences(AddonPreferences):
             return path
     def set_storage_path(self, origin_path: str) -> None:
         self['storage_path'] = origin_path
-        if not(os.path.exists(origin_path)) and os.path.isfile(origin_path):
+        if not(os.path.exists(origin_path) and os.path.isfile(origin_path)):
+            os.makedirs(os.path.dirname(origin_path))
             with open(origin_path, 'w') as storage_file:
                 storage_file.write('{}')
     storage_path : StringProperty(name= "Stroage Path", description= "The Path to the Storage for the saved Categories", default= os.path.join(os.path.dirname(os.path.dirname(__file__)), "Storage.json"), get=get_storage_path, set=set_storage_path)
@@ -99,99 +117,70 @@ class AR_preferences(AddonPreferences):
     selected_category : StringProperty(get= get_selected_category, default= '')
     show_all_categories : BoolProperty(name= "Show All Categories", default= False)
 
-
-    # =================================================================================================================================
-    Rename : StringProperty()
-    BtnToRec_Mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Local"), ("move", "Move", "Move the Action over to Local and Delete it from Global")], name= "Mode")
-    SelectedIcon = 101 # Icon: BLANK1
-
-    Instance_Coll : CollectionProperty(type= AR_Struct)
-    Instance_Index : IntProperty(default= 0)
-
-    FileDisp_Name = []
-    FileDisp_Command = []
-    FileDisp_Icon = []
-    FileDisp_Index : IntProperty(default= 0)
-
-    HideMenu : BoolProperty(name= "Hide Menu", description= "Hide Menu")
-    ShowMacros : BoolProperty(name= "Show Macros" ,description= "Show Macros", default= True)
-
-    Record = False
-    Temp_Command = []
-    Temp_Num = 0
-
-    Record_Coll : CollectionProperty(type= AR_Record_Merge)
-    CreateEmpty : BoolProperty(default= True)
-    LastLineIndex : IntProperty()
-    LastLine : StringProperty(default= "<Empty>")
-    LastLineCmd : StringProperty()
-
-    IconFilePath : StringProperty(name= "Icon Path", description= "The Path to the Storage for the added Icons", default= os.path.join(os.path.dirname(__file__), "Icons"))
-
-    Importsettings : CollectionProperty(type= AR_ImportCategory)
-    ShowKeymap : BoolProperty(default= True)
-    # (Operator.bl_idname, key, event, Ctrl, Alt, Shift)
-    addon_keymaps = []
-    key_assign_list = \
-    [
-    (AR_OT_Command_Add.bl_idname, 'COMMA', 'PRESS', False, False, True, None),
-    (AR_OT_Record_Play.bl_idname, 'PERIOD', 'PRESS', False, False, True, None),
-    (AR_OT_Record_SelectorUp.bl_idname, 'WHEELUPMOUSE','PRESS', False, False, True, None),
-    (AR_OT_Record_SelectorDown.bl_idname, 'WHEELDOWNMOUSE','PRESS', False, False, True, None),
-    ("wm.call_menu_pie", 'A', 'PRESS', False, True, True, AR_MT_Action_Pie.bl_idname),
-    ]
-
     def draw(self, context):
         AR = context.preferences.addons[__package__].preferences
         layout = self.layout
-        col = layout.column()
-        row = col.row()
-        if AR.update:
-            update.draw_update_button(row, AR)
-            row.operator('ar.open_url', text= "Release Notes").url = config.release_notes_url
-        else:
-            row.operator('ar.update_check', text= "Check For Updates")
-            if AR.restart:
-                row.operator('ar.show_restart_menu', text= "Restart to Finsih")
-        if AR.version != '':
-            if AR.Update:
-                col.label(text= "A new Version is available (" + AR.version + ")")
+        col = layout.column(align= True)
+        col.prop(AR, 'prefernece_tab', expand= True)
+        if AR.prefernece_tab == 'update':
+            row = col.row()
+            if AR.update:
+                update.draw_update_button(row, AR)
+                ops = row.operator('wm.url_open', text= "Release Notes")
+                ops.url = config.release_notes_url
             else:
-                col.label(text= "You are using the latest Vesion (" + AR.version + ")")
-        col.separator(factor= 1.5)
-        col.label(text= 'Action Storage Folder')
-        row = col.row()
-        row.operator(AR_OT_preferences_directory_selector.bl_idname, text= "Select Action Button’s Storage Folder", icon= 'FILEBROWSER').directory = "Storage"
-        row.operator(AR_OT_preferences_recover_directory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Storage"
-        box = col.box()
-        box.label(text= self.storage_path)
-        col.separator(factor= 1.5)
-        row = col.row().split(factor= 0.5)
-        row.label(text= "Icon Storage Folder")
-        row2 = row.row(align= True).split(factor= 0.65, align= True)
-        row2.operator(icon_manager.AR_OT_add_custom_icon.bl_idname, text= "Add Custom Icon", icon= 'PLUS')
-        row2.operator(icon_manager.AR_OT_delete_custom_icon.bl_idname, text= "Delete", icon= 'TRASH')
-        row = col.row()
-        row.operator(AR_OT_preferences_directory_selector.bl_idname, text= "Select Icon Storage Folder", icon= 'FILEBROWSER').directory = "Icons"
-        row.operator(AR_OT_preferences_recover_directory.bl_idname, text= "Recover Default Folder", icon= 'FOLDER_REDIRECT').directory = "Icons"
-        box = col.box()
-        box.label(text= self.IconFilePath)
-        col.separator(factor= 1.5)
-        box = col.box()
-        row = box.row()
-        row.prop(self, "ShowKeymap", text= "", icon= 'TRIA_DOWN' if self.ShowKeymap else 'TRIA_RIGHT', emboss= False)
-        row.label(text="Keymap")
-        if self.ShowKeymap:
-            wm = bpy.context.window_manager
-            kc = wm.keyconfigs.user
+                row.operator('ar.update_check', text= "Check For Updates")
+                if AR.restart:
+                    row.operator('ar.show_restart_menu', text= "Restart to Finsih")
+            if AR.version != '':
+                if AR.update:
+                    col.label(text= "A new Version is available (%s)" %AR.version)
+                else:
+                    col.label(text= "You are using the latest Vesion (%s)" %AR.version)
+        elif AR.prefernece_tab == 'path':
+            col.label(text= 'Action Storage Folder')
+            row = col.row()
+            ops = row.operator("ar.preferences_directory_selector", text= "Select Action Button’s Storage Folder", icon= 'FILEBROWSER')
+            ops.pref_property = "storage_path"
+            ops.path_extension = "Storage.json"
+            ops = row.operator("ar.preferences_recover_directory", text= "Recover Default Folder", icon= 'FOLDER_REDIRECT')
+            ops.pref_property = "storage_path"
+            ops.path_extension = "Storage.json"
+            box = col.box()
+            box.label(text= self.storage_path)
+            col.separator(factor= 1.5)
+            row = col.row().split(factor= 0.5)
+            row.label(text= "Icon Storage Folder")
+            row2 = row.row(align= True).split(factor= 0.65, align= True)
+            row2.operator("ar.add_custom_icon", text= "Add Custom Icon", icon= 'PLUS')
+            row2.operator("ar.delete_custom_icon", text= "Delete", icon= 'TRASH')
+            row = col.row()
+            ops = row.operator("ar.preferences_directory_selector", text= "Select Icon Storage Folder", icon= 'FILEBROWSER')
+            ops.pref_property = "icon_path"
+            ops.path_extension = ""
+            ops = row.operator("ar.preferences_recover_directory", text= "Recover Default Folder", icon= 'FOLDER_REDIRECT')
+            ops.pref_property = "icon_path"
+            ops.path_extension = ""
+            box = col.box()
+            box.label(text= self.icon_path)
+        elif AR.prefernece_tab == 'keymap':
+            col2 = col.column()
+            kc = bpy.context.window_manager.keyconfigs.user
             km = kc.keymaps['Screen']
-            for (idname, key, event, ctrl, alt, shift, name) in AR_preferences.key_assign_list:
-                kmi = km.keymap_items[idname]
-                rna_keymap_ui.draw_kmi([], kc, km, kmi, box, 0)
+            for item in keymap.keymaps['default'].keymap_items:
+                kmi = km.keymap_items[item.idname]
+                rna_keymap_ui.draw_kmi(kc.keymaps, kc, km, kmi, col2, 0)
+        elif AR.prefernece_tab == 'settings':
+            row = col.row()
+            row.prop(self, 'auto_update')
+            row.prop(self, 'autosave')
+            row = col.row()
+            row.prop(self, 'hide_local_text')
+            row.prop(self, 'local_create_empty')
 classes.append(AR_preferences)
 # endregion
 
-# region Regestration
+# region Registration
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)

@@ -6,6 +6,7 @@ from typing import Optional
 
 # blender modules
 import bpy
+from bpy.app.handlers import persistent
 
 # relative imports
 from . import globals, shared
@@ -41,6 +42,13 @@ def category_runtime_save(AR, use_autosave: bool = True) -> None:
     if use_autosave and AR.autosave:
         globals.save(AR)
 
+@persistent
+def category_runtime_load(dummy = None):
+    AR = bpy.context.preferences.addons[__package__].preferences
+    AR.categories.clear()
+    for category in shared_data.categories_temp:
+        shared.add_data_to_collection(AR.categories, category)
+
 def category_visible(category, context) -> bool:
     if not len(category.areas):
         return True
@@ -61,4 +69,13 @@ def category_visible(category, context) -> bool:
             else:
                 return True
     return False
+
+def get_category_id(AR, id, index):
+    if AR.categories.find(id) == -1:
+        if index >= 0 and len(AR.categories) > index:
+            id = AR.categories[index].id
+        else:
+            return AR.selected_category
+    else:
+        return id
 # endregion

@@ -10,15 +10,13 @@ import json
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
 from .. import functions, properties, icon_manager
 from . import shared
 # endregion
-
-classes = []
 
 # region Operators
 class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
@@ -37,20 +35,20 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
     def execute(self, context: bpy.context):
         AR = context.preferences.addons[__package__].preferences
         categories = AR.categories
-        action_ids = functions.get_global_action_ids(AR, self.id, self.index)
+        ids = functions.get_global_action_ids(AR, self.id, self.index)
+        self.clear()
         if all(category.selected for category in categories): 
             return {"CANCELLED"}
         for category in categories:
             if category.selected:
-                for id in set(x.id for x in category.actions).difference(action_ids):
+                for id in set(x.id for x in category.actions).difference(ids):
                     new_action = category.actions.add()
                     new_action.id = id
             else:
-                for id in action_ids:
+                for id in ids:
                     category.actions.remove(category.actions.find(id))
         functions.global_runtime_save(AR)
         context.area.tag_redraw()
-        self.clear()
         return {"FINISHED"}
 
     def draw(self, context):
@@ -59,7 +57,6 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
         layout = self.layout
         for category in categories:
             layout.prop(category, 'selected', text= category.label)
-classes.append(AR_OT_gloabal_recategorize_action)
 
 class AR_OT_global_import(Operator, ImportHelper):
     bl_idname = "ar.global_import"
@@ -168,7 +165,6 @@ class AR_OT_global_import(Operator, ImportHelper):
     def cancel(self, context):
         AR = context.preferences.addons[__package__].preferences
         AR.import_settings.clear()
-classes.append(AR_OT_global_import)
 
 class AR_OT_global_import_settings(Operator):
     bl_idname = "ar.global_import_settings"
@@ -242,7 +238,6 @@ class AR_OT_global_import_settings(Operator):
             self.report({'ERROR'}, "You need to select a .json or .zip file")
         self.from_operator = False
         return {'CANCELLED'}
-classes.append(AR_OT_global_import_settings)
 
 class AR_OT_global_export(Operator, ExportHelper):
     bl_idname = "ar.global_export"
@@ -323,7 +318,6 @@ class AR_OT_global_export(Operator, ExportHelper):
                     subrow = col.row()
                     subrow.prop(action, 'use' , text= '') 
                     subrow.label(text= action.label)
-classes.append(AR_OT_global_export)
 
 class AR_OT_global_save(Operator):
     bl_idname = "ar.global_save"
@@ -333,7 +327,6 @@ class AR_OT_global_save(Operator):
     def execute(self, context):
         functions.save(context.preferences.addons[__package__].preferences)
         return {"FINISHED"}
-classes.append(AR_OT_global_save)
 
 class AR_OT_global_load(Operator):
     bl_idname = "ar.global_load"
@@ -347,7 +340,6 @@ class AR_OT_global_load(Operator):
         functions.global_runtime_save(AR, False)
         context.area.tag_redraw()
         return {"FINISHED"}
-classes.append(AR_OT_global_load)
 
 class AR_OT_global_to_local(shared.id_based, Operator):
     bl_idname = "ar.global_to_local"
@@ -392,7 +384,6 @@ class AR_OT_global_to_local(shared.id_based, Operator):
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_global_to_local)
 
 class AR_OT_global_remove(shared.id_based, Operator):
     bl_idname = "ar.global_remove"
@@ -418,7 +409,6 @@ class AR_OT_global_remove(shared.id_based, Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
-classes.append(AR_OT_global_remove)
 
 class AR_OT_global_move_up(shared.id_based, Operator):
     bl_idname = "ar.global_move_up"
@@ -442,7 +432,6 @@ class AR_OT_global_move_up(shared.id_based, Operator):
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_global_move_up)
 
 class AR_OT_global_move_down(shared.id_based, Operator):
     bl_idname = "ar.global_move_down"
@@ -466,7 +455,6 @@ class AR_OT_global_move_down(shared.id_based, Operator):
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_global_move_up)
 
 class AR_OT_global_rename(shared.id_based, Operator):
     bl_idname = "ar.global_rename"
@@ -483,6 +471,7 @@ class AR_OT_global_rename(shared.id_based, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         ids = functions.get_global_action_ids(AR, self.id, self.index)
+        self.clear()
         if len(ids) == 1:
             id = ids[0]
             if AR.global_actions.find(id) == -1:
@@ -490,11 +479,9 @@ class AR_OT_global_rename(shared.id_based, Operator):
             AR.global_actions[id].label = self.label
             functions.global_runtime_save(AR)
             context.area.tag_redraw()
-            self.clear()
             return {"FINISHED"}
         else:
-            return {'CANCELLED'}    
-classes.append(AR_OT_global_rename)
+            return {'CANCELLED'}
 
 class AR_OT_global_execute_action(shared.id_based, Operator):
     bl_idname = 'ar.global_execute_action'
@@ -505,16 +492,25 @@ class AR_OT_global_execute_action(shared.id_based, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         id = functions.get_global_action_id(AR, self.id, self.index)
+        self.clear()
         if id is None:
             return {'CANCELLED'}
         action = AR.global_actions[id]
-        functions.play(action.macros, action, 'global_actions')
-        self.clear()
+        functions.play(context.copy(), action.macros, action, 'global_actions')
         return{'FINISHED'}
-classes.append(AR_OT_global_execute_action)
 
 class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
     bl_idname = "ar.global_icon"
+
+    def invoke(self, context, event):
+        AR = context.preferences.addons[__package__].preferences
+        id = self.id = functions.get_global_action_id(AR, self.id, self.index)
+        if id is None:
+            self.clear()
+            return {'CANCELLED'}
+        AR.selected_icon = AR.global_actions[id].icon
+        self.search = ''
+        return context.window_manager.invoke_props_dialog(self, width=1000)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -524,14 +520,30 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
         bpy.context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
+# endregion
 
-    def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
-        id = functions.get_global_action_id(AR, self.id, self.index)
-        if id is None:
-            return {'CANCELLED'}
-        AR.selected_icon = AR.global_actions[id].icon
-        self.search = ''
-        return context.window_manager.invoke_props_dialog(self, width=1000)
-classes.append(AR_OT_global_icon)
+classes = [
+    AR_OT_gloabal_recategorize_action,
+    AR_OT_global_import,
+    AR_OT_global_import_settings,
+    AR_OT_global_export,
+    AR_OT_global_save,
+    AR_OT_global_load,
+    AR_OT_global_to_local,
+    AR_OT_global_remove,
+    AR_OT_global_move_up,
+    AR_OT_global_move_down,
+    AR_OT_global_rename,
+    AR_OT_global_execute_action,
+    AR_OT_global_icon
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

@@ -1,17 +1,12 @@
 # region Imports
-# external modules
-from collections import defaultdict
-
 # blender modules
 import bpy
 from bpy.types import PropertyGroup
-from bpy.props import BoolProperty, IntProperty, StringProperty, CollectionProperty
+from bpy.props import BoolProperty, StringProperty, CollectionProperty
 
 # relative imports
 from . import shared
 # endregion
-
-classes = []
 
 # region PropertyGroups
 class AR_category_modes(PropertyGroup):
@@ -21,7 +16,6 @@ class AR_category_modes(PropertyGroup):
 
     name : StringProperty(get= get_name)
     type : StringProperty()
-classes.append(AR_category_modes)
 
 class AR_category_areas(PropertyGroup):
     def get_name(self):
@@ -31,11 +25,9 @@ class AR_category_areas(PropertyGroup):
     name : StringProperty(get= get_name)
     type : StringProperty()
     modes : CollectionProperty(type= AR_category_modes)
-classes.append(AR_category_areas)
 
 class AR_category_actions(shared.id_system, PropertyGroup): # holds id's of actions
     pass
-classes.append(AR_category_actions)
 
 class AR_categories(shared.id_system, PropertyGroup):
     def get_selected(self) -> bool:
@@ -55,5 +47,21 @@ class AR_categories(shared.id_system, PropertyGroup):
     selected : BoolProperty(description= 'Select this Category', name= 'Select', get= get_selected, set= set_selected)
     actions : CollectionProperty(type= AR_category_actions)
     areas : CollectionProperty(type= AR_category_areas)
-classes.append(AR_categories)
+# endregion
+
+classes = [
+    AR_category_modes,
+    AR_category_areas,
+    AR_category_actions,
+    AR_categories
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

@@ -6,15 +6,13 @@ import uuid
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionProperty, FloatProperty
+from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionProperty
 
 # relative imports
 from .. import functions, properties, icon_manager
 from ..log import logger
 from . import shared
 # endregion
-
-classes = []
 
 # region Operators
 class AR_OT_local_to_global(Operator):
@@ -82,7 +80,6 @@ class AR_OT_local_to_global(Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_local_to_global)
 
 class AR_OT_local_add(Operator):
     bl_idname = "ar.local_add"
@@ -100,7 +97,6 @@ class AR_OT_local_add(Operator):
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
-classes.append(AR_OT_local_add)
 
 class AR_OT_local_remove(shared.id_based, Operator):
     bl_idname = "ar.local_remove"
@@ -115,6 +111,7 @@ class AR_OT_local_remove(shared.id_based, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
+        self.clear()
         if index == -1:
             self.report({'ERROR'}, "Selected Action couldn't be deleted")
             return {"CANCELLED"}
@@ -122,9 +119,7 @@ class AR_OT_local_remove(shared.id_based, Operator):
             AR.local_actions.remove(index)
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
-        self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_local_remove)
 
 class AR_OT_local_move_up(shared.id_based, Operator):
     bl_idname = "ar.local_move_up"
@@ -143,6 +138,7 @@ class AR_OT_local_move_up(shared.id_based, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
+        self.clear()
         if index == -1 or index + 1 >= len(AR.local_actions):
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
@@ -150,9 +146,10 @@ class AR_OT_local_move_up(shared.id_based, Operator):
             AR.local_actions.move(index, index + 1)
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
-        self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_local_move_up)
+        
+    def cancel(self, context):
+        self.clear()
 
 class AR_OT_local_move_down(shared.id_based, Operator):
     bl_idname = "ar.local_move_down"
@@ -172,6 +169,7 @@ class AR_OT_local_move_down(shared.id_based, Operator):
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
+        self.clear()
         if index == -1 or index - 1 >= 0:
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
@@ -179,9 +177,10 @@ class AR_OT_local_move_down(shared.id_based, Operator):
             AR.local_actions.move(index, index - 1)
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
-        self.clear()
         return {"FINISHED"}
-classes.append(AR_OT_local_move_down)
+
+    def cancel(self, context):
+        self.clear()
 
 class AR_OT_local_load(Operator):
     bl_idname = "ar.local_load"
@@ -210,6 +209,9 @@ class AR_OT_local_load(Operator):
         logger.info("Load Local Actions")
         if self.source == 'scene':
             data = json.loads(context.scene.ar.local)
+            if not isinstance(data, list):
+                self.report({'ERROR'}, "scenedata couldn't be loaded")
+                return {'CANCELLED'}
         else:
             data = []
             for text in self.texts:
@@ -239,7 +241,7 @@ class AR_OT_local_load(Operator):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, 'Source', expand= True)
+        layout.prop(self, 'source', expand= True)
         if self.Source == 'text':
             box = layout.box()
             texts = [txt.name for txt in bpy.data.texts]
@@ -251,7 +253,6 @@ class AR_OT_local_load(Operator):
 
     def cancel(self, context):
         self.texts.clear()
-classes.append(AR_OT_local_load)
 
 class AR_OT_local_selection_up(Operator):
     bl_idname = 'ar.local_selection_up'
@@ -267,7 +268,6 @@ class AR_OT_local_selection_up(Operator):
         AR.selected_local_action_index = AR.selected_local_action_index - 1
         context.area.tag_redraw()
         return{'FINISHED'}
-classes.append(AR_OT_local_selection_up)
 
 class AR_OT_local_selection_down(Operator):
     bl_idname = 'ar.local_selection_down'
@@ -283,7 +283,6 @@ class AR_OT_local_selection_down(Operator):
         AR.selected_local_action_index = AR.selected_local_action_index + 1
         context.area.tag_redraw()
         return{'FINISHED'}
-classes.append(AR_OT_local_selection_up)
 
 class AR_OT_local_play(shared.id_based, Operator):
     bl_idname = 'ar.local_play'
@@ -304,116 +303,12 @@ class AR_OT_local_play(shared.id_based, Operator):
         AR = context.preferences.addons[__package__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
-        functions.play(action.macros, action, 'local_actions')
+        functions.play(context.copy(), action.macros, action, 'local_actions')
         self.clear()
         return{'FINISHED'}
-classes.append(AR_OT_local_play)
 
-class AR_OT_add_event(shared.id_based, Operator):
-    bl_idname = "ar.add_event"
-    bl_label = "Add Event"
-    bl_description = "Add a Event which wait until the Event is Triggered"
-    
-    ignore_selection = False
-
-    types = [
-        ('Timer', 'Timer', 'Wait the chosen Time and continue with the Macros', 'SORTTIME', 0),
-        ('Render Complet', 'Render complet', 'Wait until the rendering has finished', 'IMAGE_RGB_ALPHA', 1),
-        ('Render Init', 'Render Init', 'Wait until the rendering has started', 'IMAGE_RGB', 2),
-        ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
-        ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
-        ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
-        ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6),
-        ('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7)
-    ]
-    type : EnumProperty(items= types, name= "Event Type", description= 'Shows all possible Events', default= 'Empty')
-
-    time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
-    statements : EnumProperty(items=[('count', 'Count', 'Count a Number from the Start with the Step to the End, \nStop when Number > End', '', 0),
-                                    ('python', 'Python Statment', 'Create a custom statement with python code', '', 1)])
-    start : FloatProperty(name= "Start", description= "Start of the Count statements", default=0)
-    end : FloatProperty(name= "End", description= "End of the Count statements", default= 1)
-    step: FloatProperty(name= "Step", description= "Step of the Count statements", default= 1)
-    python_statement : StringProperty(name= "Statement", description= "Statment for the Python Statement")
-    object : StringProperty(name= "Object", description= "Choose an Object which get select when this Event is played")
-
-    macro_index : IntProperty(name= "Macro Index", default= -1)
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
-        ignore = cls.ignore_selection
-        cls.ignore_selection = False
-        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
-
-    def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
-        if self.macro_index == -1:
-            macro = action.macros.add()
-        else:
-            macro = action.macros[self.macro_index]
-
-        if self.type == 'Clipboard':
-            clipboard = context.window_manager.clipboard
-            name = functions.get_name_of_command(clipboard)
-            macro.label = name if isinstance(name, str) else clipboard
-            macro.command = clipboard
-        elif self.type == 'Empty':
-            macro.label = "<Empty>"
-            macro.command = ""
-            bpy.ops.ar.command_edit('INVOKE_DEFAULT', index= index, Edit= True)
-        else:
-            macro.label = "Event: %s" %self.type
-            data = {'Type': self.type}
-            if self.type == 'Timer':
-                data['Time'] = self.time
-            elif self.type == 'Loop':
-                data['StatementType'] = self.statements
-                if self.statements == 'python':
-                    data["PyStatement"] = self.python_statement
-                else:
-                    data["Startnumber"] = self.start
-                    data["Endnumber"] = self.end
-                    data["Stepnumber"] = self.step
-            elif self.type == 'Select Object':
-                data['Object'] = self.object
-            macro.command = "ar.event: %s" %json.dumps(data)
-        functions.local_runtime_save(AR, context.scene)
-        if not AR.hide_local_text:
-            functions.local_action_to_text(action)
-        self.clear()
-        return {"FINISHED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'type')
-        if self.type == 'Timer':
-            box = layout.box()
-            box.prop(self, 'time')
-        elif self.type == 'Loop':
-            box = layout.box()
-            box.prop(self, 'statements')
-            box.separator()
-            if self.statements == 'python':
-                box.prop(self, 'python_statement')
-            else:
-                box.prop(self, 'start')
-                box.prop(self, 'end')
-                box.prop(self, 'step')
-        elif self.type == 'Select Object':
-            box = layout.box()
-            box.prop_search(self, 'object', context.view_layer, 'objects')
-
-    def invoke(self, context, event):
-        if context.object != None:
-            self.object = context.object.name
-        return context.window_manager.invoke_props_dialog(self)
-classes.append(AR_OT_add_event)
-
-class AR_OT_record(shared.id_based, Operator):
-    bl_idname = "ar.record"
+class AR_OT_local_record(shared.id_based, Operator):
+    bl_idname = "ar.local_record"
     bl_label = "Start/Stop Recording"
 
     ignore_selection = False
@@ -434,19 +329,45 @@ class AR_OT_record(shared.id_based, Operator):
         if AR.local_record_macros: # start recording
             self.id = action.id
             self.index = index
-            self.record_start_index = self.get_report_text(context).count('\n')
+            self.record_start_index = functions.get_report_text(context).count('\n')
+            context.scene.ar.record_undo_end = not context.scene.ar.record_undo_end
         else: # end recording and add reports as macros
-            reports = self.get_report_text(context).splitlines()[self.record_start_index: ]
+            reports = functions.get_report_text(context)
+            reports = [report for report in reports if report.startswith('bpy.')]
+
+            record_undo_end = context.scene.ar.record_undo_end
+            while record_undo_end == bpy.context.scene.ar.record_undo_end and bpy.ops.ed.undo.poll():
+                bpy.ops.ed.undo()
+            context = bpy.context
+            i = 0
+            while bpy.ops.ed.redo.poll():
+                report = reports[i]
+                if report.startswith("bpy.context."):
+                    source_path, attribute, value = functions.split_context_report(report)
+                    copy_dict = functions.create_object_copy(context, source_path, attribute)
+
+                    bpy.ops.ed.redo()
+                    context = bpy.context
+                    
+                    report = functions.improve_context_report(context, copy_dict, source_path, attribute, value)
+                    if report:
+                        reports[i] = report
+                        i += 1
+                elif report.startswith("bpy.ops."):
+                    pass
+                else:
+                    i += 1
+
             operators = []
-            compare_operators = False
+            compare_operators = None
             error_reports = []
-            for report in [report for report in reports if report.startswith('bpy.')]:
-                ret = functions.add_report_as_macro(action, report, operators, compare_operators, error_reports)
+            for report in reports:
+                ret = functions.add_report_as_macro(AR, action, report, operators, compare_operators, error_reports)
                 if ret:
                     compare_operators = ret
             if error_reports:
                 self.report({'ERROR'}, "Not all reports could be added added:\n%s" %"\n".join(error_reports))
-            functions.local_runtime_save(AR, context.scene)
+            functions.local_runtime_save(AR, bpy.context.scene)
             functions.local_action_to_text(action)
             context.area.tag_redraw()
             self.clear()
@@ -458,7 +379,6 @@ class AR_OT_record(shared.id_based, Operator):
         if AR.local_record_macros:
             return "Stops Recording the Macros"
         return "Starts Recording the Macros"
-classes.append(AR_OT_record)
 
 class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
     bl_idname = "ar.local_icon"
@@ -480,4 +400,52 @@ class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
         AR.selected_icon = action.icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
+
+class AR_OT_local_clear(shared.id_based, Operator):
+    bl_idname = "ar.local_clear"
+    bl_label = "Clear Macros"
+    bl_description = "Delete all Macro of the selected Action"
+
+    ignore_selection = False
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__package__].preferences
+        ignore = cls.ignore_selection
+        cls.ignore_selection = False
+        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
+
+    def execute(self, context):
+        AR = context.preferences.addons[__package__].preferences
+        index = functions.get_local_action_index(AR, self.id, self.index)
+        AR.local_actions[index].macros.clear()
+        functions.local_runtime_save(AR, context.scene)
+        bpy.context.area.tag_redraw()
+        self.clear()
+        return {"FINISHED"}
+# endregion
+
+classes = [
+    AR_OT_local_to_global,
+    AR_OT_local_add,
+    AR_OT_local_remove,
+    AR_OT_local_move_up,
+    AR_OT_local_move_down,
+    AR_OT_local_load,
+    AR_OT_local_selection_up,
+    AR_OT_local_selection_down,
+    AR_OT_local_play,
+    AR_OT_local_record,
+    AR_OT_local_icon,
+    AR_OT_local_clear
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

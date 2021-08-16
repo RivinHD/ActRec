@@ -15,6 +15,10 @@ from .locals import (
     AR_local_load_text
 )
 
+from .macros import (
+    AR_macro_multiline
+)
+
 from .shared import (
     id_system,
     AR_macro,
@@ -22,9 +26,28 @@ from .shared import (
     AR_scene_data
 )
 
-def get_classes() -> list:
-    from .categories import classes as categories_classes
-    from .globals import classes as globals_classes
-    from .locals import classes as local_classes
-    from .shared import classes as shared_classes
-    return categories_classes + globals_classes + local_classes + shared_classes
+# region Registration
+def register():
+    from .categories import register as reg
+    reg()
+    from .globals import register as reg
+    reg()
+    from .locals import register as reg
+    reg()
+    from .macros import register as reg
+    reg()
+    from .shared import register as reg
+    reg()
+
+def unregister():
+    from .categories import unregister as unreg
+    unreg()
+    from .globals import unregister as unreg
+    unreg()
+    from .locals import unregister as unreg
+    unreg()
+    from .macros import unregister as unreg
+    unreg()
+    from .shared import unregister as unreg
+    unreg()
+# endregion

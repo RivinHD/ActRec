@@ -29,10 +29,32 @@ from .shared import (
     AR_OT_open_url
 )
 
-def get_classes() -> list:
-    from .categories import classes as categories_classes
-    from .globals import classes as globals_classes
-    from .locals import classes as locals_classes
-    from .preferences import classes as preferences_classes
-    from .shared import classes as shared_classes
-    return categories_classes + globals_classes + locals_classes + preferences_classes + shared_classes
+# region Registration
+def register():
+    from .categories import register as reg
+    reg()
+    from .globals import register as reg
+    reg()
+    from .locals import register as reg
+    reg()
+    from .macros import register as reg
+    reg()
+    from .preferences import register as reg
+    reg()
+    from .shared import register as reg
+    reg()
+
+def unregister():
+    from .categories import unregister as unreg
+    unreg()
+    from .globals import unregister as unreg
+    unreg()
+    from .locals import unregister as unreg
+    unreg()
+    from .macros import unregister as unreg
+    unreg()
+    from .preferences import unregister as unreg
+    unreg()
+    from .shared import unregister as unreg
+    unreg()
+# endregion

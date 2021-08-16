@@ -2,13 +2,11 @@
 # blender modules
 import bpy
 from bpy.types import PropertyGroup
-from bpy.props import BoolProperty, IntProperty, StringProperty, CollectionProperty, EnumProperty
+from bpy.props import BoolProperty, StringProperty, CollectionProperty, EnumProperty
 
 # relative Imports
 from . import shared
 # endregion
-
-classes = []
 
 # region PropertyGroups
 class AR_global_actions(shared.AR_action, PropertyGroup):
@@ -29,7 +27,6 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
         elif not (self.id in selected_ids):
             self['selected'] = value
     selected : BoolProperty(default= False, set= set_value, get= get_value, description= "Select this Action Button\n use ctrl to select muliple", name = 'Select')
-classes.append(AR_global_actions)
 
 class AR_global_import_action(PropertyGroup):
     def get_use(self):
@@ -41,7 +38,6 @@ class AR_global_import_action(PropertyGroup):
     label : StringProperty()
     identifier : StringProperty()
     use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to import the action", get= get_use, set= set_use)
-classes.append(AR_global_import_action)
 
 class AR_global_import_category(PropertyGroup):
     def get_use(self):
@@ -57,7 +53,6 @@ class AR_global_import_category(PropertyGroup):
     mode : EnumProperty(items= [("new", "New", "Create a new Category"),("append", "Append", "Append to an existing Category")], name= "Import Mode")
     show : BoolProperty(default= True)
     use : BoolProperty(default= True, name= "Import Category", description= "Decide whether to import the category", get= get_use, set= set_use)
-classes.append(AR_global_import_category)
 
 class AR_global_export_action(shared.id_system, PropertyGroup):
     def get_use(self):
@@ -68,7 +63,6 @@ class AR_global_export_action(shared.id_system, PropertyGroup):
     
     label : StringProperty()
     use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to import the action", get= get_use, set= set_use)
-classes.append(AR_global_export_action)
 
 class AR_global_export_categories(shared.id_system, PropertyGroup):
     def get_use(self):
@@ -82,5 +76,22 @@ class AR_global_export_categories(shared.id_system, PropertyGroup):
     actions : CollectionProperty(type= AR_global_import_action)
     show : BoolProperty(default= True)
     use : BoolProperty(default= True, name= "Export Category", description= "Decide whether to export the category", get= get_use, set= set_use)
-classes.append(AR_global_export_categories)
+# endregion
+
+classes = [
+    AR_global_actions,
+    AR_global_import_action,
+    AR_global_import_category,
+    AR_global_export_action,
+    AR_global_export_categories
+]
+
+# region Registration
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 # endregion

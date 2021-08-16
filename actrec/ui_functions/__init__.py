@@ -7,5 +7,5 @@ from .categories import (
 )
 
 from .globals import (
-    draw_actions
+    draw_global_action
 )

@@ -2,11 +2,14 @@
 # external modules
 import json
 import os
-from typing import Optional
+
+# blender modules
+import bpy
+from bpy.app.handlers import persistent
 
 # relative imports
 from ..log import logger
-from .. import ui, shared_data
+from .. import ui_functions, shared_data
 from . import shared
 # endregion
 
@@ -16,6 +19,13 @@ def global_runtime_save(AR, use_autosave: bool = True):
     shared_data.global_temp = shared.property_to_python(AR.global_actions)
     if use_autosave and AR.autosave:
         save(AR)
+
+@persistent
+def global_runtime_load(dummy = None):
+    AR = bpy.context.preferences.addons[__package__].preferences
+    AR.global_actions.clear()
+    for action in shared_data.global_temp:
+        shared.add_data_to_collection(AR.global_actions, action)
 
 def save(AR):
     data = {}
@@ -66,15 +76,16 @@ def load(AR) -> bool:
     """return Succeses"""
     if os.path.exist(AR.storage_path):
         with open(AR.storage_path, 'r', encoding= 'utf-8') as storage_file:
-            
             data = json.load(storage_file)
         logger.info('load global actions')
         # cleanup
         for category in AR.categories:
-            ui.unregister_category(category)
+            ui_functions.unregister_category(category)
         AR.categories.clear()
         AR.global_actions.clear()
         import_global_from_dict(AR, data)
+        for category in AR.categories:
+            ui_functions.register_category(AR, category)
         if len(AR.categories):
             AR.categories[0].selected = True
         if len(AR.global_actions):
@@ -84,7 +95,7 @@ def load(AR) -> bool:
 
 def import_global_from_dict(AR, data: dict) -> None:
     # load categories
-    for i, category in enumerate(data['categories'], len(AR.categories)):
+    for category in data['categories']:
         new_category = AR.categories.add()
         new_category.id = category['id']
         new_category.label = category['label']
@@ -103,27 +114,28 @@ def import_global_from_dict(AR, data: dict) -> None:
         new_action.id = action['id']
         new_action.label = action['label']
         for macro in action['macros']:
-            result = update_command(macro['macro'])
+            result = shared.update_command(macro['command'])
             new_macro = new_action.macros.add()
             new_macro.id = macro['id']
             new_macro.label = macro['label']
-            new_macro.macro = result if isinstance(result, str) else macro['macro']
+            new_macro.command = result if isinstance(result, str) else macro['command']
             new_macro.active = macro['active']
             new_macro.icon = macro['icon']
             new_macro.is_available = result is not None
         new_action.icon = action['icon']
 
 def get_global_action_id(AR, id, index):
-    if AR.global_actions.find(id) == -1 and len(AR.global_actions) > index and index >= 0:
-        id = AR.global_actions[index].id
+    if AR.global_actions.find(id) == -1:
+        if index >= 0 and len(AR.global_actions) > index:
+            id = AR.global_actions[index].id
+        else:
+            return None
     else:
-        return None
-    return id
+        return id
 
 def get_global_action_ids(AR, id, index):
     id = get_global_action_id(AR, id, index)
     if id is None:
         return AR.get("global_actions.selected_ids", [])
     return [id]
-    
 # endregion

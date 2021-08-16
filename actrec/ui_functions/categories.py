@@ -41,14 +41,19 @@ areas_to_spaces = {
 # region Panel
 def register_category(AR, category):
     index = AR.categories.find(category.id)
-    space_types = [areas_to_spaces[area.type] for area in category.areas]
-    register_unregister_category(index, space_types)
+    if len(category.areas):
+        space_types = [areas_to_spaces[area.type] for area in category.areas]
+        register_unregister_category(index, space_types)
+    else:
+        register_unregister_category(index)
 
 def unregister_category(AR, category):
     index = AR.categories.find(category.id)
     register_unregister_category(index, register = False)
 
 def show_category(context, category):
+    if not len(category.areas):
+        return True
     area_type = context.area.ui_type
     area_space = context.area.type
     for area in category.areas:
