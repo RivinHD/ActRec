@@ -75,7 +75,7 @@ class AR_preferences(AddonPreferences):
         else:
             for action in self.local_actions:
                 functions.local_action_to_text(action)
-    hide_local_text : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update=hide_show_local_in_texteditor)
+    hide_local_text : BoolProperty(name= "Hide Local Action in Texteditor", description= "Hide the Local Action in the Texteditor", update= hide_show_local_in_texteditor)
     local_create_empty : BoolProperty(default= True, name= "Create Empty", description= "Create Empty Macro on Error")
 
     # macros
@@ -88,6 +88,7 @@ class AR_preferences(AddonPreferences):
     global_to_local_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     autosave : BoolProperty(default= True, name= "Autosave", description= "automatically saves all Global Buttons to the Storage")
     global_rename : StringProperty(name= "Rename", description= "Rename the selected Action")
+    global_hide_menu : BoolProperty(name= "Hide", description= "Hide the global Menu")
 
     import_settings : CollectionProperty(type= properties.AR_global_import_category)
     import_extension : StringProperty()
@@ -123,11 +124,10 @@ class AR_preferences(AddonPreferences):
         col = layout.column(align= True)
         col.prop(AR, 'prefernece_tab', expand= True)
         if AR.prefernece_tab == 'update':
+            col.operator('wm.url_open', text= "Release Notes").url = config.release_notes_url
             row = col.row()
             if AR.update:
                 update.draw_update_button(row, AR)
-                ops = row.operator('wm.url_open', text= "Release Notes")
-                ops.url = config.release_notes_url
             else:
                 row.operator('ar.update_check', text= "Check For Updates")
                 if AR.restart:
@@ -177,6 +177,11 @@ class AR_preferences(AddonPreferences):
             row = col.row()
             row.prop(self, 'hide_local_text')
             row.prop(self, 'local_create_empty')
+            col.separator(factor= 1.5)
+            row = col.row()
+            row.operator('wm.url_open', text= "Manual", icon= 'ASSET_MANAGER').url = config.manual_url
+            row.operator('wm.url_open', text= "Hint", icon= 'HELP').url = config.hint_url
+            row.operator('wm.url_open', text= "Bug Report", icon= 'URL').url = config.bug_report_url
 classes.append(AR_preferences)
 # endregion
 

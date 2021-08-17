@@ -7,7 +7,8 @@ import bpy
 from bpy.app.handlers import persistent
 
 # relative imports
-from . import functions, menus ,operators, properties, ui_functions, config, icon_manager, keymap, log, preferences, shared_data, update
+from . import functions, menus, operators, panels, properties, ui_functions, uilist
+from . import config, icon_manager, keymap, log, preferences, shared_data, update
 # endregion
 
 @persistent
@@ -49,11 +50,13 @@ def on_start(dummy = None):
 
 # region Registration
 def register():
-    update.register()
     menus.register()
     operators.register()
+    panels.register()
     properties.register()
+    uilist.register()
     icon_manager.register()
+    update.register()
     keymap.register()
     preferences.register()
 
@@ -70,11 +73,13 @@ def register():
     log.logger.info("Registered Action Recorder")
 
 def unregister():
-    update.unregister()
     menus.unregister()
     operators.unregister()
+    panels.register()
     properties.unregister()
+    uilist.register()
     icon_manager.unregister()
+    update.unregister()
     keymap.unregister()
     preferences.unregister()
     

@@ -42,19 +42,26 @@ class alert_system:
 class AR_macro(id_system, alert_system, PropertyGroup):
     def get_active(self):
         return self.get('active', True) and self.is_available
-    def set_active(self, value): 
-        self['active'] = value
-    def update_temp_save(self, context):
-        for i, x in enumerate(shared_data.local_temp):
-            if x.id == self.id:
-                shared_data.local_temp[i] = functions.property_to_python(self)
-                return
+    def set_active(self, value):
+        if self.is_available:
+            context = bpy.context
+            AR = context.preferences.addons[__package__].preferences
+            self['active'] = value
+            functions.local_runtime_save(AR, context.scene)
+    def get_command(self):
+        return self.get("command", "")
+    def set_command(self, value):
+        res = functions.update_command(value)
+        self['command'] = res if isinstance(res, str) else value
+        self['is_available'] = res is not None
+    def get_is_available(self):
+        return self.get('is_available', True)
 
     label : StringProperty()
-    command : StringProperty()
+    command : StringProperty(get= get_command, set= set_command)
     active : BoolProperty(default= True, description= 'Toggles Macro on and off.', get= get_active, set= set_active)
     icon : IntProperty(default= 0) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)
-    is_available : BoolProperty(default= True)
+    is_available : BoolProperty(default= True, get= get_is_available)
     ui_type : StringProperty(default= "")
     use_temp_screen : BoolProperty(default= False)
 

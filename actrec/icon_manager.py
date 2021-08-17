@@ -131,7 +131,7 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
             if err is not None:
                 self.report({'ERROR'}, err)
         else:
-            self.report({'ERROR'}, 'The selected File is not an Image or an Image Format supported bp Blender')
+            self.report({'ERROR'}, 'The selected File is not an Image or an Image Format supported by Blender')
         if self.activat_pop_up != "":
             exec("bpy.ops.%s%s" %(".".join(self.activat_pop_up.split("_OT_")).lower(), "('INVOKE_DEFAULT')"))
         return {"FINISHED"}
@@ -139,7 +139,7 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
 class AR_OT_delete_custom_icon(Operator):
     bl_idname = "ar.delete_custom_icon"
     bl_label = "Delete Icon"
-    bl_description = "Delete a custom added icon"
+    bl_description = "Delete a custom Icon"
 
     class AR_icon(PropertyGroup):
         icon_id : IntProperty()

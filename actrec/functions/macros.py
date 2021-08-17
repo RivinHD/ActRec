@@ -20,11 +20,9 @@ def append_operators(AR, action, operators):
     for operator in operators:
         macro = action.macros.add()
         label = shared.get_name_of_command(operator)
-        command = shared.update_command(operator)
         macro.id
         macro.label = AR.last_macro_label = label if label else operator
-        macro.command = AR.last_macro_command = command if command else operator
-        macro.is_available = bool(command)
+        macro.command = AR.last_macro_command = operator
     operators.clear()
 
 def add_report_as_macro(AR, action, report: str, operators: list, compare_operators: Optional[str], error_reports: list) -> Optional[str]:

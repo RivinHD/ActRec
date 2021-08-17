@@ -16,7 +16,7 @@ from . import shared
 def local_runtime_save(AR, scene: bpy.types.Scene, use_autosave: bool = True) -> None:
     """includes autosave to scene (depend on AddonPreference autosave)"""
     shared_data.local_temp = shared.property_to_python(AR.local_actions)
-    if use_autosave and AR.autosave:
+    if use_autosave and AR.autosave and scene:
         scene.ar.local = json.dumps(shared_data.local_temp)
 
 @persistent

@@ -17,8 +17,8 @@ from . import shared
 # region Operators
 class AR_OT_local_to_global(Operator):
     bl_idname = "ar.local_to_global"
-    bl_label = "Action to Global"
-    bl_description = "Add the selected Action to a Category"
+    bl_label = "Local Action to Global"
+    bl_description = "Transfer the selected Action to Global-actions"
 
     @classmethod
     def poll(cls, context):
@@ -27,22 +27,9 @@ class AR_OT_local_to_global(Operator):
 
     def local_to_global(self, AR, category, action) -> None:
         id = uuid.uuid1() if action.id in [x.id for x in AR.global_actions] else action.id
-        data = { # properties 'name'(read-only), 'alert'(only temporary set) ignored
-            "id" : id,
-            "label" : action.label,
-            "macros" : [
-                {
-                    "id" : macro.id,
-                    "label" : macro.label,
-                    "command" : macro.command,
-                    "active" : macro.active,
-                    "icon" : macro.icon,
-                    "is_available" : macro.is_available
-                } for macro in action.macros
-            ],
-            "icon" : action.icon,
-            "selected": True
-        }
+        data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
+        data["id"] = id
+        data["selected"] = True
         functions.add_data_to_collection(AR.global_actions, data)
         new_action = category.actions.add()
         new_action.id = id
@@ -317,9 +304,7 @@ class AR_OT_local_record(shared.id_based, Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__package__].preferences
-        ignore = cls.ignore_selection
-        cls.ignore_selection = False
-        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
+        return len(AR.local_actions)
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences

@@ -12,8 +12,8 @@ info = {
     "blender": (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
-    "wiki_url" : "https://github.com/InamuraJIN/CommandRecorder/blob/master/README.md",# Documentation
-    "tracker_url" : "https://twitter.com/Inamura_JIN",# Report Bug
+    "wiki_url" : manual_url,# Documentation
+    "tracker_url" : bug_report_url,# Report Bug
     'link': 'https://twitter.com/Inamura_JIN',
     "category" : "System"
 }

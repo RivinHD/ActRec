@@ -1,11 +1,12 @@
 # region Imports
 # external modules
-from typing import Optional
+from typing import Optional, Union
 from contextlib import suppress
 from collections import defaultdict
 import json
 import time
 import os
+import random, math, numpy
 
 # blender modules
 import bpy
@@ -66,7 +67,8 @@ def property_to_python(property, exclude: list = [], depth= 5):
 def apply_data_to_item(item, data, key = "") -> None:
     if isinstance(data, list):
         for element in data:
-            apply_data_to_item(item, element)
+            subitem = item.add()
+            apply_data_to_item(subitem, element)
     elif isinstance(data, dict):
         for key, value in data.items():
             apply_data_to_item(item, value, key)
@@ -120,7 +122,7 @@ def extract_properties(properties :str) -> list:
     new_props.append(prop_str)
     return new_props[1:]
 
-def update_command(command: str) -> Optional[str]:
+def update_command(command: str) -> Union[str, False, None]:
     if command.startswith("bpy.ops."):
         command, values = command.split("(", 1)
         values = extract_properties(values[:-1])
@@ -139,7 +141,7 @@ def update_command(command: str) -> Optional[str]:
                     break
         return "%s(%s)" %(command, ", ".join(inputs))
     else:
-        return None
+        return False
 
 def play(context_copy, macros, action, action_type: str): # non-realtime events, execute before macros get executed run
     macros = [macro for macro in macros if macro.active]

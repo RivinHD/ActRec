@@ -23,7 +23,7 @@ class log_system:
         loglater = []
         while len(all_logs) >= count:
             try:
-                os.remove(min([os.path.join(dirc, filename) for filename in all_logs], key=os.path.getctime)) # delete oldest file
+                os.remove(min([os.path.join(dirc, filename) for filename in all_logs], key= os.path.getctime)) # delete oldest file
                 all_logs = os.listdir(dirc)
             except PermissionError as err:
                 loglater.append("File is already used -> PermissionError: %" %str(err))
@@ -33,7 +33,7 @@ class log_system:
         logger = logging.getLogger(__package__)
         logger.setLevel(logging.INFO)
         file_formatter = logging.Formatter("%(levelname)s - %(relativeCreated)d - %(funcName)s - %(message)s")
-        file_handler = logging.FileHandler(path, mode='w', encoding= 'utf-8', delay= True)
+        file_handler = logging.FileHandler(path, mode= 'w', encoding= 'utf-8', delay= True)
         file_handler.setLevel(logger.level)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -47,7 +47,7 @@ class log_system:
     
     def exception_handler(self, exc_type, exc_value, exc_tb) -> None:
         traceback.print_exception(exc_type, exc_value, exc_tb)
-        self.logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
+        self.logger.error("Uncaught exception", exc_info= (exc_type, exc_value, exc_tb))
 
     def unregister(self) -> None:
         self.file_handler.close()

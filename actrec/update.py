@@ -141,7 +141,7 @@ def get_download_paths(version_file) -> Optional[list]:
         return None
     download_list = []
     version = config.info['version']
-    for key in download_files.keys():
+    for key in download_files:
         if tuple(download_files[key]) > version:
             download_list.append(key)
     return download_list

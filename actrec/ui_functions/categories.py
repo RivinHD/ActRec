@@ -11,7 +11,7 @@ from . import globals
 # endregion
 
 classes = []
-standart_space_types = [space.identifier for space in bpy.types.Panel.bl_rna.properties['bl_space_type'].enum_items] # get all registered Space Types of Blender
+standart_space_types = ['VIEW_3D', 'IMAGE_EDITOR', 'NODE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'DOPESHEET_EDITOR', 'FILE_BROWSER'] # blender spaces with UI region
 space_mode_attribute = {
     'IMAGE_EDITOR': 'ui_mode',
     'NODE_EDITOR': 'texture_type',

@@ -22,7 +22,7 @@ from . import shared
 class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
     bl_idname = "ar.global_recategorize_action"
     bl_label = "Recategoize Action Button"
-    bl_description = "Move the selected Action Button of a Category to Another Category"
+    bl_description = "Reallocate the selected Action to another Category"
 
     @classmethod
     def poll(cls, context):
@@ -169,7 +169,7 @@ class AR_OT_global_import(Operator, ImportHelper):
 class AR_OT_global_import_settings(Operator):
     bl_idname = "ar.global_import_settings"
     bl_label = "Load Importsettings"
-    bl_description = "Load the select the file to change the importsettings"
+    bl_description = "Loads the select file to change the importsettings"
 
     filepath : StringProperty()
     from_operator : BoolProperty(default= False)
@@ -242,7 +242,7 @@ class AR_OT_global_import_settings(Operator):
 class AR_OT_global_export(Operator, ExportHelper):
     bl_idname = "ar.global_export"
     bl_label = "Export"
-    bl_description = "Export the Action file as a ZIP"
+    bl_description = "Export the Action file as a .json file"
 
     filter_glob: StringProperty(default= '*.json', options= {'HIDDEN'})
     filename_ext = ".json"
@@ -331,7 +331,7 @@ class AR_OT_global_save(Operator):
 class AR_OT_global_load(Operator):
     bl_idname = "ar.global_load"
     bl_label = "Load"
-    bl_description = "Load all Action data from the Storage"
+    bl_description = "Load all Actions from the Storage"
 
     def execute(self, context):
         AR = context.preferences.addons[__package__].preferences
@@ -343,8 +343,8 @@ class AR_OT_global_load(Operator):
 
 class AR_OT_global_to_local(shared.id_based, Operator):
     bl_idname = "ar.global_to_local"
-    bl_label = "Action Button to Local"
-    bl_description = "Add the selected Action Button as a Local"
+    bl_label = "Global Action to Local"
+    bl_description = "Transfer the selected Action to Local-actions"
 
     @classmethod
     def poll(cls, context):
@@ -353,21 +353,8 @@ class AR_OT_global_to_local(shared.id_based, Operator):
 
     def global_to_local(self, AR, action) -> None:
         id = uuid.uuid1() if action.id in [x.id for x in AR.local_actions] else action.id
-        data = { # properties 'name'(read-only), 'alert'(only temporary set) ignored
-            "id" : id,
-            "label" : action.label,
-            "macros" : [
-                {
-                    "id" : macro.id,
-                    "label" : macro.label,
-                    "command" : macro.command,
-                    "active" : macro.active,
-                    "icon" : macro.icon,
-                    "is_available" : macro.is_available
-                } for macro in action.macros
-            ],
-            "icon" : action.icon
-        }
+        data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
+        data["id"] = id
         functions.add_data_to_collection(AR.local_actions, data)
         AR.selected_local_action_index = len(AR.local_actions)
 

@@ -29,45 +29,8 @@ def global_runtime_load(dummy = None):
 
 def save(AR):
     data = {}
-    categories_data = []
-    for category in AR.categories:
-        categories_data.append({
-            'id': category.id,
-            'label': category.label,
-            'actions': [
-                {
-                    "id": id_action.id
-                } for id_action in category.actions
-            ],
-            'areas': [
-                {
-                    'type': area.type,
-                    'modes': [
-                        {
-                            'type': mode.type
-                        } for mode in area.modes
-                    ]
-                } for area in category.areas
-            ]
-        })
-    data['categories'] = categories_data
-    actions_data = []
-    for action in AR.global_actions:
-        actions_data.append({
-            'id': action.id,
-            'label': action.label,
-            'macros': [
-                {
-                    'id': macro.id,
-                    'label': macro.label,
-                    'macro': macro.macro,
-                    'active': macro.active,
-                    'icon': macro.icon
-                } for macro in action.macros
-            ],
-            'icon': action.icon
-        })
-    data['actions'] = actions_data
+    data['categories'] = shared.property_to_python(AR.categories, exclude= ["name", "actions.name", "areas.name", "areas.modes.name"])
+    data['actions'] = shared.property_to_python(AR.global_actions, exclude= ["name", "selected", "macros.name", "macros.is_available"])
     with open(AR.storage_path, 'w', encoding= 'utf-8') as storage_file:
         json.dumps(data, storage_file, ensure_ascii= False, indent= 4)
     logger.info('saved global actions')
@@ -94,35 +57,8 @@ def load(AR) -> bool:
     return False
 
 def import_global_from_dict(AR, data: dict) -> None:
-    # load categories
-    for category in data['categories']:
-        new_category = AR.categories.add()
-        new_category.id = category['id']
-        new_category.label = category['label']
-        for action in category['actions']:
-            new_action = new_category.actions.add()
-            new_action.id = action['id']
-        for area in category['areas']:
-            new_area = new_category.areas.add()
-            new_area.type = area['type']
-            for mode in area['modes']:
-                new_mode = new_area.modes.add()
-                new_mode.type = mode
-    # load global actions
-    for action in data['actions']:
-        new_action = AR.global_actions.add()
-        new_action.id = action['id']
-        new_action.label = action['label']
-        for macro in action['macros']:
-            result = shared.update_command(macro['command'])
-            new_macro = new_action.macros.add()
-            new_macro.id = macro['id']
-            new_macro.label = macro['label']
-            new_macro.command = result if isinstance(result, str) else macro['command']
-            new_macro.active = macro['active']
-            new_macro.icon = macro['icon']
-            new_macro.is_available = result is not None
-        new_action.icon = action['icon']
+    shared.apply_data_to_item(AR.categories, data['categories'])
+    shared.apply_data_to_item(AR.global_actions, data['actions'])
 
 def get_global_action_id(AR, id, index):
     if AR.global_actions.find(id) == -1:
