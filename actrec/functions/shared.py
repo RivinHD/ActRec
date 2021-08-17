@@ -122,7 +122,7 @@ def extract_properties(properties :str) -> list:
     new_props.append(prop_str)
     return new_props[1:]
 
-def update_command(command: str) -> Union[str, False, None]:
+def update_command(command: str) -> Union[str, bool, None]:
     if command.startswith("bpy.ops."):
         command, values = command.split("(", 1)
         values = extract_properties(values[:-1])
@@ -236,7 +236,7 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
 @persistent
 def execute_render_init(dummy = None):
     context = bpy.context
-    AR = context.preferences.addons[__package__].preferences
+    AR = context.preferences.addons[__module__].preferences
     for action_type, action_id, start in shared_data.render_init_macros:
         action = getattr(AR, action_type)[action_id]
         play(context.copy(), action.macros[start: ], action, action_type)
@@ -244,7 +244,7 @@ def execute_render_init(dummy = None):
 @persistent
 def execute_render_complete(dummy = None):
     context = bpy.context
-    AR = context.preferences.addons[__package__].preferences
+    AR = context.preferences.addons[__module__].preferences
     for action_type, action_id, start in shared_data.render_complete_macros:
         action = getattr(AR, action_type)[action_id]
         play(context.copy(), action.macros[start: ], action, action_type)

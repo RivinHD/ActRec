@@ -5,20 +5,24 @@ import json
 # blender modules
 import bpy
 from bpy.app.handlers import persistent
+from bpy.props import PointerProperty
 
 # relative imports
 from . import functions, menus, operators, panels, properties, ui_functions, uilist
 from . import config, icon_manager, keymap, log, preferences, shared_data, update
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 @persistent
-def on_start(dummy = None):
+def on_start(dummy= None):
+    log.logger.info("Load on start")
     context = bpy.context
-    AR = context.preferences.addons[__package__].preferences
+    AR = context.preferences.addons[__module__].preferences
     # load local actions
     if bpy.data.filepath == '':
         AR.local_actions.clear()
-    if context.scene.ar.local == "{}" and context.scene.get('ar_local', None):   # load old local action data
+    if context.scene.ar.local == "{}" and context.scene.get('ar_local', None): # load old local action data
         try:
             data = []
             old_data = json.loads(context.scene.get('ar_local'))
@@ -50,10 +54,10 @@ def on_start(dummy = None):
 
 # region Registration
 def register():
+    properties.register()
     menus.register()
     operators.register()
     panels.register()
-    properties.register()
     uilist.register()
     icon_manager.register()
     update.register()
@@ -70,14 +74,16 @@ def register():
     handlers.render_init.append(functions.execute_render_init)
     handlers.render_complete.append(functions.execute_render_complete)
     handlers.load_post.append(on_start)
+    
+    bpy.types.Scene.ar = PointerProperty(type= properties.AR_scene_data)
     log.logger.info("Registered Action Recorder")
 
 def unregister():
+    properties.unregister()
     menus.unregister()
     operators.unregister()
-    panels.register()
-    properties.unregister()
-    uilist.register()
+    panels.unregister()
+    uilist.unregister()
     icon_manager.unregister()
     update.unregister()
     keymap.unregister()
@@ -93,6 +99,8 @@ def unregister():
     handlers.render_init.remove(functions.execute_render_init)
     handlers.render_complete.remove(functions.execute_render_complete)
     handlers.load_post.remove(on_start)
+
+    del bpy.types.Scene.ar
     log.logger.info("Unregistered Action Recorder")
     log.log_sys.unregister()
 # endregion

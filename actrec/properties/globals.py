@@ -8,12 +8,14 @@ from bpy.props import BoolProperty, StringProperty, CollectionProperty, EnumProp
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region PropertyGroups
 class AR_global_actions(shared.AR_action, PropertyGroup):
     def get_value(self) -> bool:
         return self.get("selected", False)
     def set_value(self, value: bool) -> None:
-        AR = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__module__].preferences
         selected_ids = AR.get("global_actions.selected_ids", [])
         if value:
             ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')

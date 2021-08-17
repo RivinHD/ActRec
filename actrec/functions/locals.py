@@ -12,6 +12,8 @@ from .. import shared_data
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Functions
 def local_runtime_save(AR, scene: bpy.types.Scene, use_autosave: bool = True) -> None:
     """includes autosave to scene (depend on AddonPreference autosave)"""
@@ -21,7 +23,7 @@ def local_runtime_save(AR, scene: bpy.types.Scene, use_autosave: bool = True) ->
 
 @persistent
 def local_runtime_load(dummy = None):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.local_actions.clear()
     for action in shared_data.global_temp:
         shared.add_data_to_collection(AR.local_actions, action)
@@ -149,7 +151,7 @@ def get_collection_data(collection) -> dict:
     data['objects'] = set(obj.name for obj in collection.objects)
     return data
 
-def create_operator_based_copy(context, ops_type: str, ops_name: str, ops_values: dict) -> Union[dict, False, None]:
+def create_operator_based_copy(context, ops_type: str, ops_name: str, ops_values: dict) -> Union[dict, bool, None]:
     if ops_type == "outliner":
         if ops_name in set("item_activate", "item_rename"):
             return False

@@ -1,4 +1,4 @@
-from . import actrec
+﻿from . import actrec
 
 bl_info = actrec.config.info
 

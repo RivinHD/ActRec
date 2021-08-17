@@ -18,6 +18,8 @@ from .. import functions, properties, icon_manager
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operators
 class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
     bl_idname = "ar.global_recategorize_action"
@@ -26,14 +28,14 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def invoke(self, context: bpy.context, event: bpy.types.Event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context: bpy.context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         categories = AR.categories
         ids = functions.get_global_action_ids(AR, self.id, self.index)
         self.clear()
@@ -52,7 +54,7 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
         return {"FINISHED"}
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         categories = AR.Categories
         layout = self.layout
         for category in categories:
@@ -85,7 +87,7 @@ class AR_OT_global_import(Operator, ImportHelper):
         return macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
 
         if AR.import_extension == ".zip":
             if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
@@ -130,7 +132,7 @@ class AR_OT_global_import(Operator, ImportHelper):
             functions.import_global_from_dict(AR, data)
         else:
             self.report({'ERROR'}, "Select a .json or .zip file {%s}" %self.filepath)
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.import_settings.clear()
         functions.category_runtime_save(AR)
         functions.global_runtime_save(AR, False)
@@ -138,7 +140,7 @@ class AR_OT_global_import(Operator, ImportHelper):
         return {"FINISHED"}
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         layout = self.layout
         layout.operator("ar.global_import_settings", text= "Load Importsettings").filepath = self.filepath
         col = layout.column(align= True)
@@ -163,7 +165,7 @@ class AR_OT_global_import(Operator, ImportHelper):
                     row.label(text= action.label)
         
     def cancel(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.import_settings.clear()
 
 class AR_OT_global_import_settings(Operator):
@@ -201,7 +203,7 @@ class AR_OT_global_import_settings(Operator):
         return categories
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.import_settings.clear()
         
         if os.path.exists(self.filepath):
@@ -254,11 +256,11 @@ class AR_OT_global_export(Operator, ExportHelper):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions)
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         for category in AR.categories:
             new_category = self.export_categories.add()
             new_category.id = category.id
@@ -274,7 +276,7 @@ class AR_OT_global_export(Operator, ExportHelper):
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         if not os.path.exists(os.path.dirname(self.filepath)):
             self.report({'ERROR', "Directory doesn't exist"})
             return {'CANCELLED'}
@@ -325,7 +327,7 @@ class AR_OT_global_save(Operator):
     bl_description = "Save all Global Actions to the Storage"
 
     def execute(self, context):
-        functions.save(context.preferences.addons[__package__].preferences)
+        functions.save(context.preferences.addons[__module__].preferences)
         return {"FINISHED"}
 
 class AR_OT_global_load(Operator):
@@ -334,7 +336,7 @@ class AR_OT_global_load(Operator):
     bl_description = "Load all Actions from the Storage"
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         functions.load(AR)
         functions.category_runtime_save(AR, False)
         functions.global_runtime_save(AR, False)
@@ -348,7 +350,7 @@ class AR_OT_global_to_local(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def global_to_local(self, AR, action) -> None:
@@ -359,7 +361,7 @@ class AR_OT_global_to_local(shared.id_based, Operator):
         AR.selected_local_action_index = len(AR.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         for id in functions.get_global_action_ids(AR, self.id, self.index):
             self.global_to_local(AR, AR.global_actions[id])
             if AR.global_to_local_mode == 'move':
@@ -379,11 +381,11 @@ class AR_OT_global_remove(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         for id in functions.get_global_action_ids(AR, self.id, self.index):
             AR.global_actions.remove(AR.global_actions.find(id))
             for category in AR.categories:
@@ -404,11 +406,11 @@ class AR_OT_global_move_up(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ids = set(functions.get_global_action_ids(AR, self.id, self.index))
         for category in AR.categories:
             for id_action in category.actions:
@@ -427,11 +429,11 @@ class AR_OT_global_move_down(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ids = set(functions.get_global_action_ids(AR, self.id, self.index))
         for category in AR.categories:
             for id_action in list(category.actions).reverse():
@@ -452,11 +454,11 @@ class AR_OT_global_rename(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", [])) == 1
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ids = functions.get_global_action_ids(AR, self.id, self.index)
         self.clear()
         if len(ids) == 1:
@@ -477,7 +479,7 @@ class AR_OT_global_execute_action(shared.id_based, Operator):
     bl_options = {'UNDO', 'INTERNAL'}
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         id = functions.get_global_action_id(AR, self.id, self.index)
         self.clear()
         if id is None:
@@ -490,7 +492,7 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
     bl_idname = "ar.global_icon"
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         id = self.id = functions.get_global_action_id(AR, self.id, self.index)
         if id is None:
             self.clear()
@@ -500,7 +502,7 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
         return context.window_manager.invoke_props_dialog(self, width=1000)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.global_actions[self.id].icon = AR.selected_icon
         AR.selected_icon = 0 #Icon: NONE
         functions.global_runtime_save(AR)

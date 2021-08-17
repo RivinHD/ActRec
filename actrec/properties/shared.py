@@ -11,6 +11,8 @@ from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolPrope
 from .. import shared_data, functions
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region PropertyGroups
 class id_system: 
     def get_id(self):
@@ -45,7 +47,7 @@ class AR_macro(id_system, alert_system, PropertyGroup):
     def set_active(self, value):
         if self.is_available:
             context = bpy.context
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             self['active'] = value
             functions.local_runtime_save(AR, context.scene)
     def get_command(self):

@@ -18,6 +18,8 @@ from .. import functions, properties
 from ..log import logger
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operators
 class macro_based(shared.id_based):
     action_index : IntProperty(default= -1)
@@ -37,11 +39,11 @@ class AR_OT_macro_add(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.local_record_macros = not AR.local_record_macros
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
@@ -116,11 +118,11 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.local_actions) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         if self.macro_index == -1:
@@ -192,13 +194,13 @@ class AR_OT_macro_remove(macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         action_index = functions.get_local_action_index(AR, '', self.action_index)
         action = AR.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
@@ -215,14 +217,14 @@ class AR_OT_macro_move_up(macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         action = AR.local_actions[AR.selected_local_action_index]
         return (len(action.macros) >= 2 and action.selected_macro_index + 1 < len(action.macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         action_index = functions.get_local_action_index(AR, '', self.action_index)
         action = AR.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
@@ -243,14 +245,14 @@ class AR_OT_macro_move_down(macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         action = AR.local_actions[AR.selected_local_action_index]
         return (len(action.macros) >= 2 and action.selected_macro_index - 1 >= 0 or ignore) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         action_index = functions.get_local_action_index(AR, '', self.action_index)
         action = AR.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
@@ -309,7 +311,7 @@ class AR_OT_macro_edit(macro_based, Operator):
     font_text = text_analysis(functions.get_font_path())
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         action_index = self.action_index = functions.get_local_action_index(AR, '', self.action_index)
         action = AR.local_actions[action_index]
         index = self.index = functions.get_local_macro_index(action, self.id, self.index)
@@ -353,7 +355,7 @@ class AR_OT_macro_edit(macro_based, Operator):
         return {"FINISHED"}
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         action = AR.local_actions[self.action_index]
         macro = action.macros[self.index]
         if self.copy_data:
@@ -368,7 +370,7 @@ class AR_OT_macro_edit(macro_based, Operator):
         return {"FINISHED"}
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         layout = self.layout
         self.command = ""
         for line in self.text:
@@ -417,7 +419,7 @@ class AR_OT_copy_to_actrec(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return bpy.ops.ui.copy_python_command_button.poll() and len(AR.local_actions)
 
     def execute(self, context):

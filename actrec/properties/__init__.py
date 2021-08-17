@@ -28,6 +28,8 @@ from .shared import (
 
 # region Registration
 def register():
+    from .shared import register as reg
+    reg()
     from .categories import register as reg
     reg()
     from .globals import register as reg
@@ -36,10 +38,10 @@ def register():
     reg()
     from .macros import register as reg
     reg()
-    from .shared import register as reg
-    reg()
 
 def unregister():
+    from .shared import unregister as unreg
+    unreg()
     from .categories import unregister as unreg
     unreg()
     from .globals import unregister as unreg
@@ -47,7 +49,5 @@ def unregister():
     from .locals import unregister as unreg
     unreg()
     from .macros import unregister as unreg
-    unreg()
-    from .shared import unregister as unreg
     unreg()
 # endregion

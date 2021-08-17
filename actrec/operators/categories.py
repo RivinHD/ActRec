@@ -12,6 +12,8 @@ from .. import functions, ui_functions
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operators
 class AR_OT_category_interface(Operator):
     
@@ -123,7 +125,7 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         new = AR.categories.add()
         new.label = functions.check_for_dublicates([c.label for c in AR.categories], self.label)
         self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
@@ -141,17 +143,17 @@ class AR_OT_category_edit(shared.id_based, AR_OT_category_interface ,Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.categories)
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         id = self.id = functions.get_category_id(AR, self.id, self.index)
         AR_OT_category_interface.category_visibility = functions.read_category_visbility(AR, id)
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         category = AR.categories[self.id]
         category.areas.clear()
         ui_functions.unregister_category(AR, category)
@@ -196,14 +198,14 @@ class AR_OT_category_delete(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.categories)
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         categories = AR.categories
         id = functions.get_category_id(AR, self.id, self.index)
         self.clear()
@@ -228,7 +230,7 @@ class AR_OT_category_move_up(shared.id_based, Operator):
     bl_description = "Move the Category up"
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         id = functions.get_category_id(AR, self.id, self.index)
         self.clear()
         categories = AR.categories
@@ -259,7 +261,7 @@ class AR_OT_category_move_down(shared.id_based, Operator):
     bl_description = "Move the Category down"
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         id = functions.get_category_id(AR, self.id, self.index)
         self.clear()
         categories = AR.categories

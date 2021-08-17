@@ -13,14 +13,14 @@ from . import properties, functions, config, update, keymap
 from .log import logger
 # endregion
 
-classes = []
+__module__ = __package__.split(".")[0]
 
 # region Preferences
 class AR_preferences(AddonPreferences):
-    bl_idname = __package__
+    bl_idname = __package__.split(".")[0]
     addon_directory : StringProperty(name= "addon directory", default= os.path.dirname(os.path.dirname(__file__)), get= lambda self: self.bl_rna.properties['addon_directory'].default)  # get the base addon directory
     prefernece_tab : EnumProperty(items=[
-            ('settings', "Settings", "")
+            ('settings', "Settings", ""),
             ('path', "Paths", ""),
             ('keymap', "Keymaps", ""),
             ('update', "Update", "")
@@ -47,7 +47,7 @@ class AR_preferences(AddonPreferences):
     selected_icon : IntProperty(name="selected icon", description= "only internal usage", default= 0, min= 0, options= {'HIDDEN'}) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)
     
     # update
-    launch_update : BoolProperty()
+    update : BoolProperty()
     restart : BoolProperty()
     version : StringProperty()
     auto_update : BoolProperty(default= True, name= "Auto Update", description= "automatically search for a new Update")
@@ -119,7 +119,7 @@ class AR_preferences(AddonPreferences):
     show_all_categories : BoolProperty(name= "Show All Categories", default= False)
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         layout = self.layout
         col = layout.column(align= True)
         col.prop(AR, 'prefernece_tab', expand= True)
@@ -182,8 +182,11 @@ class AR_preferences(AddonPreferences):
             row.operator('wm.url_open', text= "Manual", icon= 'ASSET_MANAGER').url = config.manual_url
             row.operator('wm.url_open', text= "Hint", icon= 'HELP').url = config.hint_url
             row.operator('wm.url_open', text= "Bug Report", icon= 'URL').url = config.bug_report_url
-classes.append(AR_preferences)
 # endregion
+
+classes = [
+    AR_preferences
+]
 
 # region Registration
 def register():

@@ -7,6 +7,8 @@ import bpy
 from bpy.types import Menu
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Menus
 class AR_MT_action_pie(Menu):
     bl_idname = "ar.action_pie"
@@ -14,7 +16,7 @@ class AR_MT_action_pie(Menu):
     bl_idname = "AR_MT_Action_Pie"
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         pie = self.layout.menu_pie()
         actions = AR.local_action
         for i in range(len(actions)):

@@ -13,6 +13,8 @@ from . import globals, shared
 from .. import shared_data
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region functions
 def get_storage_data(AR) -> dict:
     path = AR.storage_path
@@ -44,7 +46,7 @@ def category_runtime_save(AR, use_autosave: bool = True) -> None:
 
 @persistent
 def category_runtime_load(dummy = None):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.categories.clear()
     for category in shared_data.categories_temp:
         shared.add_data_to_collection(AR.categories, category)

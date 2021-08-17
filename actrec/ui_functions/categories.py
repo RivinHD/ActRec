@@ -10,6 +10,8 @@ from bpy.types import Panel
 from . import globals
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 classes = []
 standart_space_types = ['VIEW_3D', 'IMAGE_EDITOR', 'NODE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'DOPESHEET_EDITOR', 'FILE_BROWSER'] # blender spaces with UI region
 space_mode_attribute = {
@@ -80,13 +82,13 @@ def register_unregister_category(index, space_types = standart_space_types, regi
 
             @classmethod
             def poll(self, context):
-                AR = context.preferences.addons[__package__].preferences
+                AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
                 category = AR.categories[index]
                 return show_category(category, context)
 
             def draw_header(self, context):
-                AR = context.preferences.addons[__package__].preferences
+                AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
                 category = AR.categories[index]
                 layout = self.layout
@@ -95,7 +97,7 @@ def register_unregister_category(index, space_types = standart_space_types, regi
                 row.label(text= category.label)
 
             def draw(self, context):
-                AR = context.preferences.addons[__package__].preferences
+                AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
                 category = AR.categories[index]
                 layout = self.layout
@@ -112,7 +114,7 @@ def register_unregister_category(index, space_types = standart_space_types, regi
                     panel = getattr(bpy.types, AR_PT_category.__name__)
                     bpy.utils.unregister_class(panel)
                     classes.remove(panel)
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     if AR.selected_category == '' and len(AR.categories):
         AR.categories[0].selected = True
 # endregion

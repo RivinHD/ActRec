@@ -20,17 +20,18 @@ from . import config
 from .log import logger
 # endregion
 
+__module__ = __package__.split(".")[0]
 class update_manager:
     update_responds = {}
-    update_data_chunks = defaultdict(lambda: {"chunks": [], 'progress_length': 0})
+    update_data_chunks = defaultdict(lambda: {"chunks": b'', 'progress_length': 0})
     version_file = {} # used to store downloaded file from "AR_OT_update_check"
 
 # region functions
 @persistent
-def on_start() -> None:
-    bpy.ops.ar.update_check()
+def on_start(dummy= None) -> None:
+    bpy.ops.ar.update_check('INVOKE_DEFAULT')
 
-def get_json_from_content(content : bytes) -> dict:
+def get_json_from_content(content: bytes) -> dict:
     data = json.loads(content)
     content = base64.b64decode(data["content"]).decode("utf-8")
     return json.loads(content)
@@ -51,7 +52,7 @@ def start_update(version_file) -> Optional[bool]:
         return False
     try:
         for path in download_paths:
-            update_manager.update_responds[path] = requests.get(config.repo_source_url + path, stream= True)
+            update_manager.update_responds[path] = requests.get(config.repo_source_url %path, stream= True)
         logger.info("Start Update Process")
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -66,10 +67,10 @@ def update(AR, update_responds: dict, download_chunks: dict) -> Optional[bool]:
             total_length = res.headers.get('content-length', None)
             complet_length += total_length
             if total_length is None:
-                download_chunks[path]["chunks"].append(res.content)
+                download_chunks[path]["chunks"] += res.content
             else:
-                for chunk in res.iter_content(chunk_size=4096):
-                    download_chunks[path]["chunks"].append(chunk)
+                for chunk in res.iter_content(chunk_size= 1024):
+                    download_chunks[path]["chunks"] += chunk
                     length_chunk = len(chunk)
                     download_chunks[path]["progress_length"] += length_chunk
                     complet_progress += length_chunk
@@ -91,11 +92,11 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
         with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
-            ar_file.write(path, get_json_from_content(b''.join(download_chunks[path]["chunks"])))
+            ar_file.write(path, get_json_from_content(download_chunks[path]["chunks"]))
     for path in version_file['remove']:
         remove_path = os.path.join(AR.addon_directory, path)
         if os.path.exists(remove_path):
-            for root, dirs, files in os.walk(remove_path, topdown=False):
+            for root, dirs, files in os.walk(remove_path, topdown= False):
                 for name in files:
                     os.remove(os.path.join(root, name))
                 for name in dirs:
@@ -103,32 +104,33 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
     version = tuple(AR.version.split("."))
     download_chunks.clear()
     version_file.clear()
-    logger.info("Updated Action Recorder to Version: " + str(version))
+    logger.info("Updated Action Recorder to Version: %s" %str(version))
 
-def start_get_online_download_file() -> Optional[True]:
+def start_get_online_download_file() -> Optional[bool]:
     try:
         update_manager.version_file['respond'] = requests.get(config.check_source_url, stream= True)
-        update_manager.version_file['chunk'] = []
+        update_manager.version_file['chunk'] = b''
         logger.info("Start Download: version_file")
         return True
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
         return None
 
-def get_online_download_file(res: requests.Response) -> Optional[Union[bool, dict]]:
+def get_online_download_file(res: requests.Response) -> Union[bool, dict, None]:
     try:
         total_length = res.headers.get('content-length', None)
         if total_length is None:
             logger.info("Finsihed Download: version_file")
+            content = res.content
             res.close()
-            return get_json_from_content(res.content)
+            return get_json_from_content(content)
         else:
-            for chunk in res.iter_content(chunk_size=4096):
-                update_manager.version_file['chunk'].append(chunk)
+            for chunk in res.iter_content(chunk_size= 1024):
+                update_manager.version_file['chunk'] += chunk
             if total_length == len(update_manager.version_file['chunk']):
                 res.close()
                 logger.info("Finsihed Download: version_file")
-                return get_json_from_content(b''.join(update_manager.version_file['chunk']))
+                return get_json_from_content(update_manager.version_file['chunk'])
             return True
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -169,22 +171,34 @@ class AR_OT_update_check(Operator):
             self.timer = context.window_manager.event_timer_add(0.1)
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
-        self.report({'ERROR'}, "No Internet Connection")
+        self.report({'WARNING'}, "No Internet Connection")
         return {'CANCELLED'}
 
     def modal(self, context, event):
         version_file = get_online_download_file(update_manager.version_file['respond'])
-        if isinstance(version_file, (dict, None)):
+        logger.debug(version_file)
+        logger.debug(update_manager.version_file)
+        if isinstance(version_file, dict) or version_file is None:
             update_manager.version_file = version_file
             return self.execute(context)
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        update = check_for_update(update_manager.version_file)
-        AR = context.preferences.addons[__package__].preferences
+        version_file = update_manager.version_file
+        if not version_file:
+            return {'CANCELLED'}
+        if version_file.get('respond'):
+            logger.debug("Reroute Execute")
+            return {'RUNNING_MODAL'}
+        logger.debug(version_file)
+        update = check_for_update(version_file)
+        AR = context.preferences.addons[__module__].preferences
         AR.update = update[0]
         if not update[0]:
-            update_manager.version_file.clear()
+            res = version_file.get('respond')
+            if res:
+                res.close()
+            version_file.clear()
         if isinstance(update[1], str):
             AR.version = update[1]
         else:
@@ -206,7 +220,7 @@ class AR_OT_update(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return AR.update
 
     def invoke(self, context, event):
@@ -215,21 +229,23 @@ class AR_OT_update(Operator):
             self.timer = context.window_manager.event_timer_add(0.1)
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
-        self.report({'ERROR'}, "No Internet Connection")
+        self.report({'WARNING'}, "No Internet Connection")
         return {'CANCELLED'}
 
     def modal(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         res = update(AR, update_manager.update_responds, update_manager.update_data_chunks)
         if res:
             return self.execute(context)
         elif res is None:
-            self.report({'ERROR'}, "No Internet Connection")
+            self.report({'WARNING'}, "No Internet Connection")
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        if not(update_manager.version_file and update_manager.update_data_chunks):
+            return {'CANCELLED'}
+        AR = context.preferences.addons[__module__].preferences
         AR.update = False
         AR.restart = True
         install_update(AR, update_manager.update_data_chunks, update_manager.version_file)
@@ -257,11 +273,11 @@ class AR_OT_restart(Operator, ExportHelper):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return AR.restart
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         path = bpy.data.filepath
         if self.save:
             if path == '':
@@ -288,7 +304,7 @@ class AR_OT_show_restart_menu(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return AR.restart
     
     def draw(self, context):

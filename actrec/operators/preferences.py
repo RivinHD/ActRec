@@ -9,6 +9,8 @@ from bpy.props import StringProperty
 from bpy_extras.io_utils import ExportHelper
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operator
 class AR_OT_preferences_directory_selector(Operator, ExportHelper):
     bl_idname = "ar.preferences_directory_selector"
@@ -24,13 +26,13 @@ class AR_OT_preferences_directory_selector(Operator, ExportHelper):
     path_extension : StringProperty()
 
     def execute(self, context):
-        AR = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__module__].preferences
         userpath = self.properties.filepath
         if(not os.path.isdir(userpath)):
             msg = "Please select a directory not a file\n" + userpath
             self.report({'ERROR'}, msg)
             return{'CANCELLED'}
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         setattr(AR, self.pref_property, os.path.join(userpath, self.path_extension))
         return{'FINISHED'}
 
@@ -44,7 +46,7 @@ class AR_OT_preferences_recover_directory(Operator):
     path_extension : StringProperty()
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         setattr(AR, self.pref_property, os.path.join(AR.addon_directory, self.path_extension))
         return{'FINISHED'}
 # endregion

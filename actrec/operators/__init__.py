@@ -25,8 +25,7 @@ from .preferences import(
 )
 
 from .shared import (
-    AR_OT_check_ctrl,
-    AR_OT_open_url
+    AR_OT_check_ctrl
 )
 
 # region Registration

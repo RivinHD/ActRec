@@ -11,6 +11,7 @@ from bpy_extras.io_utils import ImportHelper
 # endregion
 
 preview_collections = {}
+__module__ = __package__.split(".")[0]
 
 # region functions
 def get_icons_values():
@@ -22,7 +23,7 @@ def get_icons():
 def load_icons(filepath: str, only_new: bool = False) -> Optional[str]:
     img = bpy.data.images.load(filepath)
     if img.size[0] == img.size[1]:
-        AR = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__module__].preferences
         img.scale(32, 32)
         name = '.'.join(img.name.split('.')[:-1]) # last element is format of file
         internalpath = os.path.join(AR.icon_path, img.name) # img.name has format included
@@ -72,7 +73,7 @@ class icontable(Operator):
     default_icon_value : IntProperty(name= "Defalut Icon", description= "Default icon that get set when clear is pressed", default= 0)
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         layout = self.layout
         box = layout.box()
         row = box.row()
@@ -112,7 +113,7 @@ class AR_OT_icon_selector(Operator):
     icon : IntProperty(default= 0) #Icon: NONE
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.selected_icon = self.icon
         return {"FINISHED"}
 
@@ -160,7 +161,7 @@ class AR_OT_delete_custom_icon(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         for ele in self.icons:
             if ele.select or self.select_all:
                 iconpath = ele.icon_name[3:]
@@ -203,7 +204,7 @@ def register():
 
 def unregister():
     for cls in classes:
-        bpy.utils.register_class(cls)
+        bpy.utils.unregister_class(cls)
     for pcoll in preview_collections.values():
         bpy.utils.previews.remove(pcoll)
     preview_collections.clear()

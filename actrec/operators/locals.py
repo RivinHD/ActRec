@@ -14,6 +14,8 @@ from ..log import logger
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operators
 class AR_OT_local_to_global(Operator):
     bl_idname = "ar.local_to_global"
@@ -22,7 +24,7 @@ class AR_OT_local_to_global(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.local_actions) and not AR.local_record_macros
 
     def local_to_global(self, AR, category, action) -> None:
@@ -35,7 +37,7 @@ class AR_OT_local_to_global(Operator):
         new_action.id = id
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         categories = AR.categories
         if len(categories):
             for category in categories:
@@ -52,7 +54,7 @@ class AR_OT_local_to_global(Operator):
             return {'CANCELLED'}
 
     def draw(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         categories = AR.categories
         layout = self.layout
         if len(categories):
@@ -76,7 +78,7 @@ class AR_OT_local_add(Operator):
     name : StringProperty(name= "Name", description= "Name of the Action", default= "Untitled.001")
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         new = AR.local_actions.add()
         new.id # create new id 
         new.label = functions.check_for_dublicates(map(lambda x: x.label, AR.local_actions), self.name)
@@ -92,11 +94,11 @@ class AR_OT_local_remove(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.local_actions) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         self.clear()
         if index == -1:
@@ -117,13 +119,13 @@ class AR_OT_local_move_up(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index + 1 < len(AR.local_actions))
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         self.clear()
         if index == -1 or index + 1 >= len(AR.local_actions):
@@ -148,13 +150,13 @@ class AR_OT_local_move_down(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index - 1 >= 0)
         
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         self.clear()
         if index == -1 or index - 1 >= 0:
@@ -179,7 +181,7 @@ class AR_OT_local_load(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return not AR.local_record_macros
 
     def invoke(self, context, event):
@@ -192,7 +194,7 @@ class AR_OT_local_load(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         logger.info("Load Local Actions")
         if self.source == 'scene':
             data = json.loads(context.scene.ar.local)
@@ -247,11 +249,11 @@ class AR_OT_local_selection_up(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.selected_local_action_index = AR.selected_local_action_index - 1
         context.area.tag_redraw()
         return{'FINISHED'}
@@ -262,11 +264,11 @@ class AR_OT_local_selection_down(Operator):
     
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.selected_local_action_index = AR.selected_local_action_index + 1
         context.area.tag_redraw()
         return{'FINISHED'}
@@ -281,13 +283,13 @@ class AR_OT_local_play(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         functions.play(context.copy(), action.macros, action, 'local_actions')
@@ -303,11 +305,11 @@ class AR_OT_local_record(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         return len(AR.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.local_record_macros = not AR.local_record_macros
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
@@ -360,7 +362,7 @@ class AR_OT_local_record(shared.id_based, Operator):
     
     @classmethod
     def description(cls, context, properties):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         if AR.local_record_macros:
             return "Stops Recording the Macros"
         return "Starts Recording the Macros"
@@ -369,7 +371,7 @@ class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
     bl_idname = "ar.local_icon"
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         AR.local_actions[self.id].icon = AR.selected_icon
         AR.selected_icon = 0 #Icon: NONE
         functions.local_runtime_save(AR, context.scene)
@@ -378,7 +380,7 @@ class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         self.id = action.id
@@ -395,13 +397,13 @@ class AR_OT_local_clear(shared.id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         AR.local_actions[index].macros.clear()
         functions.local_runtime_save(AR, context.scene)

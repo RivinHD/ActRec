@@ -12,6 +12,8 @@ from bpy.props import StringProperty, IntProperty
 from .. import shared_data, functions
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Operators
 class AR_OT_check_ctrl(Operator):
     bl_idname = "ar.check_ctrl"
@@ -34,7 +36,7 @@ class AR_OT_run_queued_macros(Operator):
     timer = None
 
     def execute(self, context):
-        AR = context.preferences.addons[__package__].preferences
+        AR = context.preferences.addons[__module__].preferences
         for execute_time, action_type, action_id, start in shared_data.timed_macros:
             if time.time() == execute_time:
                 action = getattr(AR, action_type)[action_id]

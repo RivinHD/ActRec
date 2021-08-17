@@ -4,7 +4,8 @@ import os
 import logging
 import traceback
 import sys
-
+from datetime import datetime
+datetime.today().strftime('%d.%m.%Y-%H:%M:%S')
 # blender modules
 import bpy
 
@@ -12,11 +13,12 @@ import bpy
 from . import config
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Logsystem 
 class log_system:
     def __init__(self, count: int) -> None:
-        AR = bpy.context.preferences.addons[__package__].preferences
-        dirc = os.path.join(AR.addon_directory, "logs")
+        dirc = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
         if not os.path.exists(dirc):
             os.mkdir(dirc)
         all_logs = os.listdir(dirc)
@@ -28,10 +30,10 @@ class log_system:
             except PermissionError as err:
                 loglater.append("File is already used -> PermissionError: %" %str(err))
                 break
-        path = os.path.join(dirc, "ActRec_%s.log" % bpy.app.tempdir.split("\\")[-2].split("_")[1]) #get individuell id from blender tempdir
+        path = os.path.join(dirc, "ActRec_%s.log" % datetime.today().strftime('%d-%m-%Y_%H-%M-%S'))
 
-        logger = logging.getLogger(__package__)
-        logger.setLevel(logging.INFO)
+        logger = logging.getLogger(__module__)
+        logger.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter("%(levelname)s - %(relativeCreated)d - %(funcName)s - %(message)s")
         file_handler = logging.FileHandler(path, mode= 'w', encoding= 'utf-8', delay= True)
         file_handler.setLevel(logger.level)

@@ -8,6 +8,7 @@ from .. import config
 from .. import update
 # endregion
 
+__module__ = __package__.split(".")[0]
 classes = []
 ui_space_types = ['VIEW_3D', 'IMAGE_EDITOR', 'NODE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'DOPESHEET_EDITOR', 'FILE_BROWSER'] # blender spaces with UI region
 
@@ -23,7 +24,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
         bl_order = 0
 
         def draw(self, context):
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout = self.layout
             if AR.update:
                 box = layout.box()
@@ -51,7 +52,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
         bl_order = 1
 
         def draw(self, context):
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout = self.layout
             box = layout.box()
             box_row = box.row()
@@ -94,15 +95,15 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
         bl_order = 2
 
         def draw_header(self, context):
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout = self.layout
             row = layout.row(align= True)
             row.prop(AR, 'global_hide_menu', icon= 'COLLAPSEMENU', text= "", emboss= True)
 
         def draw(self, context):
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout = self.layout
-            if not AR.HideMenu:
+            if not AR.global_hide_menu:
                 col = layout.column()
                 row = col.row()
                 row.scale_y = 2
@@ -140,7 +141,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
 
         def draw(self, context):
             layout = self.layout
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout.operator('wm.url_open', text= "Manual", icon= 'ASSET_MANAGER').url = config.manual_url
             layout.operator('wm.url_open', text= "Hint", icon= 'HELP').url = config.hint_url
             layout.operator('wm.url_open', text= "Bug Report", icon= 'URL').url = config.bug_report_url
@@ -169,7 +170,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
         bl_order = 4
 
         def draw(self, context):
-            AR = context.preferences.addons[__package__].preferences
+            AR = context.preferences.addons[__module__].preferences
             layout = self.layout
             col = layout.column()
             col.label(text= "Category", icon= 'GROUP')

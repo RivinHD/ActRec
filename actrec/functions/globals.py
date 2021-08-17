@@ -13,6 +13,8 @@ from .. import ui_functions, shared_data
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region Functions
 def global_runtime_save(AR, use_autosave: bool = True):
     """includes autosave"""
@@ -22,7 +24,7 @@ def global_runtime_save(AR, use_autosave: bool = True):
 
 @persistent
 def global_runtime_load(dummy = None):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.global_actions.clear()
     for action in shared_data.global_temp:
         shared.add_data_to_collection(AR.global_actions, action)
@@ -37,7 +39,7 @@ def save(AR):
 
 def load(AR) -> bool:
     """return Succeses"""
-    if os.path.exist(AR.storage_path):
+    if os.path.exists(AR.storage_path):
         with open(AR.storage_path, 'r', encoding= 'utf-8') as storage_file:
             data = json.load(storage_file)
         logger.info('load global actions')
@@ -46,14 +48,15 @@ def load(AR) -> bool:
             ui_functions.unregister_category(category)
         AR.categories.clear()
         AR.global_actions.clear()
-        import_global_from_dict(AR, data)
-        for category in AR.categories:
-            ui_functions.register_category(AR, category)
-        if len(AR.categories):
-            AR.categories[0].selected = True
-        if len(AR.global_actions):
-            AR.global_actions[0].selected = True
-        return True
+        if data:
+            import_global_from_dict(AR, data)
+            for category in AR.categories:
+                ui_functions.register_category(AR, category)
+            if len(AR.categories):
+                AR.categories[0].selected = True
+            if len(AR.global_actions):
+                AR.global_actions[0].selected = True
+            return True
     return False
 
 def import_global_from_dict(AR, data: dict) -> None:

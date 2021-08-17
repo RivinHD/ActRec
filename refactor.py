@@ -64,7 +64,7 @@ class Data:
 
 # region Functions
 def CheckCommand(num): #Add a new Collection if necessary
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     while len(AR.Record_Coll) <= num:
         AR.Record_Coll.add()
     return num
@@ -108,7 +108,7 @@ def CreateTempFile():
 
 def TempSave(Num):  # write new record to temp.json file
     tpath = CreateTempFile()
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     with open(tpath, 'r+', encoding='utf-8') as tempfile:   
         data = json.load(tempfile)
         data.update({str(Num):[]})
@@ -119,7 +119,7 @@ def TempSave(Num):  # write new record to temp.json file
 
 def TempUpdate(): # update all records in temp.json file
     tpath = CreateTempFile()
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     with open(tpath, 'r+', encoding='utf-8') as tempfile:
         tempfile.truncate(0)    
         tempfile.seek(0)
@@ -130,7 +130,7 @@ def TempUpdate(): # update all records in temp.json file
 
 def TempUpdateCommand(Key): # update one record in temp.json file
     tpath = CreateTempFile()
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     with open(tpath, 'r+', encoding='utf-8') as tempfile:
         data = json.load(tempfile)
         data[str(Key)] = [{"name": i.cname, "macro": i.macro, "icon": i.icon, "active": i.active} for i in AR.Record_Coll[CheckCommand(int(Key))].Command]
@@ -142,7 +142,7 @@ def TempUpdateCommand(Key): # update one record in temp.json file
 def TempLoad(dummy): # load records after undo
     tpath = bpy.app.tempdir + "temp.json"
     ontempload[0] = True
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     if os.path.exists(tpath):
         with open(tpath, 'r', encoding='utf-8') as tempfile:
             data = json.load(tempfile)
@@ -181,7 +181,7 @@ def CheckAddCommand(data, line = 0):
         return (name, macro, len(data) + line - 1)
 
 def Add(Num, command = None, macro = None):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     if Num:
         try: #Add Macro
             if command is None:
@@ -236,7 +236,7 @@ def Add(Num, command = None, macro = None):
         bpy.data.texts.new(Item.cname)
 
 def Remove(Num): # Remove Record or Macro
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     index = AR.Record_Coll[CheckCommand(Num)].Index
     if Num:
         UpdateRecordText(Num)
@@ -250,7 +250,7 @@ def Remove(Num): # Remove Record or Macro
     AR.Record_Coll[Num].Index = (index - 1) * (index - 1 > 0)
 
 def Move(Num , Mode) :# Move Record or Macro
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     index1 = AR.Record_Coll[CheckCommand(Num)].Index
     if Mode == 'Up' :
         index2 = AR.Record_Coll[CheckCommand(Num)].Index - 1
@@ -264,7 +264,7 @@ def Move(Num , Mode) :# Move Record or Macro
             AR.Record_Coll.move(index1 + 1, index2 + 1)
 
 def Select_Command(Mode): # Select the upper/lower Record
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     currentIndex = AR.Record_Coll[CheckCommand(0)].Index
     listlen = len(AR.Record_Coll[CheckCommand(0)].Command) - 1
     if Mode == 'Up':
@@ -279,7 +279,7 @@ def Select_Command(Mode): # Select the upper/lower Record
             AR.Record_Coll[CheckCommand(0)].Index = currentIndex + 1
 
 def Alert(Command, index, CommandIndex):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     Command.alert = True
     AR.Record_Coll[CheckCommand(index + 1)].Index = CommandIndex
     AR.Record_Coll[CheckCommand(0)].Command[index].alert = True
@@ -290,13 +290,13 @@ def Alert(Command, index, CommandIndex):
         redrawLocalANDMacroPanels()
 
 def Clear(Num) : # Clear all Macros
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.Record_Coll[CheckCommand(Num)].Command.clear()
     UpdateRecordText(Num)
 
 def Load():#Load Buttons from Storage
     logger.info('Load')
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     for cat in AR.Categories:
         RegisterUnregister_Category(ar_category.functions.get_panel_index(cat), False)
     AR.Categories.clear()
@@ -364,7 +364,7 @@ def Load():#Load Buttons from Storage
 def LoadLocalActions(dummy):
     logger.info('Load Local Actions')
     scene = bpy.context.scene
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.Record_Coll.clear()
     local = json.loads(scene.ar_local)
     for ele in local:
@@ -391,7 +391,7 @@ def LoadLocalActions(dummy):
     SaveToDataHandler(None)
 
 def Recorder_to_Instance(panel): #Convert Record to Button
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     i = panel.Instance_Start + panel.Instance_length
     rec_commands = []
     rec_macros = []
@@ -414,7 +414,7 @@ def Recorder_to_Instance(panel): #Convert Record to Button
             cat.Instance_Start -= 1
 
 def Execute_Instance(Num): #Execute a Button
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     for cmd in AR.Instance_Coll[Num].commands:
         try:
             exec(cmd.name)
@@ -422,11 +422,11 @@ def Execute_Instance(Num): #Execute a Button
             return True # Alert
 
 def Rename_Instance(): #Rename a Button
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.Instance_Coll[AR.Instance_Index].name = AR.Rename
 
 def I_Remove(): # Remove a Button
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     scene = bpy.context.scene
     l = []
     if multiselection_buttons[0]:
@@ -455,7 +455,7 @@ def I_Remove(): # Remove a Button
     set_enum_index()()
 
 def I_Move(Mode): # Move a Button to the upper/lower
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     scene = bpy.context.scene
     l = []
     if multiselection_buttons[0]:
@@ -506,7 +506,7 @@ def InitSavedPanel(dummy = None):
     except:
         return
     oninit[0] = True
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     if bpy.data.filepath == '':
         AR.Record_Coll.clear()
     LoadLocalActions(None)
@@ -534,7 +534,7 @@ def TimerInitSavedPanel():
 
 @persistent
 def TempLoadCats(dummy): #Load the Created tempfile
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     tcatpath = bpy.app.tempdir + "tempcats.json"
     AR.ar_enum.clear()
     reg = bpy.ops.screen.redo_last.poll()
@@ -575,7 +575,7 @@ def TempLoadCats(dummy): #Load the Created tempfile
 
 
 def AlertTimerPlay(recindex): #Remove alert after time passed for Recored
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     AR.Record_Coll[CheckCommand(0)].Command[recindex].alert = False
     for ele in AR.Record_Coll[CheckCommand(recindex + 1)].Command:
         ele.alert = False
@@ -635,7 +635,7 @@ def runRenderInit(dummy):
 
 @persistent
 def SaveToDataHandler(dummy):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     local = []
     for ele in AR.Record_Coll:
         loc = {}
@@ -668,7 +668,7 @@ def redrawLocalANDMacroPanels():
             bpy.utils.register_class(i)
 
 def LoadActionFromTexteditor(texts, replace = True):
-    AR = bpy.context.preferences.addons[__package__].preferences
+    AR = bpy.context.preferences.addons[__module__].preferences
     if replace:
         AR.Record_Coll.clear()
     for text in texts:
@@ -679,12 +679,12 @@ def LoadActionFromTexteditor(texts, replace = True):
         Add(0, text.name)
         for line in lines:
             if line != '':
-                AR = bpy.context.preferences.addons[__package__].preferences
+                AR = bpy.context.preferences.addons[__module__].preferences
                 splitlines = line.split("#")
                 Add(len(AR.Record_Coll[0].Command), "#".join(splitlines[:-1]), splitlines[-1])
 
 def show_category(name, context):
-    AR = context.preferences.addons[__package__].preferences
+    AR = context.preferences.addons[__module__].preferences
     if AR.ShowAllCategories:
         return True
     res = CatVisibility["Area"].get(context.space_data.type, None)
@@ -718,7 +718,7 @@ def getCollectionBorderOfButtonIndex(index, AR):
 # region PropertyGroups
 def SavePrefs(self, context):
     if not ontempload[0]:
-        AR = bpy.context.preferences.addons[__package__].preferences
+        AR = bpy.context.preferences.addons[__module__].preferences
         TempUpdateCommand(AR.Record_Coll[0].Index + 1)
 
 def SetRecordName(self, value):
