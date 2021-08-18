@@ -7,6 +7,8 @@ import base64
 import os
 import subprocess
 from collections import defaultdict
+import threading
+from contextlib import suppress
 
 # blender modules
 import bpy
@@ -23,13 +25,25 @@ from .log import logger
 __module__ = __package__.split(".")[0]
 class update_manager:
     update_responds = {}
-    update_data_chunks = defaultdict(lambda: {"chunks": b'', 'progress_length': 0})
+    update_data_chunks = defaultdict(lambda: {"chunks": b''})
     version_file = {} # used to store downloaded file from "AR_OT_update_check"
+    version_file_thread = None
 
 # region functions
 @persistent
 def on_start(dummy= None) -> None:
-    bpy.ops.ar.update_check('INVOKE_DEFAULT')
+    AR = bpy.context.preferences.addons[__module__].preferences
+    if AR.auto_update:
+        t = threading.Thread(target= no_stream_download_version_file, args= [__module__])
+        t.start()
+        update_manager.version_file_thread = t
+
+@persistent
+def on_scene_update(dummy= None) -> None:
+    t = update_manager.version_file_thread
+    if t and update_manager.version_file.get("version", None):
+        t.join()
+        bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
 
 def get_json_from_content(content: bytes) -> dict:
     data = json.loads(content)
@@ -39,7 +53,7 @@ def get_json_from_content(content: bytes) -> dict:
 def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tuple[int, int, int]]]:
     if version_file is None:
         return (False, "No Internet Connection")
-    version = config.info['version']
+    version = config.version
     download_version = tuple(version_file["version"])
     if download_version > version:
         return (True, download_version)
@@ -65,16 +79,21 @@ def update(AR, update_responds: dict, download_chunks: dict) -> Optional[bool]:
     try:
         for path, res in update_responds.items():
             total_length = res.headers.get('content-length', None)
-            complet_length += total_length
             if total_length is None:
+                complet_progress += res.raw._fp_bytes_read
                 download_chunks[path]["chunks"] += res.content
+                res.close()
+                del update_responds[path]
             else:
+                total_length = int(total_length)
+                complet_length += total_length
                 for chunk in res.iter_content(chunk_size= 1024):
-                    download_chunks[path]["chunks"] += chunk
-                    length_chunk = len(chunk)
-                    download_chunks[path]["progress_length"] += length_chunk
-                    complet_progress += length_chunk
-                finished_progress = download_chunks[path]["progress_length"] == total_length
+                    if chunk:
+                        download_chunks[path]["chunks"] += chunk
+
+                length = res.raw._fp_bytes_read
+                complet_progress += length
+                finished_progress = length == total_length
                 if finished_progress:
                     res.close()
                     del update_responds[path]
@@ -106,7 +125,7 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
     version_file.clear()
     logger.info("Updated Action Recorder to Version: %s" %str(version))
 
-def start_get_online_download_file() -> Optional[bool]:
+def start_get_version_file() -> Optional[bool]:
     try:
         update_manager.version_file['respond'] = requests.get(config.check_source_url, stream= True)
         update_manager.version_file['chunk'] = b''
@@ -116,7 +135,7 @@ def start_get_online_download_file() -> Optional[bool]:
         logger.warning("no Connection (%s)" %err)
         return None
 
-def get_online_download_file(res: requests.Response) -> Union[bool, dict, None]:
+def get_version_file(res: requests.Response) -> Union[bool, dict, None]:
     try:
         total_length = res.headers.get('content-length', None)
         if total_length is None:
@@ -127,7 +146,8 @@ def get_online_download_file(res: requests.Response) -> Union[bool, dict, None]:
         else:
             for chunk in res.iter_content(chunk_size= 1024):
                 update_manager.version_file['chunk'] += chunk
-            if total_length == len(update_manager.version_file['chunk']):
+            length = res.raw._fp_bytes_read
+            if int(total_length) == length:
                 res.close()
                 logger.info("Finsihed Download: version_file")
                 return get_json_from_content(update_manager.version_file['chunk'])
@@ -137,16 +157,41 @@ def get_online_download_file(res: requests.Response) -> Union[bool, dict, None]:
         res.close()
         return None
 
+def apply_version_file_result(AR, version_file, update):
+    AR.update = update[0]
+    if not update[0]:
+        res = version_file.get('respond')
+        if res:
+            res.close()
+        version_file.clear()
+    if isinstance(update[1], str):
+        AR.version = update[1]
+    else:
+        AR.version = ".".join(map(str, update[1]))
+
 def get_download_paths(version_file) -> Optional[list]:
     download_files = version_file["files"]
     if download_files is None:
         return None
     download_list = []
-    version = config.info['version']
+    version = config.version
     for key in download_files:
         if tuple(download_files[key]) > version:
             download_list.append(key)
     return download_list
+
+def no_stream_download_version_file(module_name):
+    try:
+        logger.info("Start Download: version_file")
+        res = requests.get(config.check_source_url)
+        logger.info("Finsihed Download: version_file")
+        version_file = get_json_from_content(res.content)
+        update = check_for_update(version_file)
+        AR = bpy.context.preferences.addons[module_name].preferences
+        apply_version_file_result(AR, version_file, update)
+    except Exception as err:
+        logger.warning("no Connection (%s)" %err)
+        return None
 # endregion functions
 
 # region UI functions
@@ -166,7 +211,7 @@ class AR_OT_update_check(Operator):
     bl_description = "check for available update"
     
     def invoke(self, context, event):
-        res = start_get_online_download_file()
+        res = start_get_version_file()
         if res:
             self.timer = context.window_manager.event_timer_add(0.1)
             context.window_manager.modal_handler_add(self)
@@ -175,9 +220,7 @@ class AR_OT_update_check(Operator):
         return {'CANCELLED'}
 
     def modal(self, context, event):
-        version_file = get_online_download_file(update_manager.version_file['respond'])
-        logger.debug(version_file)
-        logger.debug(update_manager.version_file)
+        version_file = get_version_file(update_manager.version_file['respond'])
         if isinstance(version_file, dict) or version_file is None:
             update_manager.version_file = version_file
             return self.execute(context)
@@ -188,29 +231,19 @@ class AR_OT_update_check(Operator):
         if not version_file:
             return {'CANCELLED'}
         if version_file.get('respond'):
-            logger.debug("Reroute Execute")
             return {'RUNNING_MODAL'}
-        logger.debug(version_file)
         update = check_for_update(version_file)
         AR = context.preferences.addons[__module__].preferences
-        AR.update = update[0]
-        if not update[0]:
-            res = version_file.get('respond')
-            if res:
-                res.close()
-            version_file.clear()
-        if isinstance(update[1], str):
-            AR.version = update[1]
-        else:
-            AR.version = ".".join(map(str, update[1]))
+        apply_version_file_result(AR, version_file, update)
         context.window_manager.event_timer_remove(self.timer)
         return {"FINISHED"}
 
     def cancel(self, context):
-        res = update_manager.version_file.get('respond')
-        if res:
-            res.close()
-        update_manager.version_file.clear()
+        if update_manager.version_file:
+            res = update_manager.version_file.get('respond')
+            if res:
+                res.close()
+            update_manager.version_file.clear()
         context.window_manager.event_timer_remove(self.timer)
 
 class AR_OT_update(Operator):
@@ -332,9 +365,15 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.app.handlers.load_post.append(on_start)
+    bpy.app.handlers.depsgraph_update_post.append(on_scene_update)
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
     bpy.app.handlers.load_post.remove(on_start)
+    with suppress(Exception):
+        bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
+    del update_manager.update_data_chunks
+    del update_manager.update_responds
+    del update_manager.version_file
 # endregion 

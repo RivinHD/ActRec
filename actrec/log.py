@@ -34,12 +34,12 @@ class log_system:
 
         logger = logging.getLogger(__module__)
         logger.setLevel(logging.DEBUG)
-        file_formatter = logging.Formatter("%(levelname)s - %(relativeCreated)d - %(funcName)s - %(message)s")
+        file_formatter = logging.Formatter("%(levelname)s - %(relativeCreated)d - %(filename)s:%(funcName)s - %(message)s")
         file_handler = logging.FileHandler(path, mode= 'w', encoding= 'utf-8', delay= True)
         file_handler.setLevel(logger.level)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-        logger.info("Logging ActRec %s %s %s" %(".".join([str(x) for x in config.info["version"]]), "running on Blender", bpy.app.version_string))
+        logger.info("Logging ActRec %s %s %s" %(".".join([str(x) for x in config.version]), "running on Blender", bpy.app.version_string))
         for log_text in loglater:
             logger.info(log_text)
         self.logger = logger

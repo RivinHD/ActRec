@@ -20,8 +20,6 @@ def on_start(dummy= None):
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     # load local actions
-    if bpy.data.filepath == '':
-        AR.local_actions.clear()
     if context.scene.ar.local == "{}" and context.scene.get('ar_local', None): # load old local action data
         try:
             data = []
@@ -40,7 +38,7 @@ def on_start(dummy= None):
             context.scene.ar.local = json.dumps(data)
         except json.JSONDecodeError as err:
             log.logger.info("old scene-data couldn't be parsed (%s)" %err)
-    functions.load_local_action(AR, json.dumps(context.scene.ar.local))
+    functions.load_local_action(AR, json.loads(context.scene.ar.local))
     # Check for update
     if AR.auto_update:
         bpy.ops.ar.update_check('EXEC_DEFAULT')
@@ -48,9 +46,12 @@ def on_start(dummy= None):
     AR.storage_path
     AR.icon_path
     functions.load(AR)
+    icon_manager.load_icons(AR)
+
     functions.local_runtime_save(AR, None, False)
     functions.global_runtime_save(AR, False)
     functions.category_runtime_save(AR, False)
+    log.logger.info("Finished: Load on start")
 
 # region Registration
 def register():

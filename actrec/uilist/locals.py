@@ -11,7 +11,7 @@ class AR_UL_locals(UIList):
         self.use_filter_sort_lock = True
         row = layout.row(align= True)
         row.alert = item.alert
-        ops = row.operator("ar.local_icon", text= "", icon_value= item.icon, emboss= False)
+        ops = row.operator("ar.local_icon", text= "", icon_value= item.icon if item.icon else 286, emboss= False)
         ops.id = item.id
         ops.index = index
         col = row.column()

@@ -497,7 +497,8 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
         if id is None:
             self.clear()
             return {'CANCELLED'}
-        AR.selected_icon = AR.global_actions[id].icon
+        if not self.reuse:
+            AR.selected_icon = AR.global_actions[id].icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 
@@ -505,6 +506,7 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         AR.global_actions[self.id].icon = AR.selected_icon
         AR.selected_icon = 0 #Icon: NONE
+        self.reuse = False
         functions.global_runtime_save(AR)
         bpy.context.area.tag_redraw()
         self.clear()

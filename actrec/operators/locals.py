@@ -286,7 +286,7 @@ class AR_OT_local_play(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
+        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -374,6 +374,7 @@ class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         AR.local_actions[self.id].icon = AR.selected_icon
         AR.selected_icon = 0 #Icon: NONE
+        self.reuse = False
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         self.clear()
@@ -384,7 +385,8 @@ class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         self.id = action.id
-        AR.selected_icon = action.icon
+        if not self.reuse:
+            AR.selected_icon = action.icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 
@@ -400,7 +402,7 @@ class AR_OT_local_clear(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
+        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences

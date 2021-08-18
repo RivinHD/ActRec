@@ -10,6 +10,7 @@ from bpy.app.handlers import persistent
 # relative imports
 from .. import shared_data
 from . import shared
+from ..log import logger
 # endregion
 
 __module__ = __package__.split(".")[0]

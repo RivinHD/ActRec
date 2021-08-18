@@ -6,6 +6,7 @@ from bpy.types import Panel
 # relative imports
 from .. import config
 from .. import update
+from ..log import logger
 # endregion
 
 __module__ = __package__.split(".")[0]
@@ -50,6 +51,11 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
         bl_label = 'Macro Editor'
         bl_idname = "AR_PT_macro_%s" %space_type
         bl_order = 1
+        
+        @classmethod
+        def poll(cls, context):
+            AR = context.preferences.addons[__module__].preferences
+            return len(AR.local_actions)
 
         def draw(self, context):
             AR = context.preferences.addons[__module__].preferences
@@ -122,7 +128,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
                 row2 = row.split(factor= 0.7)
                 col = row2.column()
                 col.enabled = bpy.ops.ar.global_rename.poll()
-                col.prop(AR , 'Rename', text= '')
+                col.prop(AR, 'global_rename', text= '')
                 row2.operator("ar.global_rename", text= 'Rename')
     AR_PT_global.__name__ = "AR_PT_global_%s" %space_type
 

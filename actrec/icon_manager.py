@@ -8,6 +8,9 @@ import bpy
 from bpy.types import Operator, PropertyGroup
 from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty
 from bpy_extras.io_utils import ImportHelper
+
+# relative imports
+from .log import logger
 # endregion
 
 preview_collections = {}
@@ -20,25 +23,29 @@ def get_icons_values():
 def get_icons():
     return bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.keys()[1:]
 
-def load_icons(filepath: str, only_new: bool = False) -> Optional[str]:
+def load_icons(AR):
+    directory = AR.icon_path
+    for icon in os.listdir(directory):
+        filepath = os.path.join(directory, icon)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            register_icon(preview_collections['ar_custom'], "AR_%s" %".".join(icon.split(".")[:-1]), filepath, True)
+
+def load_icon(AR, filepath: str, only_new: bool = False) -> Optional[str]:
     img = bpy.data.images.load(filepath)
-    if img.size[0] == img.size[1]:
-        AR = bpy.context.preferences.addons[__module__].preferences
-        img.scale(32, 32)
-        name = '.'.join(img.name.split('.')[:-1]) # last element is format of file
-        internalpath = os.path.join(AR.icon_path, img.name) # img.name has format included
-        img.save_render(internalpath)
-        register_icon(preview_collections['ar_custom'], "AR_%s" %name, internalpath, only_new)
-        bpy.data.images.remove(img)
-    else:
-        bpy.data.images.remove(img)
-        return 'The Image must be a square'
+    img.scale(32, 32)
+    name = '.'.join(img.name.split('.')[:-1]) # last element is format of file
+    internalpath = os.path.join(AR.icon_path, img.name) # img.name has format included
+    img.save_render(internalpath)
+    register_icon(preview_collections['ar_custom'], "AR_%s" %name, internalpath, only_new)
+    bpy.data.images.remove(img)
 
 def register_icon(pcoll, name: str, filepath: str, only_new: bool):
     try:
-        if only_new and not(name in pcoll):
+        if only_new and not(name in pcoll) or not only_new:
             pcoll.load(name, filepath, 'IMAGE', force_reload= True)
-    except:
+            logger.info("Custom Icon <%s> registered" %name)
+    except Exception as err:
+        logger.info(err)
         split = name.split('.')
         if len(split) > 1 and split[-1].isnumeric():
             name = "%s%s" %(".".join(split[:-1]), str(int(split[-1]) + 1))
@@ -71,6 +78,7 @@ class icontable(Operator):
     
     search : StringProperty(name= "Icon Search", description= "search Icon by name", options= {'TEXTEDIT_UPDATE'})
     default_icon_value : IntProperty(name= "Defalut Icon", description= "Default icon that get set when clear is pressed", default= 0)
+    reuse : BoolProperty(name= "Reuse", description= "Reuse the last selected icon")
 
     def draw(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -127,27 +135,50 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
     activat_pop_up : StringProperty(default= "")
 
     def execute(self, context):
+        AR = context.preferences.addons[__module__].preferences
         if os.path.isfile(self.filepath) and self.filepath.lower().endswith(tuple(bpy.path.extensions_image)): # supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
-            err = load_icons(self.filepath)
+            err = load_icon(AR, self.filepath)
             if err is not None:
                 self.report({'ERROR'}, err)
         else:
             self.report({'ERROR'}, 'The selected File is not an Image or an Image Format supported by Blender')
         if self.activat_pop_up != "":
-            exec("bpy.ops.%s%s" %(".".join(self.activat_pop_up.split("_OT_")).lower(), "('INVOKE_DEFAULT')"))
+            exec("bpy.ops.%s%s" %(".".join(self.activat_pop_up.split("_OT_")).lower(), "('INVOKE_DEFAULT', reuse= True)"))
         return {"FINISHED"}
+
+    def cancel(self, context):
+        if self.activat_pop_up != "":
+            exec("bpy.ops.%s%s" %(".".join(self.activat_pop_up.split("_OT_")).lower(), "('INVOKE_DEFAULT', reuse= True)"))
+        super().cancel(context)
 
 class AR_OT_delete_custom_icon(Operator):
     bl_idname = "ar.delete_custom_icon"
     bl_label = "Delete Icon"
     bl_description = "Delete a custom Icon"
 
+    def get_select_all(self):
+        return self.get("select_all", False)
+    def set_select_all(self, value):
+        self["select_all"] = value
+        for icon in self.icons:
+            icon["select_all"] = value
+
     class AR_icon(PropertyGroup):
+        def get_selected(self):
+            return self.get("selected", False) or self.get("select_all", False)
+        def set_selected(self, value):
+            if not self.get("select_all", False):
+                self["selected"] = value
+
         icon_id : IntProperty()
         icon_name : StringProperty()
-        selected : BoolProperty(default= False, name= 'Select')
+        selected : BoolProperty(default= False, name= 'Select', get= get_selected, set= set_selected)
     icons : CollectionProperty(type= AR_icon)
-    select_all : BoolProperty(name= "All Icons", description= "Select all Icons")
+    select_all : BoolProperty(name= "All Icons", description= "Select all Icons", get= get_select_all, set= set_select_all)
+
+    @classmethod
+    def poll(cls, context):
+        return len(preview_collections['ar_custom'])
 
     def invoke(self, context, event):
         coll = self.icons
@@ -163,7 +194,7 @@ class AR_OT_delete_custom_icon(Operator):
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         for ele in self.icons:
-            if ele.select or self.select_all:
+            if ele.selected or self.select_all:
                 iconpath = ele.icon_name[3:]
                 filenames = os.listdir(AR.icon_path)
                 names = [os.path.splitext(os.path.basename(path))[0] for path in filenames]
@@ -177,16 +208,10 @@ class AR_OT_delete_custom_icon(Operator):
         layout.prop(self, 'select_all')
         box = layout.box()
         coll = self.icons
-        if self.select_all:
-            for ele in coll:
-                row = box.row()
-                row.label(text= '', icon= "CHECKBOX_HLT")
-                row.label(text= ele.icon_name[3:], icon_value= ele.icon_id)
-        else:
-            for ele in coll:
-                row = box.row()
-                row.prop(ele, 'select', text= '')
-                row.label(text= ele.icon_name[3:], icon_value= ele.icon_id)
+        for ele in coll:
+            row = box.row()
+            row.prop(ele, 'selected', text= '')
+            row.label(text= ele.icon_name[3:], icon_value= ele.icon_id)
 # endregion
 
 classes = [

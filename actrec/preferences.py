@@ -121,8 +121,9 @@ class AR_preferences(AddonPreferences):
     def draw(self, context):
         AR = context.preferences.addons[__module__].preferences
         layout = self.layout
-        col = layout.column(align= True)
-        col.prop(AR, 'prefernece_tab', expand= True)
+        col = layout.column()
+        row = col.row(align= True)
+        row.prop(AR, 'prefernece_tab', expand= True)
         if AR.prefernece_tab == 'update':
             col.operator('wm.url_open', text= "Release Notes").url = config.release_notes_url
             row = col.row()

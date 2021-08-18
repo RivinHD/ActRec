@@ -197,7 +197,7 @@ class AR_OT_macro_remove(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
+        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -220,6 +220,8 @@ class AR_OT_macro_move_up(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
+        if not len(AR.local_actions):
+            return False
         action = AR.local_actions[AR.selected_local_action_index]
         return (len(action.macros) >= 2 and action.selected_macro_index + 1 < len(action.macros) or ignore) and not AR.local_record_macros
 
@@ -248,6 +250,8 @@ class AR_OT_macro_move_down(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
+        if not len(AR.local_actions):
+            return False
         action = AR.local_actions[AR.selected_local_action_index]
         return (len(action.macros) >= 2 and action.selected_macro_index - 1 >= 0 or ignore) and not AR.local_record_macros
 
@@ -308,7 +312,7 @@ class AR_OT_macro_edit(macro_based, Operator):
     lines : CollectionProperty(type= properties.AR_macro_multiline)
     active_line : IntProperty(default= 0)
     width = 500
-    font_text = text_analysis(functions.get_font_path())
+    font_text = None
 
     def invoke(self, context, event):
         AR = context.preferences.addons[__module__].preferences
@@ -340,7 +344,7 @@ class AR_OT_macro_edit(macro_based, Operator):
             self.label = macro.label
             self.command = macro.command
             fontpath = functions.get_font_path()
-            if self.font_text.path != fontpath:
+            if self.font_text is None or self.font_text.path != fontpath:
                 self.font_text = text_analysis(fontpath)
             self.lines.clear()
             for line in functions.text_to_lines(self.command, self.font_text, self.width - 15):
@@ -433,6 +437,7 @@ class AR_OT_copy_to_actrec(Operator):
 classes = [
     AR_OT_macro_add,
     AR_OT_macro_add_event,
+    AR_OT_macro_remove,
     AR_OT_macro_move_up,
     AR_OT_macro_move_down,
     AR_OT_macro_edit,
