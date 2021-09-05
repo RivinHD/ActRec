@@ -62,8 +62,9 @@ class AR_preferences(AddonPreferences):
         return value if value < actions_length else actions_length - 1
     def set_selected_local_action_index(self, value):
         actions_length = len(self.local_actions)
-        self['selected_local_action_index'] = value if value < actions_length else actions_length - 1
-    selected_local_action_index : IntProperty(min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
+        value if value < actions_length else actions_length - 1
+        self['selected_local_action_index'] = value if value >= 0 else 0
+    selected_local_action_index : IntProperty(name= "Select", min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
 
     local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     local_record_macros : BoolProperty(name= "Record Macros", default= False)
@@ -81,6 +82,8 @@ class AR_preferences(AddonPreferences):
     # macros
     last_macro_label : StringProperty(name= "last label", default= "label of the last macro")
     last_macro_command : StringProperty(name= "last command", default= "command of the last macro")
+
+    operators_list_length : IntProperty(name= "INTERNAL")
 
     # globals
     global_actions : CollectionProperty(type= properties.AR_global_actions)

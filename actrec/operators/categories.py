@@ -33,15 +33,23 @@ class AR_OT_category_interface(Operator):
     """ # code to get areas_to_spaces
     # don't use it, because it's based on an error message and it doesn't contains enough data
     areas_to_spaces_with_mode = {
-        'VIEW_3D': 'VIEW_3D',
-        'IMAGE_EDITOR': 'IMAGE_EDITOR',
-        'TextureNodeTree': 'NODE_EDITOR',
-        'ShaderNodeTree': 'NODE_EDITOR',
-        'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR',
-        'CLIP_EDITOR': 'CLIP_EDITOR',
-        'DOPESHEET': 'DOPESHEET_EDITOR',
+        'VIEW_3D': 'VIEW_3D', 
+        'IMAGE_EDITOR': 'IMAGE_EDITOR', 
+        'UV': 'IMAGE_EDITOR', 
+        'CompositorNodeTree': 'NODE_EDITOR', 
+        'TextureNodeTree': 'NODE_EDITOR', 
+        'GeometryNodeTree': 'NODE_EDITOR', 
+        'ShaderNodeTree': 'NODE_EDITOR', 
+        'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR', 
+        'CLIP_EDITOR': 'CLIP_EDITOR', 
+        'DOPESHEET': 'DOPESHEET_EDITOR', 
+        'TIMELINE': 'DOPESHEET_EDITOR', 
+        'FCURVES': 'GRAPH_EDITOR', 
+        'DRIVERS': 'GRAPH_EDITOR', 
+        'NLA_EDITOR': 'NLA_EDITOR', 
+        'TEXT_EDITOR': 'TEXT_EDITOR', 
         'FILES': 'FILE_BROWSER'
-    }
+        }
 
     modes = {
         'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items],
@@ -50,6 +58,7 @@ class AR_OT_category_interface(Operator):
         'SEQUENCE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items],
         'CLIP_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items],
         'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items],
+        'GRAPH_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.SpaceGraphEditor.bl_rna.properties['mode'].enum_items],
         'FILE_BROWSER': [(item.identifier, item.name, item.description, item.icon, item.value) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items]
     }
 

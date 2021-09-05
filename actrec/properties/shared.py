@@ -65,7 +65,6 @@ class AR_macro(id_system, alert_system, PropertyGroup):
     icon : IntProperty(default= 0) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)
     is_available : BoolProperty(default= True, get= get_is_available)
     ui_type : StringProperty(default= "")
-    use_temp_screen : BoolProperty(default= False)
 
 class AR_action(id_system, alert_system):
     def get_alert(self):

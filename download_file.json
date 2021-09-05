@@ -14,6 +14,7 @@
         "actrec/operators/globals.py": [4, 0, 0],
         "actrec/operators/locals.py": [4, 0, 0],
         "actrec/operators/macros.py": [4, 0, 0],
+        "actrec/operators/play_helper.py": [4, 0, 0],
         "actrec/operators/preferences.py": [4, 0, 0],
         "actrec/operators/shared.py": [4, 0, 0],
         "actrec/panels/__init__.py": [4, 0, 0],

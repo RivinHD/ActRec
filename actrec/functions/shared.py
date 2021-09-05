@@ -6,6 +6,7 @@ from collections import defaultdict
 import json
 import time
 import os
+import sys
 import random, math, numpy
 
 # blender modules
@@ -18,10 +19,16 @@ from ..log import logger
 from .. import shared_data
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region functions
 def check_for_dublicates(l: list, name: str, num = 1) -> str: #Check for name duplicates and append .001, .002 etc.
+    split = name.split(".")
+    base_name = name
+    if split[-1].isnumeric():
+        base_name = ".".join(split[:-1])
     while name in l:
-        name = "{}.{0:03d}".format(".".join(name.split(".")[:-1]), num)
+        name = "{0}.{1:03d}".format(base_name, num)
         num += 1
     return name
 
@@ -67,7 +74,10 @@ def property_to_python(property, exclude: list = [], depth= 5):
 def apply_data_to_item(item, data, key = "") -> None:
     if isinstance(data, list):
         for element in data:
-            subitem = item.add()
+            if key:
+                subitem = getattr(item, key).add()
+            else:
+                subitem = item.add()
             apply_data_to_item(subitem, element)
     elif isinstance(data, dict):
         for key, value in data.items():
@@ -207,22 +217,19 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
             area = context_copy['area']
             area_type = area.ui_type
             if macro.ui_type:
-                if macro.use_temp_screen:
-                    windows = context_copy['window_manager'].windows
-                    windows.reverse()
-                    for window in windows:
-                        if windows.screen.areas[0].ui_type == macro.ui_type:
-                            context_copy['window'] = window
-                            context_copy['screen'] = copy_screen = window.screen
-                            context_copy['area'] = copy_area = copy_screen.areas[0]
-                            context_copy['space_data'] = copy_area.spaces[0]
-                    else:
-                        area.ui_type = macro.ui_type
+                windows = context_copy['window_manager'].windows
+                windows.reverse()
+                for window in windows:
+                    if windows.screen.areas[0].ui_type == macro.ui_type:
+                        context_copy['window'] = window
+                        context_copy['screen'] = copy_screen = window.screen
+                        context_copy['area'] = copy_area = copy_screen.areas[0]
+                        context_copy['space_data'] = copy_area.spaces[0]
                 else:
                     area.ui_type = macro.ui_type
             if command.startswith("bpy.ops."):
                 split = command.split("(")
-                command = "%s(context_copy, 'INVOKE_DEFAULT', %s" %(split[0], "(".join(split[1: ]))
+                command = "%s(context_copy, %s" %(split[0], "(".join(split[1: ]))
             elif command.startswith("bpy.context."):
                 split = command.replace("bpy.context.").split(".")
                 command = "context_copy[%s].%s" %(split[0], ".".join(split[1: ]))
@@ -251,7 +258,7 @@ def execute_render_complete(dummy = None):
 
 def get_font_path():
     if bpy.context.preferences.view.font_path_ui == '':
-        dirc = "\\".join(bpy.app.binary_path_python.split("\\")[:-3])
+        dirc = "\\".join(sys.executable.split("\\")[:-3])
         return os.path.join(dirc, "datafiles", "fonts", "droidsans.ttf")
     else:
         return bpy.context.preferences.view.font_path_ui

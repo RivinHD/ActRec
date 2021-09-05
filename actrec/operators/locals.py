@@ -2,6 +2,7 @@
 # external modules
 import json
 import uuid
+import numpy
 
 # blender modules
 import bpy
@@ -9,7 +10,7 @@ from bpy.types import Operator
 from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionProperty
 
 # relative imports
-from .. import functions, properties, icon_manager
+from .. import functions, properties, icon_manager, shared_data
 from ..log import logger
 from . import shared
 # endregion
@@ -75,7 +76,7 @@ class AR_OT_local_add(Operator):
     bl_label = "Add"
     bl_description = "Add a New Action"
 
-    name : StringProperty(name= "Name", description= "Name of the Action", default= "Untitled.001")
+    name : StringProperty(name= "Name", description= "Name of the Action", default= "Untitled")
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -122,17 +123,18 @@ class AR_OT_local_move_up(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index + 1 < len(AR.local_actions))
+        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index - 1 >= 0)
+
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         self.clear()
-        if index == -1 or index + 1 >= len(AR.local_actions):
+        if index == -1 or index - 1 < 0:
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
         else:
-            AR.local_actions.move(index, index + 1)
+            AR.local_actions.move(index, index - 1)
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
@@ -153,17 +155,17 @@ class AR_OT_local_move_down(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index - 1 >= 0)
+        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index + 1 < len(AR.local_actions))
         
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         self.clear()
-        if index == -1 or index - 1 >= 0:
+        if index == -1 or index + 1 >= len(AR.local_actions):
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
         else:
-            AR.local_actions.move(index, index - 1)
+            AR.local_actions.move(index, index + 1)
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
@@ -302,6 +304,7 @@ class AR_OT_local_record(shared.id_based, Operator):
 
     ignore_selection = False
     record_start_index : IntProperty()
+    tracker_start_index : IntProperty()
 
     @classmethod
     def poll(cls, context):
@@ -312,46 +315,61 @@ class AR_OT_local_record(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         AR.local_record_macros = not AR.local_record_macros
         index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
         if AR.local_record_macros: # start recording
+            action = AR.local_actions[index]
             self.id = action.id
             self.index = index
             self.record_start_index = functions.get_report_text(context).count('\n')
+            self.tracker_start_index = len(shared_data.tracked_actions)
             context.scene.ar.record_undo_end = not context.scene.ar.record_undo_end
         else: # end recording and add reports as macros
-            reports = functions.get_report_text(context)
+            reports = functions.get_report_text(context).splitlines()[self.record_start_index: ]
             reports = [report for report in reports if report.startswith('bpy.')]
+            if not len(reports):
+                self.clear()
+            reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions[self.tracker_start_index: ]), dtype= object)
+            print("="*10, "REPORT", "="*10, "\n", reports,"\n", "="*30)
 
             record_undo_end = context.scene.ar.record_undo_end
+            redo_steps = 0
             while record_undo_end == bpy.context.scene.ar.record_undo_end and bpy.ops.ed.undo.poll():
                 bpy.ops.ed.undo()
+                redo_steps += 1
             context = bpy.context
             i = 0
-            while bpy.ops.ed.redo.poll():
-                report = reports[i]
-                if report.startswith("bpy.context."):
-                    source_path, attribute, value = functions.split_context_report(report)
-                    copy_dict = functions.create_object_copy(context, source_path, attribute)
 
-                    bpy.ops.ed.redo()
-                    context = bpy.context
-                    
-                    report = functions.improve_context_report(context, copy_dict, source_path, attribute, value)
-                    if report:
-                        reports[i] = report
-                        i += 1
-                elif report.startswith("bpy.ops."):
-                    pass
-                else:
-                    i += 1
+            data = []
+            len_reports = len(reports)
+            while bpy.ops.ed.redo.poll() and redo_steps > 0 and len_reports > i:
+                bpy_type, register, undo, parent, name, value = reports[i]
+                if bpy_type == 0:
+                    # register, undo are always True for Context reports
+                    copy_dict = functions.create_object_copy(context, parent, name)
 
-            operators = []
-            compare_operators = None
+                    if ("screen", "area", "space_data") not in parent:
+                        bpy.ops.ed.redo()
+                        redo_steps -= 1
+                        context = bpy.context
+                        
+                    data.append(functions.improve_context_report(context, copy_dict, parent, name, value))
+                elif bpy_type == 1:
+                    if register:
+                        copy_dict = functions.create_operator_based_copy(context, parent, name, value)
+
+                    if undo:
+                        bpy.ops.ed.redo()
+                        redo_steps -= 1
+                        context = bpy.context
+
+                    if register:
+                        data.append(functions.imporve_operator_report(context, parent, name, value, copy_dict))
+                i += 1
+
             error_reports = []
-            for report in reports:
-                ret = functions.add_report_as_macro(AR, action, report, operators, compare_operators, error_reports)
-                if ret:
-                    compare_operators = ret
+            print("="*10, "DATA", "="*10, "\n", data,"\n", "="*30)
+            action = AR.local_actions[index]
+            for report in data:
+                functions.add_report_as_macro(AR, action, report, error_reports)
             if error_reports:
                 self.report({'ERROR'}, "Not all reports could be added added:\n%s" %"\n".join(error_reports))
             functions.local_runtime_save(AR, bpy.context.scene)

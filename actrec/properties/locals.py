@@ -12,13 +12,14 @@ from . import shared
 class AR_local_actions(shared.AR_action, PropertyGroup):
     def get_selected_macro_index(self):
         value = self.get('selected_macro_index', 0)
-        commands_length = len(self.macros)
-        return value if value < commands_length else commands_length - 1
+        macors_length = len(self.macros)
+        return value if value < macors_length else macors_length - 1
     def set_selected_macro_index(self, value):
-        commands_length = len(self.macros)
-        self['selected_macro_index'] = value if value < commands_length else commands_length - 1
+        macors_length = len(self.macros)
+        value = value if value < macors_length else macors_length - 1
+        self['selected_macro_index'] = value if value >= 0 else 0
 
-    selected_macro_index : IntProperty(min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
+    selected_macro_index : IntProperty(name= "Select", min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
 
 class AR_local_load_text(PropertyGroup):
     name : StringProperty()

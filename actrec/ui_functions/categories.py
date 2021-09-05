@@ -8,12 +8,12 @@ from bpy.types import Panel
 
 # relative imports
 from . import globals
+from .. import panels
 # endregion
 
 __module__ = __package__.split(".")[0]
 
 classes = []
-standart_space_types = ['VIEW_3D', 'IMAGE_EDITOR', 'NODE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'DOPESHEET_EDITOR', 'FILE_BROWSER'] # blender spaces with UI region
 space_mode_attribute = {
     'IMAGE_EDITOR': 'ui_mode',
     'NODE_EDITOR': 'texture_type',
@@ -69,7 +69,7 @@ def show_category(context, category):
             return mode in set(mode.type for mode in area.modes)
     return False
 
-def register_unregister_category(index, space_types = standart_space_types, register = True): #Register/Unregister one Category
+def register_unregister_category(index, space_types = panels.ui_space_types, register = True): #Register/Unregister one Category
     for spaceType in space_types:
         class AR_PT_category(Panel):
             bl_space_type = spaceType

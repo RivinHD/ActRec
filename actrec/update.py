@@ -9,6 +9,7 @@ import subprocess
 from collections import defaultdict
 import threading
 from contextlib import suppress
+import sys
 
 # blender modules
 import bpy
@@ -33,8 +34,8 @@ class update_manager:
 @persistent
 def on_start(dummy= None) -> None:
     AR = bpy.context.preferences.addons[__module__].preferences
-    if AR.auto_update:
-        t = threading.Thread(target= no_stream_download_version_file, args= [__module__])
+    if AR.auto_update and update_manager.version_file_thread is None:
+        t = threading.Thread(target= no_stream_download_version_file, args= [__module__], daemon= True)
         t.start()
         update_manager.version_file_thread = t
 
@@ -44,6 +45,7 @@ def on_scene_update(dummy= None) -> None:
     if t and update_manager.version_file.get("version", None):
         t.join()
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
+        bpy.app.handlers.load_post.remove(on_start)
 
 def get_json_from_content(content: bytes) -> dict:
     data = json.loads(content)
@@ -318,9 +320,10 @@ class AR_OT_restart(Operator, ExportHelper):
             bpy.ops.wm.save_mainfile(filepath= path)
         AR.restart = False
         if os.path.exists(path):
-            subprocess.Popen([bpy.app.binary_path, path])
+            args = [*sys.argv, path]
         else:
-            subprocess.Popen([bpy.app.binary_path])
+            args = sys.argv
+        subprocess.Popen(args)
         bpy.ops.wm.quit_blender()
         return {"FINISHED"}
 
@@ -370,7 +373,8 @@ def register():
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    bpy.app.handlers.load_post.remove(on_start)
+    with suppress(Exception):
+        bpy.app.handlers.load_post.remove(on_start)
     with suppress(Exception):
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
     del update_manager.update_data_chunks

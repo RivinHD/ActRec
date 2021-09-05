@@ -15,12 +15,14 @@ from . import config, icon_manager, keymap, log, preferences, shared_data, updat
 __module__ = __package__.split(".")[0]
 
 @persistent
-def on_start(dummy= None):
-    log.logger.info("Load on start")
+def on_load(dummy= None):
+    log.logger.info("Start: Load ActRec Data")
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     # load local actions
-    if context.scene.ar.local == "{}" and context.scene.get('ar_local', None): # load old local action data
+    if bpy.data.filepath == "":
+        context.scene.ar.local = "{}"
+    elif context.scene.ar.local == "{}" and context.scene.get('ar_local', None): # load old local action data
         try:
             data = []
             old_data = json.loads(context.scene.get('ar_local'))
@@ -39,9 +41,6 @@ def on_start(dummy= None):
         except json.JSONDecodeError as err:
             log.logger.info("old scene-data couldn't be parsed (%s)" %err)
     functions.load_local_action(AR, json.loads(context.scene.ar.local))
-    # Check for update
-    if AR.auto_update:
-        bpy.ops.ar.update_check('EXEC_DEFAULT')
     # update paths
     AR.storage_path
     AR.icon_path
@@ -51,7 +50,7 @@ def on_start(dummy= None):
     functions.local_runtime_save(AR, None, False)
     functions.global_runtime_save(AR, False)
     functions.category_runtime_save(AR, False)
-    log.logger.info("Finished: Load on start")
+    log.logger.info("Finished: Load ActRec Data")
 
 # region Registration
 def register():
@@ -74,7 +73,8 @@ def register():
     handlers.redo_post.append(functions.local_runtime_load)
     handlers.render_init.append(functions.execute_render_init)
     handlers.render_complete.append(functions.execute_render_complete)
-    handlers.load_post.append(on_start)
+    handlers.depsgraph_update_post.append(functions.track_scene)
+    handlers.load_post.append(on_load)
     
     bpy.types.Scene.ar = PointerProperty(type= properties.AR_scene_data)
     log.logger.info("Registered Action Recorder")
@@ -99,7 +99,8 @@ def unregister():
     handlers.redo_post.remove(functions.local_runtime_load)
     handlers.render_init.remove(functions.execute_render_init)
     handlers.render_complete.remove(functions.execute_render_complete)
-    handlers.load_post.remove(on_start)
+    handlers.depsgraph_update_post.remove(functions.track_scene)
+    handlers.load_post.remove(on_load)
 
     del bpy.types.Scene.ar
     log.logger.info("Unregistered Action Recorder")

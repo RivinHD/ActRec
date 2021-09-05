@@ -24,16 +24,23 @@ from .locals import (
     save_local_to_scene,
     get_local_action_index,
     load_local_action,
-    local_action_to_text,
-    get_report_text,
-    split_context_report,
-    create_object_copy,
-    improve_context_report
+    local_action_to_text
 )
 
 from .macros import (
     get_local_macro_index,
-    add_report_as_macro
+    add_report_as_macro,
+    get_report_text,
+    split_context_report,
+    create_object_copy,
+    improve_context_report,
+    split_operator_report,
+    create_operator_based_copy,
+    imporve_operator_report,
+    dict_to_kwarg_str,
+    track_scene,
+    merge_report_tracked,
+    compare_op_dict
 )
 
 from .shared import (

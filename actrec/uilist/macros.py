@@ -12,7 +12,7 @@ class AR_UL_macros(UIList):
         row = layout.row(align= True)
         row.alert = item.alert
         row.prop(item, 'active', text= "")
-        ops = row.operator("ar.macro_edit", text= item.macro, emboss= False)
+        ops = row.operator("ar.macro_edit", text= item.label, emboss= False)
         ops.id = item.id
         ops.index = index
 # endregion
