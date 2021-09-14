@@ -37,7 +37,8 @@ class alert_system:
                 self['alert'] = False
             bpy.app.timers.register(reset, first_interval= 1, persistent= True)
     def update_alert(self, context):
-        context.area.tag_redraw()
+        if hasattr(context, 'area') and context.area:
+            context.area.tag_redraw()
 
     alert : BoolProperty(default= False, description= "Internal use", get= get_alert, set= set_alert, update= update_alert)
 
@@ -48,8 +49,10 @@ class AR_macro(id_system, alert_system, PropertyGroup):
         if self.is_available:
             context = bpy.context
             AR = context.preferences.addons[__module__].preferences
-            self['active'] = value
-            functions.local_runtime_save(AR, context.scene)
+            if not AR.local_record_macros:
+                if self.get('active', True) != value:
+                    functions.local_runtime_save(AR, context.scene)
+                self['active'] = value
     def get_command(self):
         return self.get("command", "")
     def set_command(self, value):
@@ -67,17 +70,6 @@ class AR_macro(id_system, alert_system, PropertyGroup):
     ui_type : StringProperty(default= "")
 
 class AR_action(id_system, alert_system):
-    def get_alert(self):
-        return self.get('alert', False)
-    def set_alert(self, value):
-        self['alert'] = value
-        if value:
-            def reset():
-                self['alert'] = False
-            bpy.app.timers.register(reset, first_interval= 1, persistent= True)
-    def update_alert(self, context):
-        context.area.tag_redraw()
-
     label : StringProperty()
     macros : CollectionProperty(type= AR_macro)
     icon : IntProperty(default= 0) #Icon NONE: Global: BLANK1 (101), Local: MESH_PLANE (286)

@@ -377,7 +377,8 @@ def unregister():
         bpy.app.handlers.load_post.remove(on_start)
     with suppress(Exception):
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
-    del update_manager.update_data_chunks
-    del update_manager.update_responds
-    del update_manager.version_file
+    update_manager.update_data_chunks.clear()
+    update_manager.update_responds.clear()
+    update_manager.version_file.clear()
+    update_manager.version_file_thread = None
 # endregion 

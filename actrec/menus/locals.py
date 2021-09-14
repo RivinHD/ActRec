@@ -4,7 +4,7 @@ from contextlib import suppress
 
 # blender modules
 import bpy
-from bpy.types import Menu
+from bpy.types import Menu, PointerProperty
 # endregion
 
 __module__ = __package__.split(".")[0]
@@ -27,14 +27,17 @@ class AR_MT_action_pie(Menu):
             ops.id = action.ids
             ops.index = i
 
-def menu_func(self, context):
-    if bpy.ops.ui.copy_python_command_button.poll():
-        layout = self.layout
-        layout.separator()
-        layout.operator("ar.copy_to_actrec")
+def menu_draw(self, context):
+    layout = self.layout
+    layout.separator()
+    layout.operator("ar.copy_to_actrec")
+    button_prop = getattr(context, "button_prop", None)
+    if button_prop and not isinstance(button_prop, PointerProperty) and button_prop.is_array:
+        layout.operator("ar.copy_to_actrec", text= "Copy to Action Recorder (Single)").copy_single = True
+
 
 class WM_MT_button_context(Menu):
-    bl_label = "Add Viddyoze Tag"
+    bl_label = "Unused"
 
     def draw(self, context):
         pass
@@ -51,18 +54,17 @@ internal_classes = [
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    with suppress(Exception):
-        bpy.types.WM_MT_button_context.append(menu_func)
     for cls in internal_classes:
         with suppress(Exception):
             bpy.utils.register_class(cls)
-
+    with suppress(Exception):
+        bpy.types.WM_MT_button_context.append(menu_draw)
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    with suppress(Exception):
-        bpy.types.WM_MT_button_context.remove(menu_func)
     for cls in internal_classes:
         with suppress(Exception):
             bpy.utils.unregister_class(cls)
+    with suppress(Exception):
+        bpy.types.WM_MT_button_context.remove(menu_draw)
 # endregion

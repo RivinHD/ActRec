@@ -16,15 +16,20 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
         return self.get("selected", False)
     def set_value(self, value: bool) -> None:
         AR = bpy.context.preferences.addons[__module__].preferences
-        selected_ids = AR.get("global_actions.selected_ids", [])
+        selected_ids = list(AR.get("global_actions.selected_ids", []))
+        if len(selected_ids) > 1:
+            value = True
         if value:
             ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
-            if selected_ids != [] and ctrl_value == 'CANCELLED':
-                AR["global_actions.selected_ids"].clear()
+            if selected_ids and ctrl_value == {'CANCELLED'}:
+                AR["global_actions.selected_ids"] = []
                 for selected_id in selected_ids:
-                    AR.global_actions[selected_id].selected = False
-            AR.set_default("global_actions.selected_ids", [])
-            AR["global_actions.selected_ids"].append(self.id)
+                    action = AR.global_actions.get(selected_id, None)
+                    if action:
+                        action.selected = False
+                selected_ids.clear()
+            selected_ids.append(self.id)
+            AR["global_actions.selected_ids"] = selected_ids
             self['selected'] = value
         elif not (self.id in selected_ids):
             self['selected'] = value
@@ -52,7 +57,6 @@ class AR_global_import_category(PropertyGroup):
     label : StringProperty()
     identifier : StringProperty()
     actions : CollectionProperty(type= AR_global_import_action)
-    mode : EnumProperty(items= [("new", "New", "Create a new Category"),("append", "Append", "Append to an existing Category")], name= "Import Mode")
     show : BoolProperty(default= True)
     use : BoolProperty(default= True, name= "Import Category", description= "Decide whether to import the category", get= get_use, set= set_use)
 

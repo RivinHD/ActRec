@@ -11,7 +11,7 @@ import sys
 
 # blender modules
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, PointerProperty
 from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionProperty, FloatProperty, BoolProperty
 
 # relative imports
@@ -42,13 +42,14 @@ class AR_OT_macro_add(shared.id_based, Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions)
+        return len(AR.local_actions) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         new_report = False
+        command = None
         if not self.command:
             reports = functions.get_report_text(context).splitlines()
             length = len(reports)
@@ -58,44 +59,57 @@ class AR_OT_macro_add(shared.id_based, Operator):
                 reports.reverse()
                 for report in reports:
                     if report.startswith("bpy.ops.") or report.startswith("bpy.context."):
-                        self.command = report
+                        command = report
                         break
+        else:
+            command = self.command
         
-        command = self.command
         if command and (AR.last_macro_command != command if new_report else True):
             if command.startswith("bpy.context."):
-                tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
-                i = 0
-                tracked = tracked_actions[0]
-                while tracked[2] != "CONTEXT":
-                    i += 1
-                    tracked = tracked_actions[i]
-                reports = functions.merge_report_tracked([report], tracked_actions[ :i + 1])
+                if not self.command:
+                    tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
+                    i = 0
+                    len_tracked = len(tracked_actions)
+                    if len_tracked > i:
+                        tracked = tracked_actions[0]
+                        while tracked[2] != "CONTEXT" and len_tracked > i:
+                            i += 1
+                            tracked = tracked_actions[i]
+                    reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
+                else:
+                    reports = functions.merge_report_tracked([command], [])
+
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():
                         break
 
-                    if register:
-                        copy_dict = functions.create_object_copy(context, parent, name)
+                    copy_dict = functions.create_object_copy(context, parent, name)
 
-                    if undo:
-                        bpy.ops.ed.undo()
-                        context = bpy.context
+                    bpy.ops.ed.undo()
+                    context = bpy.context
 
-                    if register:
-                        ret = functions.improve_context_report(context, copy_dict, parent, name, value)
-                        if ret:
-                            command = ret
-                            break
+                    ret = functions.improve_context_report(context, copy_dict, parent, name, value)
+                    if not undo:
+                        bpy.ops.ed.redo()
+                    if ret:
+                        command = ret
+                        break
             elif command.startswith("bpy.ops."):
-                tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
-                ops_type, ops_name, ops_values = functions.split_operator_report(report)
-                i = 0
-                tracked = tracked_actions[0]
-                while not (tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name) and functions.compare_op_dict(ops_values, tracked[3])):
-                    i += 1
-                    tracked = tracked_actions[i]
-                reports = functions.merge_report_tracked([report], tracked_actions[ :i + 1])
+                ops_type, ops_name, ops_values = functions.split_operator_report(command)
+                if not self.command:
+                    tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
+                    i = 0
+                    len_tracked = len(tracked_actions)
+                    if len_tracked > i:
+                        tracked = tracked_actions[0]
+                        while not (tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name) and functions.compare_op_dict(ops_values, tracked[3])) and len_tracked > i:
+                            i += 1
+                            tracked = tracked_actions[i]
+                    reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
+                else:
+                    bl_options = getattr(getattr(bpy.ops, ops_type), ops_name).bl_options
+                    reports = [(1, "REGISTER" in bl_options, "UNDO" in bl_options, ops_type, ops_name, ops_values)]
+
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():
                         break
@@ -203,6 +217,7 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
         functions.local_runtime_save(AR, context.scene)
         if not AR.hide_local_text:
             functions.local_action_to_text(action)
+        context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
 
@@ -236,7 +251,7 @@ class AR_OT_macro_remove(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
+        return len(AR.local_actions) and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -261,8 +276,8 @@ class AR_OT_macro_move_up(macro_based, Operator):
         cls.ignore_selection = False
         if not len(AR.local_actions):
             return False
-        action = AR.local_actions[AR.selected_local_action_index]
-        return (len(action.macros) >= 2 and action.selected_macro_index - 1 >= 0 or ignore) and not AR.local_record_macros
+        action = AR.local_actions[AR.active_local_action_index]
+        return (len(action.macros) >= 2 and action.active_macro_index - 1 >= 0 or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -291,8 +306,8 @@ class AR_OT_macro_move_down(macro_based, Operator):
         cls.ignore_selection = False
         if not len(AR.local_actions):
             return False
-        action = AR.local_actions[AR.selected_local_action_index]
-        return (len(action.macros) >= 2 and action.selected_macro_index + 1 < len(action.macros) or ignore) and not AR.local_record_macros
+        action = AR.local_actions[AR.active_local_action_index]
+        return (len(action.macros) >= 2 and action.active_macro_index + 1 < len(action.macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -352,6 +367,13 @@ class AR_OT_macro_edit(macro_based, Operator):
                 command = self.command
                 if command.startswith("bpy.ops."):
                     self.command = "%s()" %command.split("(")[0]
+    def get_copy_data(self):
+        return self.get("copy_data", False)
+    def set_copy_data(self, value):
+        self["last_copy_data"] = self.get("copy_data", False)
+        self["copy_data"] = value
+    def get_last_copy_data(self):
+        return self.get("last_copy_data", False)
                     
     label : StringProperty(name= "Label")
     command : StringProperty(name= "Command")
@@ -360,13 +382,18 @@ class AR_OT_macro_edit(macro_based, Operator):
     last_id : StringProperty(name= "Last Id")
     edit : BoolProperty(default= False)
     clear_ops : BoolProperty(name= "Clear Operator Command", get= lambda x: False, set= set_clear_ops)
-    copy_data : BoolProperty(default= False, name= "Copy Previous", description= "Copy the data of the previous recorded Macro and place it in this Macro")
+    copy_data : BoolProperty(default= False, name= "Copy Previous", description= "Copy the data of the previous recorded Macro and place it in this Macro", get= get_copy_data, set= set_copy_data)
+    last_copy_data : BoolProperty(get= get_last_copy_data)
     lines : CollectionProperty(type= properties.AR_macro_multiline)
-    active_line : IntProperty(default= 0)
     width = 500
     font_text = None
     time = 0
 
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__module__].preferences
+        return not AR.local_record_macros
+    
     def invoke(self, context, event):
         AR = context.preferences.addons[__module__].preferences
         action_index = self.action_index = functions.get_local_action_index(AR, '', self.action_index)
@@ -405,7 +432,7 @@ class AR_OT_macro_edit(macro_based, Operator):
             self.last_command = AR.last_macro_command
             return context.window_manager.invoke_props_dialog(self, width=self.width)
         else:
-            action.selected_macro_index = index
+            action.active_macro_index = index
         self.last_id = macro.id
         AR_OT_macro_edit.time = t
         self.clear()
@@ -429,6 +456,11 @@ class AR_OT_macro_edit(macro_based, Operator):
     def draw(self, context):
         layout = self.layout
 
+        if self.last_copy_data:
+            self.last_command = "".join(line.text for line in self.lines)
+        else:
+            self.command = "".join(line.text for line in self.lines)
+
         if self.copy_data:
             layout.prop(self, 'last_label', text= "Label")
             command = self.last_command
@@ -443,11 +475,6 @@ class AR_OT_macro_edit(macro_based, Operator):
         col = layout.column(align= True)
         for line in self.lines:
             col.prop(line, 'text', text= "")
-        
-        if self.copy_data:
-            self.last_command = "".join(line.text for line in self.lines)
-        else:
-            self.command = "".join(line.text for line in self.lines)
 
         row = layout.row().split(factor= 0.65)
         row.prop(self, 'clear_ops', toggle= True)
@@ -463,17 +490,61 @@ class AR_OT_copy_to_actrec(Operator):
     bl_label = "Copy to Action Recorder"
     bl_description = "Copy the selected Operator to Action Recorder Macro"
 
+    copy_single : BoolProperty()
+
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return bpy.ops.ui.copy_python_command_button.poll() and len(AR.local_actions)
+        return len(AR.local_actions) and (bpy.ops.ui.copy_python_command_button.poll() or bpy.ops.ui.copy_data_path_button.poll())
 
     def execute(self, context):
-        clipboard = context.window_manager.clipboard
-        bpy.ops.ui.copy_python_command_button(context)
-        bpy.ops.ar.macro_add('EXEC_DEFAULT', command= context.window_manager.clipboard)
-        context.window_manager.clipboard = clipboard
-        return {"FINISHED"}
+        button_pointer = getattr(context, "button_pointer", None)
+        button_prop = getattr(context, "button_prop", None)
+        if not(button_pointer is None or button_prop is None):
+            object_class = button_pointer.__class__
+            for attr in dir(context):
+                if isinstance(getattr(bpy.context, attr), object_class):
+                    value = functions.convert_to_python(getattr(getattr(context, attr), button_prop.identifier))
+                    if self.copy_single:
+                        clipboard = context.window_manager.clipboard
+                        bpy.ops.ui.copy_data_path_button(context.copy(), full_path= True)
+                        single_index = context.window_manager.clipboard.split(" = ")[0].split(".")[-1].split("[")[-1].replace("]", "")
+                        context.window_manager.clipboard = clipboard
+                        if single_index.isdigit():
+                            value = value[int(single_index)]
+
+                    if isinstance(value, str):
+                        value = "'%s'" %value
+                    elif isinstance(value, float):
+                        value = round(value, button_prop.precision)
+                    elif isinstance(button_prop, PointerProperty) and value is not None:
+                        for identifier, prop in bpy.data.bl_rna.properties.items():
+                            if prop.type == 'COLLECTION' and prop.fixed_type == button_prop.fixed_type and value.name in getattr(bpy.data, identifier):
+                                value = "bpy.data.%s['%s']" %(identifier, value.name)
+                                break
+
+                    if self.copy_single:
+                        command = "bpy.context.%s.%s[%s] = %s" %(attr, button_prop.identifier, single_index, str(value))
+                    else:
+                        command = "bpy.context.%s.%s = %s" %(attr, button_prop.identifier, str(value))
+                    self.copy_single = False
+                    bpy.ops.ar.macro_add('EXEC_DEFAULT', command= command)
+                    for area in context.screen.areas:
+                        area.tag_redraw()
+                    return {"FINISHED"}
+            else:
+                return {"CANCELLED"}
+
+        button_operator = getattr(context, "button_operator", None)
+        if button_operator is not None:
+            clipboard = context.window_manager.clipboard
+            bpy.ops.ui.copy_python_command_button(context.copy())
+            bpy.ops.ar.macro_add('EXEC_DEFAULT', command= context.window_manager.clipboard)
+            context.window_manager.clipboard = clipboard
+            for area in context.screen.areas:
+                area.tag_redraw()
+            return {"FINISHED"}
+        return {"CANCELLED"}
 # endregion
 
 classes = [

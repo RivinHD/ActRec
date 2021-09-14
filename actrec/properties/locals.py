@@ -10,16 +10,16 @@ from . import shared
 
 # region PropertyGroups
 class AR_local_actions(shared.AR_action, PropertyGroup):
-    def get_selected_macro_index(self):
-        value = self.get('selected_macro_index', 0)
+    def get_active_macro_index(self):
+        value = self.get('active_macro_index', 0)
         macors_length = len(self.macros)
         return value if value < macors_length else macors_length - 1
-    def set_selected_macro_index(self, value):
+    def set_active_macro_index(self, value):
         macors_length = len(self.macros)
         value = value if value < macors_length else macors_length - 1
-        self['selected_macro_index'] = value if value >= 0 else 0
+        self['active_macro_index'] = value if value >= 0 else macors_length - 1
 
-    selected_macro_index : IntProperty(name= "Select", min= 0, get= get_selected_macro_index, set= set_selected_macro_index)
+    active_macro_index : IntProperty(name= "Select", min= 0, get= get_active_macro_index, set= set_active_macro_index)
 
 class AR_local_load_text(PropertyGroup):
     name : StringProperty()

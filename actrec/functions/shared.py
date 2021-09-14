@@ -38,9 +38,10 @@ def get_pointer_as_dict(property, exclude, depth):
     sub_exclude = defaultdict(list)
     for x in exclude:
         prop = x.split(".")
-        main_exclude.append(prop[0])
         if len(prop) > 1:
             sub_exclude[prop[0]].append(".".join(prop[1:]))
+        else:
+            main_exclude.append(prop[0])
     main_exclude = set(main_exclude)
     for attr in property.bl_rna.properties[1:]:
         identifier = attr.identifier
@@ -94,6 +95,9 @@ def insert_to_collection(collection, index: int, data: dict) -> None:
     add_data_to_collection(collection, data)
     collection.move(len(collection) - 1, index)
 
+def enum_list_id_to_name_dict(data: list) -> dict:
+    return {identifier: name for identifier, name, *tail in data}
+
 def swap_collection_items(collection, index_1: int, index_2: int) -> None:
     if index_1 == index_2:
         return
@@ -103,15 +107,31 @@ def swap_collection_items(collection, index_1: int, index_2: int) -> None:
     collection.move(index_2 + 1, index_1)
 
 def get_name_of_command(command: str) -> Optional[str]:
-    if command.startswith("bpy.ops"):
+    if command.startswith("bpy.ops."):
         try:
             return eval("%s.get_rna_type().name" %command.split("(")[0])
         except:
             return None
-    elif command.startswith('bpy.context'):
+    elif command.startswith("bpy.context."):
         split = command.split(' = ')
         if len(split) > 1:
-            return "%s = %s" %(split[0].split('.')[-1], split[1])
+            *path, prop = split[0].replace("bpy.context.", "").split(".")
+            obj = bpy.context
+            for x in path:
+                if hasattr(obj, x):
+                    obj = getattr(obj, x)
+                else:
+                    break
+            else:
+                props = obj.bl_rna.properties
+                if prop in props:
+                    prop = props[prop].name
+            
+            value = split[1]
+            if value.startswith("bpy.data."):
+                value = value.split("[")[-1].replace("]", "")[1:-1]
+
+            return "%s = %s" %(prop, value)
         else:
             return ".".join(split[0].split('.')[-2:])
     else:
@@ -231,8 +251,8 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
                 split = command.split("(")
                 command = "%s(context_copy, %s" %(split[0], "(".join(split[1: ]))
             elif command.startswith("bpy.context."):
-                split = command.replace("bpy.context.").split(".")
-                command = "context_copy[%s].%s" %(split[0], ".".join(split[1: ]))
+                split = command.replace("bpy.context.", "").split(".")
+                command = "context_copy['%s'].%s" %(split[0], ".".join(split[1: ]))
             exec(command)
             area.ui_type = area_type
         except Exception as err:

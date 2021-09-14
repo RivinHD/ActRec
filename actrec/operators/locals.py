@@ -43,12 +43,12 @@ class AR_OT_local_to_global(Operator):
         if len(categories):
             for category in categories:
                 if category.selected:
-                    self.local_to_global(AR, category, AR.local_actions[AR.selected_local_action_index])
+                    self.local_to_global(AR, category, AR.local_actions[AR.active_local_action_index])
                     break
             if AR.local_to_global_mode == 'move':
-                AR.local_actions.remove(AR.selected_local_action_index)
+                AR.local_actions.remove(AR.active_local_action_index)
             functions.category_runtime_save(AR)
-            functions.global_runtime_save(AR, autosave= False)
+            functions.global_runtime_save(AR, False)
             context.area.tag_redraw()
             return {"FINISHED"}
         else:
@@ -78,12 +78,17 @@ class AR_OT_local_add(Operator):
 
     name : StringProperty(name= "Name", description= "Name of the Action", default= "Untitled")
 
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__module__].preferences
+        return not AR.local_record_macros
+
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         new = AR.local_actions.add()
         new.id # create new id 
         new.label = functions.check_for_dublicates(map(lambda x: x.label, AR.local_actions), self.name)
-        new.selected = True
+        AR.active_local_action_index = -1 # set to last element
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
@@ -123,7 +128,7 @@ class AR_OT_local_move_up(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index - 1 >= 0)
+        return len(AR.local_actions) >= 2 and (ignore or AR.active_local_action_index - 1 >= 0) and not AR.local_record_macros
 
 
     def execute(self, context):
@@ -155,7 +160,7 @@ class AR_OT_local_move_down(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) >= 2 and (ignore or AR.selected_local_action_index + 1 < len(AR.local_actions))
+        return len(AR.local_actions) >= 2 and (ignore or AR.active_local_action_index + 1 < len(AR.local_actions)) and not AR.local_record_macros
         
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -184,7 +189,7 @@ class AR_OT_local_load(Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        return not AR.local_record_macros and not AR.local_record_macros
 
     def invoke(self, context, event):
         texts = self.texts
@@ -256,7 +261,7 @@ class AR_OT_local_selection_up(Operator):
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
-        AR.selected_local_action_index = AR.selected_local_action_index - 1
+        AR.active_local_action_index = AR.active_local_action_index - 1
         context.area.tag_redraw()
         return{'FINISHED'}
 
@@ -271,7 +276,7 @@ class AR_OT_local_selection_down(Operator):
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
-        AR.selected_local_action_index = AR.selected_local_action_index + 1
+        AR.active_local_action_index = AR.active_local_action_index + 1
         context.area.tag_redraw()
         return{'FINISHED'}
 
@@ -288,7 +293,7 @@ class AR_OT_local_play(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore) and not AR.local_record_macros
+        return len(AR.local_actions) and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -327,6 +332,7 @@ class AR_OT_local_record(shared.id_based, Operator):
             reports = [report for report in reports if report.startswith('bpy.')]
             if not len(reports):
                 self.clear()
+                return {"FINISHED"}
             reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions[self.tracker_start_index: ]), dtype= object)
             print("="*10, "REPORT", "="*10, "\n", reports,"\n", "="*30)
 
@@ -339,24 +345,43 @@ class AR_OT_local_record(shared.id_based, Operator):
             i = 0
 
             data = []
+            skip_op_redo = True
             len_reports = len(reports)
             while bpy.ops.ed.redo.poll() and redo_steps > 0 and len_reports > i:
                 bpy_type, register, undo, parent, name, value = reports[i]
                 if bpy_type == 0:
                     # register, undo are always True for Context reports
                     copy_dict = functions.create_object_copy(context, parent, name)
+                    second_undo = False
 
-                    if ("screen", "area", "space_data") not in parent:
-                        bpy.ops.ed.redo()
+                    bpy.ops.ed.redo()
+                    if undo:
                         redo_steps -= 1
+                    context = bpy.context
+                    if bpy.ops.ed.redo.poll() and copy_dict == functions.create_object_copy(context, parent, name):
+                        bpy.ops.ed.redo()
+                        if undo:
+                            redo_steps -= 1
                         context = bpy.context
-                        
+                        second_undo = True
+                            
                     data.append(functions.improve_context_report(context, copy_dict, parent, name, value))
+
+                    if not (undo or skip_op_redo):
+                        bpy.ops.ed.undo()
+                        if bpy.ops.ed.undo.poll() and second_undo and not skip_op_redo:
+                            bpy.ops.ed.undo()
+                        context = bpy.context
+
                 elif bpy_type == 1:
                     if register:
                         copy_dict = functions.create_operator_based_copy(context, parent, name, value)
 
-                    if undo:
+                    if len_reports > i + 1:
+                        skip_op_redo = reports[i + 1][0] == 1
+                    else:
+                        skip_op_redo = True
+                    if undo and skip_op_redo:
                         bpy.ops.ed.redo()
                         redo_steps -= 1
                         context = bpy.context
@@ -364,6 +389,10 @@ class AR_OT_local_record(shared.id_based, Operator):
                     if register:
                         data.append(functions.imporve_operator_report(context, parent, name, value, copy_dict))
                 i += 1
+            
+            while redo_steps > 0 and bpy.ops.ed.redo.poll():
+                bpy.ops.ed.redo()
+            context = bpy.context
 
             error_reports = []
             print("="*10, "DATA", "="*10, "\n", data,"\n", "="*30)
@@ -387,6 +416,11 @@ class AR_OT_local_record(shared.id_based, Operator):
 
 class AR_OT_local_icon(icon_manager.icontable, shared.id_based, Operator):
     bl_idname = "ar.local_icon"
+
+    @classmethod
+    def poll(cls, context):
+        AR = context.preferences.addons[__module__].preferences
+        return not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -420,7 +454,7 @@ class AR_OT_local_clear(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) and (len(AR.local_actions[AR.selected_local_action_index].macros) or ignore)
+        return len(AR.local_actions) and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore) and not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences

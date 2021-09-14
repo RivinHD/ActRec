@@ -34,7 +34,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
-            col.template_list('AR_UL_locals', '', AR, 'local_actions', AR, 'selected_local_action_index', rows= 4, sort_lock= True)
+            col.template_list('AR_UL_locals', '', AR, 'local_actions', AR, 'active_local_action_index', rows= 4, sort_lock= True)
             col = box_row.column()
             col2 = col.column(align= True)
             col2.operator("ar.local_add", text= '', icon='ADD')
@@ -63,8 +63,8 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
             box = layout.box()
             box_row = box.row()
             col = box_row.column()
-            selected_action = AR.local_actions[AR.selected_local_action_index]
-            col.template_list('AR_UL_macros', '', selected_action, 'macros' , selected_action, 'selected_macro_index', rows= 4, sort_lock= True)
+            selected_action = AR.local_actions[AR.active_local_action_index]
+            col.template_list('AR_UL_macros', '', selected_action, 'macros' , selected_action, 'active_macro_index', rows= 4, sort_lock= True)
             col = box_row.column()
             if not AR.local_record_macros:
                 col2 = col.column(align= True)
@@ -129,7 +129,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
                 col = row2.column()
                 col.enabled = bpy.ops.ar.global_rename.poll()
                 col.prop(AR, 'global_rename', text= '')
-                row2.operator("ar.global_rename", text= 'Rename')
+                row2.operator("ar.global_rename", text= 'Rename').label = AR.global_rename
     AR_PT_global.__name__ = "AR_PT_global_%s" %space_type
 
     class AR_PT_help(Panel):

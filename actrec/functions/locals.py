@@ -36,7 +36,7 @@ def get_local_action_index(AR, id, index):
         if index >= 0 and len(AR.local_actions) > index: # fallback to input index
             action = index
         else:
-            action = AR.selected_local_action_index # fallback to selection
+            action = AR.active_local_action_index # fallback to selection
     return action
 
 def load_local_action(AR, data: list):

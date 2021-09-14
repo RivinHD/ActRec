@@ -1,7 +1,7 @@
 # region Imports
 # external modules
 import os
-from typing import Optional
+from typing import Union
 import zipfile
 from collections import defaultdict
 import uuid
@@ -14,7 +14,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProp
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
-from .. import functions, properties, icon_manager
+from .. import functions, properties, icon_manager, ui_functions
 from . import shared
 # endregion
 
@@ -55,7 +55,7 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
 
     def draw(self, context):
         AR = context.preferences.addons[__module__].preferences
-        categories = AR.Categories
+        categories = AR.categories
         layout = self.layout
         for category in categories:
             layout.prop(category, 'selected', text= category.label)
@@ -68,68 +68,69 @@ class AR_OT_global_import(Operator, ImportHelper):
     filter_glob: StringProperty(default='*.zip;*.json', options={'HIDDEN'})
 
     category : StringProperty(default= "Imports")
-    mode : EnumProperty(name= 'Mode', items= [("add","Add",""),("overwrite", "Overwrite", "")])
+    mode : EnumProperty(name= 'Mode', items= [("add","Add","Add to the current Global data"), ("overwrite", "Overwrite", "Remove the current Global data")])
 
     def get_macros_from_file(self, zip_file: zipfile.ZipFile, path: str) -> list:
-        lines = zip_file.read(path).splitlines(False)
+        lines =  zip_file.read(path).decode(encoding= "utf-8").splitlines()
         macros = []
         for line in lines:
-            split_line = line.split("#")
-            data = {'id' : uuid.uuid1().hex, 'active' : True, 'icon': 101}
-            if len(split_line) >= 2:
-                data['command'] = "#".join(split_line[:-1])
-                data['label'] = split_line[-1]
-            else:
-                data['command'] = split_line[0]
-                label = functions.get_name_of_command(split_line[0])
-                data['label'] = label if isinstance(label, str) else split_line[0]
+            data = {'id' : uuid.uuid1().hex, 'active' : True, 'icon': 0}
+            data['command'] = line
+            label = functions.get_name_of_command(line)
+            data['label'] = label if isinstance(label, str) else line
             macros.append(data)
         return macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
 
-        if AR.import_extension == ".zip":
+        if AR.import_extension == ".zip" or AR.import_extension == ".json":
             if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
                 self.report({'ERROR'}, "The selected file is not compatible")
                 return {'CANCELLED'}
 
-            data = defaultdict(list)
-            current_actions_length = 0
-            zip_file = zipfile.ZipFile(self.filepath, mode= 'r')
-            for category in AR.import_settings:
-                if category.use and any(action.use for action in category.actions):
-                    actions = list(filter(lambda x: x.use, category.actions))
-                    data['categories'].append({
-                        'id' : uuid.uuid1().hex,
-                        'label' : category.label,
-                        'start' : current_actions_length,
-                        'length' : len(actions),
-                    })
-                    for action in actions:
-                        data['actions'].append({
-                        'id' : uuid.uuid1().hex,
-                        'label' : action.label,
-                        'macros' : self.get_macros_from_file(zip_file, action.identifier),
-                        'icon' : action.identifier.split("~")[-1]
+            if self.mode == "overwrite":
+                for category in AR.categories:
+                    ui_functions.unregister_category(AR, category)
+                AR.global_actions.clear()
+                AR.categories.clear()
+
+            if AR.import_extension == ".zip":
+                data = defaultdict(list)
+                current_actions_length = 0
+                zip_file = zipfile.ZipFile(self.filepath, mode= 'r')
+                for category in AR.import_settings:
+                    if category.use and any(action.use for action in category.actions):
+                        actions = list(filter(lambda x: x.use, category.actions))
+                        category_actions = [
+                            {
+                            'id' : uuid.uuid1().hex,
+                            'label' : action.label,
+                            'macros' : self.get_macros_from_file(zip_file, action.identifier),
+                            'icon' : int(action.identifier.split("~")[-1].split(".")[0])
+                            }for action in actions
+                        ]
+                        data['categories'].append({
+                            'id' : uuid.uuid1().hex,
+                            'label' : category.label,
+                            'start' : current_actions_length,
+                            'length' : len(actions),
+                            'actions' : [{"id": action['id']} for action in category_actions]
                         })
-            functions.import_global_from_dict(AR, data)
-        elif AR.import_extension == ".json":
-            if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
-                self.report({'ERROR'}, "The selected file is not compatible")
-                return {'CANCELLED'}
+                        data['actions'] += category_actions
+                functions.import_global_from_dict(AR, data)
+            elif AR.import_extension == ".json":
+                with open(self.filepath, 'r', encoding= 'utf-8') as file:
+                    data = json.loads(file.read())
+                category_ids = set(category.identifier for category in AR.import_settings)
+                action_ids = []
+                for category in AR.import_settings:
+                    action_ids += [action.identifier for action in category.actions]
+                action_ids = set(action_ids)
 
-            with open(self.filepath, 'r', encoding= 'utf-8') as file:
-                data = json.loads(file.read())
-            category_ids = set(category.identifier for category in AR.import_settings)
-            action_ids = []
-            for category in AR.import_settings:
-                action_ids += [action.identifier for action in category.actions]
-            action_ids = set(action_ids)
-
-            data['categories'] = [category for category in data['categories'] if category['id'] not in category_ids]
-            data['actions'] = [action for action in data['actions'] if action['id'] not in action_ids]
-            functions.import_global_from_dict(AR, data)
+                data['categories'] = [category for category in data['categories'] if category['id'] not in category_ids]
+                data['actions'] = [action for action in data['actions'] if action['id'] not in action_ids]
+                functions.import_global_from_dict(AR, data)
         else:
             self.report({'ERROR'}, "Select a .json or .zip file {%s}" %self.filepath)
         AR = context.preferences.addons[__module__].preferences
@@ -156,7 +157,6 @@ class AR_OT_global_import(Operator, ImportHelper):
                 row.prop(category, 'show', icon="TRIA_RIGHT", text= "", emboss= False)
             row.prop(category, 'use', text= "")
             row.label(text= category.label)
-            row.prop(category, 'mode', text= "", expand= True)
             if category.show:
                 sub_col = box.column()
                 for action in category.actions:
@@ -177,8 +177,8 @@ class AR_OT_global_import_settings(Operator):
     from_operator : BoolProperty(default= False)
 
     def valid_file(self, file: str) -> bool:
-        if file.endswith(".py") and file.count('~') == 2:
-            index, name, icon = file.split("~")
+        if file.count('~') == 2:
+            index, name, icon = ".".join(file.split(".")[:-1]).split("~") # remove .py from filename and split apart
             return index.isdigit() and (icon.isupper() or icon.isdigit())
         return False
     
@@ -188,18 +188,22 @@ class AR_OT_global_import_settings(Operator):
             return index.isdigit()
         return False
 
-    def import_sorted_zip(self, filepath: str) -> Optional[dict]:
+    def import_sorted_zip(self, filepath: str) -> Union[dict, str]:
         with zipfile.ZipFile(filepath, 'r') as zip_file:
             filepaths = sorted(zip_file.namelist())
-        categories = defaultdict(list) 
+        categories = defaultdict(list)
 
-        for file in filepaths:
-            category, action_file = file.split("/")
-            if not (self.valid_file(action_file) and self.valid_directory(category)):
-                return None
+        for file in filter(lambda x: x.endswith(".py"), filepaths):
+            split = file.split("/")
+            if len(split) < 2:
+                return file
+            category = split[-2]
+            action_file = split[-1]
+            if not (self.valid_directory(category) and self.valid_file(action_file)):
+                return file
             categories[category].append(file)
         for item in categories.values():
-            item.sort(key= lambda x: int(x.split('~')[0]))
+            item.sort(key= lambda x: int(x.split("/")[-1].split('~')[0]))
         return categories
 
     def execute(self, context):
@@ -209,18 +213,18 @@ class AR_OT_global_import_settings(Operator):
         if os.path.exists(self.filepath):
             if self.filepath.endswith(".zip"):
                 AR.import_extension = ".zip"
-                categories_path = self.import_sorted_zip(self.filepath)
-                if categories_path is None and not self.from_operator:
-                    self.report({'ERROR'}, "The selected file is not compatible")
+                categories_paths = self.import_sorted_zip(self.filepath)
+                if isinstance(categories_paths, str) and not self.from_operator:
+                    self.report({'ERROR'}, "The selected file is not compatible (%s)" %categories_paths)
                     return {'CANCELLED'}
-                for key, item in sorted(categories_path.items(), key= lambda x: int(x[0].split('~')[0])):
+                for key, item in sorted(categories_paths.items(), key= lambda x: int(x[0].split('~')[0])):
                     new_category = AR.import_settings.add()
                     new_category.identifier = key
                     new_category.label = key.split('~')[1]
                     for file in item:
                         new_action = new_category.actions.add()
                         new_action.identifier = file
-                        new_action.label = file.split("/")[1].split('~')[1]
+                        new_action.label = file.split("/")[-1].split('~')[1]
                 return {"FINISHED"}
             elif self.filepath.endswith(".json"):
                 AR.import_extension = ".json"
@@ -295,7 +299,7 @@ class AR_OT_global_export(Operator, ExportHelper):
             if action.id in export_action_ids:
                 data['actions'].append(functions.property_to_python(category, ['name', 'alert', 'selected', 'macros.name', 'macros.alert', 'macros.is_available']))
         with open(self.filepath, 'w', encoding= 'utf-8') as file:
-            json.dump(data, file, ensure_ascii= False, indent= 4)
+            json.dump(data, file, ensure_ascii= False, indent= 2)
         self.cancel(context)
         return {'FINISHED'}
     
@@ -358,7 +362,7 @@ class AR_OT_global_to_local(shared.id_based, Operator):
         data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
         data["id"] = id
         functions.add_data_to_collection(AR.local_actions, data)
-        AR.selected_local_action_index = len(AR.local_actions)
+        AR.active_local_action_index = len(AR.local_actions)
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -436,7 +440,7 @@ class AR_OT_global_move_down(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ids = set(functions.get_global_action_ids(AR, self.id, self.index))
         for category in AR.categories:
-            for id_action in list(category.actions).reverse():
+            for id_action in reversed(list(category.actions)):
                 if id_action.id in ids:
                     index = category.actions.find(id_action.id)
                     category.actions.move(index, index + 1)
@@ -461,16 +465,18 @@ class AR_OT_global_rename(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ids = functions.get_global_action_ids(AR, self.id, self.index)
         self.clear()
+        label = self.label
+        self.label = ""
+
         if len(ids) == 1:
             id = ids[0]
-            if AR.global_actions.find(id) == -1:
-                return {'CANCELLED'}
-            AR.global_actions[id].label = self.label
-            functions.global_runtime_save(AR)
-            context.area.tag_redraw()
-            return {"FINISHED"}
-        else:
-            return {'CANCELLED'}
+            action = AR.global_actions.get(id, None)
+            if action:
+                AR.global_actions[id].label = label
+                functions.global_runtime_save(AR)
+                context.area.tag_redraw()
+                return {"FINISHED"}
+        return {'CANCELLED'}
 
 class AR_OT_global_execute_action(shared.id_based, Operator):
     bl_idname = 'ar.global_execute_action'

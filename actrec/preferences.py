@@ -56,15 +56,17 @@ class AR_preferences(AddonPreferences):
     # locals
     local_actions : CollectionProperty(type= properties.AR_local_actions)
 
-    def get_selected_local_action_index(self):
-        value = self.get('selected_local_action_index', 0)
+    def get_active_local_action_index(self):
+        value = self.get('active_local_action_index', 0)
         actions_length = len(self.local_actions)
         return value if value < actions_length else actions_length - 1
-    def set_selected_local_action_index(self, value):
-        actions_length = len(self.local_actions)
-        value if value < actions_length else actions_length - 1
-        self['selected_local_action_index'] = value if value >= 0 else 0
-    selected_local_action_index : IntProperty(name= "Select", min= 0, get= get_selected_local_action_index, set= set_selected_local_action_index)
+    def set_active_local_action_index(self, value):
+        AR = bpy.context.preferences.addons[__module__].preferences
+        if not AR.local_record_macros:
+            actions_length = len(self.local_actions)
+            value = value if value < actions_length else actions_length - 1
+            self['active_local_action_index'] = value if value >= 0 else actions_length - 1
+    active_local_action_index : IntProperty(name= "Select", min= 0, get= get_active_local_action_index, set= set_active_local_action_index)
 
     local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     local_record_macros : BoolProperty(name= "Record Macros", default= False)

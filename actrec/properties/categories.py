@@ -8,6 +8,8 @@ from bpy.props import BoolProperty, StringProperty, CollectionProperty
 from . import shared
 # endregion
 
+__module__ = __package__.split(".")[0]
+
 # region PropertyGroups
 class AR_category_modes(PropertyGroup):
     def get_name(self):
@@ -36,10 +38,11 @@ class AR_categories(shared.id_system, PropertyGroup):
         AR = bpy.context.preferences.addons[__module__].preferences
         selected_id = AR.get("categories.selected_id", None)
         if value:
-            if selected_id != None:
-                AR.categories[selected_id].selected = False
             AR["categories.selected_id"] = self.id
             self['selected'] = value
+            category = AR.categories.get(selected_id, None)
+            if category:
+                category.selected = False
         elif selected_id != self.id:
             self['selected'] = value
 

@@ -77,7 +77,7 @@ def register_unregister_category(index, space_types = panels.ui_space_types, reg
             bl_category = 'Action Recorder'
             bl_label = ' '
             bl_idname = "AR_PT_category_%s_%s" %(index, spaceType)
-            bl_parent_id = "AR_PT_Global_%s" % spaceType
+            bl_parent_id = "AR_PT_global_%s" % spaceType
             bl_order = index + 1
 
             @classmethod
@@ -85,7 +85,7 @@ def register_unregister_category(index, space_types = panels.ui_space_types, reg
                 AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
                 category = AR.categories[index]
-                return show_category(category, context)
+                return show_category(context, category)
 
             def draw_header(self, context):
                 AR = context.preferences.addons[__module__].preferences
@@ -103,7 +103,7 @@ def register_unregister_category(index, space_types = panels.ui_space_types, reg
                 layout = self.layout
                 col = layout.column()
                 for id in [x.id for x in category.actions]:
-                    globals.draw_actions(col, AR, id)
+                    globals.draw_global_action(col, AR, id)
         AR_PT_category.__name__ = "AR_PT_category_%s_%s" %(index, spaceType)
         if register:
             bpy.utils.register_class(AR_PT_category)

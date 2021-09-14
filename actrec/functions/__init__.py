@@ -40,7 +40,8 @@ from .macros import (
     dict_to_kwarg_str,
     track_scene,
     merge_report_tracked,
-    compare_op_dict
+    compare_op_dict,
+    convert_to_python
 )
 
 from .shared import (
@@ -56,5 +57,6 @@ from .shared import (
     split_and_keep,
     text_to_lines,
     execute_render_init,
-    execute_render_complete
+    execute_render_complete,
+    enum_list_id_to_name_dict
 )

@@ -23,7 +23,7 @@ def get_local_macro_index(action, id, index):
         if len(action.macros) > index and index >= 0: # fallback to input index
             macro = index
         else:
-            macro = action.selected_macro_index # fallback to selection
+            macro = action.active_macro_index # fallback to selection
     return macro
 
 def convert_to_python(value):
@@ -31,6 +31,8 @@ def convert_to_python(value):
         return tuple(convert_to_python(x) for x in value)
     elif isinstance(value, mathutils.Vector):
         return value.to_tuple()
+    elif isinstance(value, mathutils.Euler) or isinstance(value, mathutils.Quaternion) or isinstance(value, mathutils.Color):
+        return tuple(x for x in value)
     elif isinstance(value, mathutils.Matrix):
         return tuple(row.to_tuple() for row in value)
     return value
@@ -96,7 +98,7 @@ def compare_fstr_float(fstr: str, fnum: float) -> bool:
 def compare_value(str_value, value) -> bool:
     return (isinstance(value, float) and compare_fstr_float(str_value, value)
         or isinstance(value, bool) and str_value == str(value)
-        or isinstance(value, int) and int(str_value) == value
+        or isinstance(value, int) and str_value == str(value)
         or isinstance(value, str) and str_value[1: -1] == value)
 
 def str_dict_to_dict(obj: str):
@@ -117,11 +119,9 @@ def str_dict_to_dict(obj: str):
 def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
     for key, str_value in op1_props.items():
         value = op2_props[key]
-        print(key)
         if "_OT_" in key:
             if compare_op_dict(str_dict_to_dict(str_value), value):
                 continue
-            print("NOW _OT_", str_dict_to_dict(str_value), value)
             return False
         elif isinstance(value, tuple):
             str_value = str_value[1: -1]
@@ -131,16 +131,13 @@ def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
                     str_vec = [x for x in str_vec.split(", ") if x]
                     for str_v, v in zip(str_vec, vec):
                         if not compare_value(str_v, v):
-                            print("NOW 2", str_v, v)
                             return False
             else:
                 str_vec = [x for x in str_value.split(", ") if x]
                 for str_v, v in zip(str_vec, value):
                     if not compare_value(str_v, v):
-                        print("NOW 1", str_v, v)
                         return False
         elif not compare_value(str_value, value):
-            print("NOW 0 ",str_value, value)
             return False
     return True
 
@@ -160,7 +157,6 @@ def merge_report_tracked(reports, tracked_actions) -> list:
     continue_report = len_report > report_i
     continue_tracked = len_tracked > tracked_i
     tracked = [True, True, "CONTEXT", 1]
-    print(reports, tracked_actions)
     while continue_report or continue_tracked:
         if continue_report:
             report = reports[report_i]
@@ -168,11 +164,9 @@ def merge_report_tracked(reports, tracked_actions) -> list:
             tracked = tracked_actions[tracked_i]
         if report.startswith('bpy.ops.'):
             if last_i != report_i:
-                ops_type, ops_name, ops_values = split_operator_report(report)
+                ops_type, ops_name, ops_values = split_operator_report(report) # clean up reports first before merge with tracked actions!!!
             last_i = report_i
-            print(ops_values, tracked[3])
             if tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name):
-                print(compare_op_dict(ops_values, tracked[3]))
                 if compare_op_dict(ops_values, tracked[3]):
                     if continue_report:
                         data.append((1, True, tracked[1], ops_type, ops_name, ops_values))
@@ -184,19 +178,25 @@ def merge_report_tracked(reports, tracked_actions) -> list:
                     data.append((1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
                 tracked_i += 1
         elif report.startswith('bpy.context.'):
-            if continue_report:
-                data.append((0, True, True, *split_context_report(report)))
-                report_i += 1
             if tracked[2] == 'CONTEXT':
+                if continue_report:
+                    source_path, attribute, value = split_context_report(report)
+                    undo = not (any(x in source_path for x in ("screen", "area", "space_data")) or all(x in attribute for x in ("active", "index"))) # exclude index set of UIList
+                    data.append((0, True, undo, source_path, attribute, value))
+                    report_i += 1
                 tracked[3] -= 1
                 if tracked[3] == 0:
                     tracked_i += 1
-            elif not continue_report:
+            elif not continue_report or not tracked[0]:
                 tracked_type, tracked_name = tracked[2].split("_OT_")
                 data.append((1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
                 tracked_i += 1
+            else:
+                report_i += 1
         else:
             report_i += 1
+            if not continue_report:
+                break
 
         continue_report = len_report > report_i
         continue_tracked = len_tracked > tracked_i
@@ -209,6 +209,7 @@ def add_report_as_macro(AR, action, report: str, error_reports: list) -> None:
         macro.id
         macro.label = AR.last_macro_label = label if label else report
         macro.command = AR.last_macro_command = report
+        action.active_macro_index = -1
     else:
         error_reports.append(report)
 
@@ -258,11 +259,12 @@ def check_object_report(obj, copy_dict, source_path, attribute: str, value):
     if hasattr(obj, attribute) and getattr(obj, attribute) != copy_dict[attribute]:
         return obj.__class__.__name__, ".".join(source_path), attribute, value
     for key in copy_dict:
-        if hasattr(obj, key) and isinstance(copy_dict[key], dict):
-            res = check_object_report(getattr(obj, key), copy_dict[key], [*source_path, key],  attribute, value)
-            if res:
-                return res
-    return obj.__class__.__name__, ".".join(source_path), attribute, value
+        if hasattr(obj, key):
+            if isinstance(copy_dict[key], dict):
+                res = check_object_report(getattr(obj, key), copy_dict[key], [*source_path, key], attribute, value)
+                if res:
+                    return res
+    return
 
 def improve_context_report(context, copy_dict: dict, source_path: list, attribute: str, value: str) -> str:
     id_object = get_id_object(context, source_path, attribute)
@@ -270,9 +272,13 @@ def improve_context_report(context, copy_dict: dict, source_path: list, attribut
         object_class = id_object.__class__.__name__
         res = [".".join(source_path), attribute, value]
     else:
-        object_class, *res = check_object_report(id_object, copy_dict, source_path, attribute, value)
+        res = check_object_report(id_object, copy_dict, source_path, attribute, value)
+        if res:
+            object_class, *res = res
+        else:
+            object_class, *res = id_object.__class__.__name__, ".".join(source_path), attribute, value
     for attr in context.__dir__():
-        if object_class == getattr(bpy.context, attr).__class__.__name__:
+        if attr not in ("button_pointer", "id") and object_class == getattr(bpy.context, attr).__class__.__name__:
             res[0] = attr
     return "bpy.context.%s.%s = %s" %tuple(res)
 
