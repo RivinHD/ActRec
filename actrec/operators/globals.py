@@ -84,14 +84,15 @@ class AR_OT_global_import(Operator, ImportHelper):
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
 
+        if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
+            self.report({'ERROR'}, "Selected file is incompatible")
+            return {'CANCELLED'}
+
         if AR.import_extension == ".zip" or AR.import_extension == ".json":
-            if not len(AR.import_settings) and bpy.ops.ar.global_import_settings('EXEC_DEFAULT', filepath= self.filepath, from_operator= True) == {'CANCELLED'}:
-                self.report({'ERROR'}, "The selected file is not compatible")
-                return {'CANCELLED'}
 
             if self.mode == "overwrite":
-                for category in AR.categories:
-                    ui_functions.unregister_category(AR, category)
+                for i in range(len(AR.categories)):
+                    ui_functions.unregister_category(AR, i)
                 AR.global_actions.clear()
                 AR.categories.clear()
 
@@ -214,8 +215,9 @@ class AR_OT_global_import_settings(Operator):
             if self.filepath.endswith(".zip"):
                 AR.import_extension = ".zip"
                 categories_paths = self.import_sorted_zip(self.filepath)
-                if isinstance(categories_paths, str) and not self.from_operator:
-                    self.report({'ERROR'}, "The selected file is not compatible (%s)" %categories_paths)
+                if isinstance(categories_paths, str):
+                    if not self.from_operator:
+                        self.report({'ERROR'}, "The selected file is not compatible (%s)" %categories_paths)
                     return {'CANCELLED'}
                 for key, item in sorted(categories_paths.items(), key= lambda x: int(x[0].split('~')[0])):
                     new_category = AR.import_settings.add()
@@ -250,12 +252,21 @@ class AR_OT_global_export(Operator, ExportHelper):
     bl_label = "Export"
     bl_description = "Export the Action file as a .json file"
 
+    def get_export_all(self):
+        return self.get("export_all", False)
+    def set_export_all(self, value):
+        self["export_all"] = value
+        for category in self.export_categories:
+            category["export_all"] = value
+            for action in category.actions:
+                action["export_all"] = value
+
     filter_glob: StringProperty(default= '*.json', options= {'HIDDEN'})
     filename_ext = ".json"
     
     filepath: StringProperty(name="File Path", description="Filepath used for exporting the file", maxlen=1024, subtype='FILE_PATH', default= "ActionRecorderButtons")
 
-    all_categories : BoolProperty(name= "All", description= "Export all category")
+    export_all : BoolProperty(name= "All", description= "Export all category", get= get_export_all, set= set_export_all)
     export_categories : CollectionProperty(type= properties.AR_global_export_categories)
 
     @classmethod
@@ -294,10 +305,10 @@ class AR_OT_global_export(Operator, ExportHelper):
             export_action_ids += set(action.id for action in category.actions if action.use)
         for category in AR.categories:
             if category.id in export_category_ids:
-                data['categories'].append(functions.property_to_python(category, ['name', 'selected']))
+                data['categories'] = functions.property_to_python(AR.categories, exclude= ["name", "selected", "actions.name", "areas.name", "areas.modes.name"])
         for action in AR.global_actions:
             if action.id in export_action_ids:
-                data['actions'].append(functions.property_to_python(category, ['name', 'alert', 'selected', 'macros.name', 'macros.alert', 'macros.is_available']))
+                data['actions'] = functions.property_to_python(AR.global_actions, exclude= ["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"])
         with open(self.filepath, 'w', encoding= 'utf-8') as file:
             json.dump(data, file, ensure_ascii= False, indent= 2)
         self.cancel(context)
@@ -309,19 +320,19 @@ class AR_OT_global_export(Operator, ExportHelper):
 
     def draw(self, context):
         layout = self.layout
-        box = layout.box()
-        box.prop(self, 'all_categories', text= "All")
+        layout.prop(self, 'export_all', text= "All")
+        col = layout.column(align= True)
         for category in self.export_categories:
-            box = layout.box()
-            col = box.column()
-            row = col.row()
+            box = col.box()
+            col2 = box.column()
+            row = col2.row()
             row.prop(category, 'show', icon="TRIA_DOWN" if category.show else "TRIA_RIGHT", text= "", emboss= False)
             row.label(text= category.label)
             row.prop(category, 'use', text= "")
             if category.show:
-                col = box.column(align= False)
+                col2 = box.column(align= False)
                 for action in category.actions:
-                    subrow = col.row()
+                    subrow = col2.row()
                     subrow.prop(action, 'use' , text= '') 
                     subrow.label(text= action.label)
 

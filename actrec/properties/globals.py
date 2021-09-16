@@ -37,7 +37,7 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
 
 class AR_global_import_action(PropertyGroup):
     def get_use(self):
-        return self.get("use", True) and self.get('category.use', True)
+        return self.get('use', True) and self.get('category.use', True)
     def set_use(self, value):
         if self.get('category.use', True):
             self['use'] = value
@@ -62,24 +62,25 @@ class AR_global_import_category(PropertyGroup):
 
 class AR_global_export_action(shared.id_system, PropertyGroup):
     def get_use(self):
-        return self.get("use", True) and self.get('category.use', True)
+        return self.get("use", True) and self.get('category.use', True) or self.get('export_all', False)
     def set_use(self, value):
-        if self.get('category.use', True):
+        if self.get('category.use', True) and not self.get('export_all', False):
             self['use'] = value
     
     label : StringProperty()
-    use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to import the action", get= get_use, set= set_use)
+    use : BoolProperty(default= True, name= "Import Action", description= "Decide whether to export the action", get= get_use, set= set_use)
 
 class AR_global_export_categories(shared.id_system, PropertyGroup):
     def get_use(self):
-        return self.get("use", True)
+        return self.get("use", True) or self.get("export_all", False)
     def set_use(self, value):
-        self['use'] = value
-        for action in self.actions:
-            action['category.use'] = value
+        if not self.get("export_all", False):
+            self['use'] = value
+            for action in self.actions:
+                action['category.use'] = value
 
     label : StringProperty()
-    actions : CollectionProperty(type= AR_global_import_action)
+    actions : CollectionProperty(type= AR_global_export_action)
     show : BoolProperty(default= True)
     use : BoolProperty(default= True, name= "Export Category", description= "Decide whether to export the category", get= get_use, set= set_use)
 # endregion

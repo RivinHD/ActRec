@@ -53,8 +53,8 @@ def local_action_to_text(action, text_name = None):
         texts.new(text_name)
     text = texts[text_name]
     text.clear()
-    text.write("###AR### id: %s, icon: %i\n%s" %(action.id, action.icon, 
-        "\n".join(["%s # id: %s, label: %s, icon: %i, active: %s, is_available: %s"
+    text.write("###AR### id: '%s', icon: %i\n%s" %(action.id, action.icon, 
+        "\n".join(["%s # id: '%s', label: '%s', icon: %i, active: %s, is_available: %s"
         %(macro.command, macro.id, macro.label, macro.icon, macro.active, macro.is_available) for macro in action.macros])
         )
     )

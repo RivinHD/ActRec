@@ -1,111 +1,111 @@
 {
   "categories": [
     {
-      "id": "917e803e159611ec88be70c94ef23b30",
+      "id": "c7a759ed164611ecaa6170c94ef23b30",
       "label": "OBJ Mode",
       "actions": [
         {
-          "id": "917e324d159611ecb76e70c94ef23b30"
+          "id": "c7a1f271164611eca91770c94ef23b30"
         },
         {
-          "id": "917e5941159611ec8b5f70c94ef23b30"
+          "id": "c7a40353164611ecbaad70c94ef23b30"
         },
         {
-          "id": "917e5946159611ecad6270c94ef23b30"
+          "id": "c7a6be1f164611ec9a5570c94ef23b30"
         },
         {
-          "id": "917e594a159611ecb0ef70c94ef23b30"
+          "id": "c7a6e49c164611ec8f2170c94ef23b30"
         },
         {
-          "id": "917e594e159611ec9e4e70c94ef23b30"
+          "id": "c7a70b8f164611ec915d70c94ef23b30"
         },
         {
-          "id": "917e8037159611ecbdc770c94ef23b30"
+          "id": "c7a73281164611eca36c70c94ef23b30"
         }
       ],
       "areas": []
     },
     {
-      "id": "917ea73e159611ecbcc170c94ef23b30",
+      "id": "c7a81cb7164611ecb7fe70c94ef23b30",
       "label": "Edit Mode",
       "actions": [
         {
-          "id": "917e803f159611ecb49670c94ef23b30"
+          "id": "c7a759ee164611ecb84c70c94ef23b30"
         },
         {
-          "id": "917e8042159611ecb2e870c94ef23b30"
+          "id": "c7a780f7164611ecb42870c94ef23b30"
         },
         {
-          "id": "917e8045159611ecb5b070c94ef23b30"
+          "id": "c7a780fa164611ecb1ad70c94ef23b30"
         },
         {
-          "id": "917ea730159611eca06770c94ef23b30"
+          "id": "c7a7a7d9164611ecb20d70c94ef23b30"
         },
         {
-          "id": "917ea733159611ec990070c94ef23b30"
+          "id": "c7a7cecf164611ecbea570c94ef23b30"
         },
         {
-          "id": "917ea736159611eca32c70c94ef23b30"
+          "id": "c7a7ced2164611ec9dcf70c94ef23b30"
         },
         {
-          "id": "917ea738159611ecb6f570c94ef23b30"
+          "id": "c7a7f5bd164611ec8b7d70c94ef23b30"
         }
       ],
       "areas": []
     },
     {
-      "id": "917ef524159611ecbb3570c94ef23b30",
+      "id": "c7a89191164611ec9cd470c94ef23b30",
       "label": "UV Mode",
       "actions": [
         {
-          "id": "917ea73f159611eca8ef70c94ef23b30"
+          "id": "c7a81cb8164611ecb9ca70c94ef23b30"
         },
         {
-          "id": "917ece27159611ecb60b70c94ef23b30"
+          "id": "c7a81cbc164611ec8a5a70c94ef23b30"
         },
         {
-          "id": "917ece2d159611ec9ecb70c94ef23b30"
+          "id": "c7a843b2164611ec929870c94ef23b30"
         },
         {
-          "id": "917ece31159611ecb21b70c94ef23b30"
+          "id": "c7a86aa8164611ec881c70c94ef23b30"
         },
         {
-          "id": "917ece33159611ecb63b70c94ef23b30"
+          "id": "c7a86aaa164611ec9dee70c94ef23b30"
         },
         {
-          "id": "917ef51e159611ec924970c94ef23b30"
+          "id": "c7a8918b164611ecb21d70c94ef23b30"
         }
       ],
       "areas": []
     },
     {
-      "id": "917f1c6a159611ec87fe70c94ef23b30",
+      "id": "c7a90678164611ec851370c94ef23b30",
       "label": "Template",
       "actions": [
         {
-          "id": "917ef525159611ecad1970c94ef23b30"
+          "id": "c7a8b816164611ecab0970c94ef23b30"
         },
         {
-          "id": "917ef528159611ecad2070c94ef23b30"
+          "id": "c7a8b819164611ecb77b70c94ef23b30"
         },
         {
-          "id": "917ef52b159611ecbc7070c94ef23b30"
+          "id": "c7a8b81c164611eca23670c94ef23b30"
         }
       ],
       "areas": []
     },
     {
-      "id": "917f4318159611ecbb1070c94ef23b30",
+      "id": "c7a9545e164611eca65b70c94ef23b30",
       "label": "External",
       "actions": [
         {
-          "id": "917f1c6b159611ec80e770c94ef23b30"
+          "id": "c7a90679164611ec880270c94ef23b30"
         },
         {
-          "id": "917f1c6e159611ec8d9370c94ef23b30"
+          "id": "c7a9067c164611ecb3fd70c94ef23b30"
         },
         {
-          "id": "917f4315159611ecafb870c94ef23b30"
+          "id": "c7a92d7d164611eca77970c94ef23b30"
         }
       ],
       "areas": []
@@ -113,11 +113,11 @@
   ],
   "actions": [
     {
-      "id": "917e324d159611ecb76e70c94ef23b30",
+      "id": "c7a1f271164611eca91770c94ef23b30",
       "label": "Delete",
       "macros": [
         {
-          "id": "917e5940159611ec890670c94ef23b30",
+          "id": "c7a3dcba164611ecaaec70c94ef23b30",
           "label": "Delete",
           "command": "bpy.ops.object.delete(use_global=False)",
           "active": true,
@@ -128,11 +128,11 @@
       "icon": 3
     },
     {
-      "id": "917e5941159611ec8b5f70c94ef23b30",
+      "id": "c7a40353164611ecbaad70c94ef23b30",
       "label": "Subd Smooth",
       "macros": [
         {
-          "id": "917e5942159611ec981570c94ef23b30",
+          "id": "c7a40354164611ecb05c70c94ef23b30",
           "label": "Subdivision Set",
           "command": "bpy.ops.object.subdivision_set(level=1, relative=False)",
           "active": true,
@@ -140,7 +140,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e5943159611ec8a8570c94ef23b30",
+          "id": "c7a40355164611ecb9cd70c94ef23b30",
           "label": "Shade Smooth",
           "command": "bpy.ops.object.shade_smooth()",
           "active": true,
@@ -148,7 +148,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e5944159611eca54970c94ef23b30",
+          "id": "c7a42aa4164611ecba6570c94ef23b30",
           "label": "Auto Smooth = True",
           "command": "bpy.context.object.data.use_auto_smooth = True",
           "active": true,
@@ -156,7 +156,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e5945159611ec9e5c70c94ef23b30",
+          "id": "c7a6be1e164611ec8ede70c94ef23b30",
           "label": "Auto Smooth Angle = 3.14159",
           "command": "bpy.context.object.data.auto_smooth_angle = 3.14159",
           "active": true,
@@ -167,11 +167,11 @@
       "icon": 127
     },
     {
-      "id": "917e5946159611ecad6270c94ef23b30",
+      "id": "c7a6be1f164611ec9a5570c94ef23b30",
       "label": "Align_X",
       "macros": [
         {
-          "id": "917e5947159611ec937e70c94ef23b30",
+          "id": "c7a6e499164611ec927970c94ef23b30",
           "label": "Only Locations = True",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True",
           "active": true,
@@ -179,7 +179,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e5948159611eca54870c94ef23b30",
+          "id": "c7a6e49a164611ec9f1370c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(1, 0, 1))",
           "active": true,
@@ -187,7 +187,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e5949159611ecb96e70c94ef23b30",
+          "id": "c7a6e49b164611ecadb070c94ef23b30",
           "label": "Only Locations = False",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False",
           "active": true,
@@ -198,11 +198,11 @@
       "icon": 101
     },
     {
-      "id": "917e594a159611ecb0ef70c94ef23b30",
+      "id": "c7a6e49c164611ec8f2170c94ef23b30",
       "label": "Align_Y",
       "macros": [
         {
-          "id": "917e594b159611ecb08570c94ef23b30",
+          "id": "c7a70b8c164611ecbf2870c94ef23b30",
           "label": "Only Locations = True",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True",
           "active": true,
@@ -210,7 +210,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e594c159611ecb24a70c94ef23b30",
+          "id": "c7a70b8d164611ec92ab70c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(0, 1, 1))",
           "active": true,
@@ -218,7 +218,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e594d159611ecbd1870c94ef23b30",
+          "id": "c7a70b8e164611ecb39870c94ef23b30",
           "label": "Only Locations = False",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False",
           "active": true,
@@ -229,11 +229,11 @@
       "icon": 101
     },
     {
-      "id": "917e594e159611ec9e4e70c94ef23b30",
+      "id": "c7a70b8f164611ec915d70c94ef23b30",
       "label": "Align_Z",
       "macros": [
         {
-          "id": "917e594f159611ec812d70c94ef23b30",
+          "id": "c7a70b90164611ec867570c94ef23b30",
           "label": "Only Locations = True",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True",
           "active": true,
@@ -241,7 +241,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8035159611ec976270c94ef23b30",
+          "id": "c7a70b91164611ecb88370c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(1, 1, 0))",
           "active": true,
@@ -249,7 +249,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8036159611ec809070c94ef23b30",
+          "id": "c7a70b92164611ec924370c94ef23b30",
           "label": "Only Locations = False",
           "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False",
           "active": true,
@@ -260,11 +260,11 @@
       "icon": 101
     },
     {
-      "id": "917e8037159611ecbdc770c94ef23b30",
+      "id": "c7a73281164611eca36c70c94ef23b30",
       "label": "AddCubeSphere",
       "macros": [
         {
-          "id": "917e8038159611eca4d970c94ef23b30",
+          "id": "c7a73282164611ecb5d870c94ef23b30",
           "label": "Add Cube",
           "command": "bpy.ops.mesh.primitive_cube_add(enter_editmode=False, align='WORLD', location=(0, 0, 0))",
           "active": true,
@@ -272,7 +272,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8039159611ecab8570c94ef23b30",
+          "id": "c7a73283164611ecab2470c94ef23b30",
           "label": "Subdivision Set",
           "command": "bpy.ops.object.subdivision_set(level=2, relative=False)",
           "active": true,
@@ -280,7 +280,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e803a159611ecba0a70c94ef23b30",
+          "id": "c7a73284164611ec8bad70c94ef23b30",
           "label": "Convert To",
           "command": "bpy.ops.object.convert(target='MESH')",
           "active": true,
@@ -288,7 +288,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e803b159611ec905c70c94ef23b30",
+          "id": "c7a73285164611ec8df170c94ef23b30",
           "label": "Toggle Edit Mode",
           "command": "bpy.ops.object.editmode_toggle()",
           "active": true,
@@ -296,7 +296,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e803c159611eca4f070c94ef23b30",
+          "id": "c7a759eb164611ec89f870c94ef23b30",
           "label": "To Sphere",
           "command": "bpy.ops.transform.tosphere(value=1, mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)",
           "active": true,
@@ -304,7 +304,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e803d159611ec90fe70c94ef23b30",
+          "id": "c7a759ec164611ecb07c70c94ef23b30",
           "label": "Toggle Edit Mode",
           "command": "bpy.ops.object.editmode_toggle()",
           "active": true,
@@ -315,11 +315,11 @@
       "icon": 289
     },
     {
-      "id": "917e803f159611ecb49670c94ef23b30",
+      "id": "c7a759ee164611ecb84c70c94ef23b30",
       "label": "Merge",
       "macros": [
         {
-          "id": "917e8040159611ec8a1c70c94ef23b30",
+          "id": "c7a759ef164611eca84970c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(0, 0, 0))",
           "active": true,
@@ -327,7 +327,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8041159611ec998e70c94ef23b30",
+          "id": "c7a759f0164611ec84fd70c94ef23b30",
           "label": "Merge by Distance",
           "command": "bpy.ops.mesh.remove_doubles()",
           "active": true,
@@ -338,11 +338,11 @@
       "icon": 608
     },
     {
-      "id": "917e8042159611ecb2e870c94ef23b30",
+      "id": "c7a780f7164611ecb42870c94ef23b30",
       "label": "CheckerEdoge",
       "macros": [
         {
-          "id": "917e8043159611ec91c570c94ef23b30",
+          "id": "c7a780f8164611ec99ec70c94ef23b30",
           "label": "Checker Deselect",
           "command": "bpy.ops.mesh.select_nth()",
           "active": true,
@@ -350,7 +350,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8044159611ec9b2870c94ef23b30",
+          "id": "c7a780f9164611eca7ab70c94ef23b30",
           "label": "Multi Select Loops",
           "command": "bpy.ops.mesh.loop_multi_select(ring=False)",
           "active": true,
@@ -361,11 +361,11 @@
       "icon": 391
     },
     {
-      "id": "917e8045159611ecb5b070c94ef23b30",
+      "id": "c7a780fa164611ecb1ad70c94ef23b30",
       "label": "SubdSmooth",
       "macros": [
         {
-          "id": "917e8046159611ecbf7f70c94ef23b30",
+          "id": "c7a780fb164611eca61470c94ef23b30",
           "label": "Subdivision Set",
           "command": "bpy.ops.object.subdivision_set(level=1, relative=False)",
           "active": true,
@@ -373,7 +373,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8047159611ec8b2370c94ef23b30",
+          "id": "c7a7a7d5164611ec896e70c94ef23b30",
           "label": "(De)select All",
           "command": "bpy.ops.mesh.select_all(action='SELECT')",
           "active": true,
@@ -381,7 +381,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8048159611eca1d470c94ef23b30",
+          "id": "c7a7a7d6164611ec84c970c94ef23b30",
           "label": "Shade Smooth",
           "command": "bpy.ops.mesh.faces_shade_smooth()",
           "active": true,
@@ -389,7 +389,7 @@
           "ui_type": ""
         },
         {
-          "id": "917e8049159611ecbfd570c94ef23b30",
+          "id": "c7a7a7d7164611ecbfa570c94ef23b30",
           "label": "Auto Smooth = True",
           "command": "bpy.context.object.data.use_auto_smooth = True",
           "active": true,
@@ -397,7 +397,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea72f159611ec9aaf70c94ef23b30",
+          "id": "c7a7a7d8164611eca60170c94ef23b30",
           "label": "Auto Smooth Angle = 3.14159",
           "command": "bpy.context.object.data.auto_smooth_angle = 3.14159",
           "active": true,
@@ -408,11 +408,11 @@
       "icon": 127
     },
     {
-      "id": "917ea730159611eca06770c94ef23b30",
+      "id": "c7a7a7d9164611ecb20d70c94ef23b30",
       "label": "Crease&Shap",
       "macros": [
         {
-          "id": "917ea731159611ec8def70c94ef23b30",
+          "id": "c7a7a7da164611ecb63270c94ef23b30",
           "label": "Edge Crease",
           "command": "bpy.ops.transform.edge_crease(value=1)",
           "active": true,
@@ -420,7 +420,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea732159611ec8f3e70c94ef23b30",
+          "id": "c7a7cece164611eca5a070c94ef23b30",
           "label": "Mark Sharp",
           "command": "bpy.ops.mesh.mark_sharp()",
           "active": true,
@@ -431,11 +431,11 @@
       "icon": 462
     },
     {
-      "id": "917ea733159611ec990070c94ef23b30",
+      "id": "c7a7cecf164611ecbea570c94ef23b30",
       "label": "CreaseClear",
       "macros": [
         {
-          "id": "917ea734159611eca0c770c94ef23b30",
+          "id": "c7a7ced0164611ecabeb70c94ef23b30",
           "label": "Edge Crease",
           "command": "bpy.ops.transform.edge_crease(value=-1)",
           "active": true,
@@ -443,7 +443,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea735159611ecb36870c94ef23b30",
+          "id": "c7a7ced1164611ec8ed070c94ef23b30",
           "label": "Mark Sharp",
           "command": "bpy.ops.mesh.mark_sharp(clear=True)",
           "active": true,
@@ -454,11 +454,11 @@
       "icon": 288
     },
     {
-      "id": "917ea736159611eca32c70c94ef23b30",
+      "id": "c7a7ced2164611ec9dcf70c94ef23b30",
       "label": "ResetShape",
       "macros": [
         {
-          "id": "917ea737159611ec8bcb70c94ef23b30",
+          "id": "c7a7ced3164611ecaefe70c94ef23b30",
           "label": "Blend from Shape",
           "command": "bpy.ops.mesh.blend_from_shape(add=False)",
           "active": true,
@@ -469,11 +469,11 @@
       "icon": 201
     },
     {
-      "id": "917ea738159611ecb6f570c94ef23b30",
+      "id": "c7a7f5bd164611ec8b7d70c94ef23b30",
       "label": "Origin To Select",
       "macros": [
         {
-          "id": "917ea739159611ecadaf70c94ef23b30",
+          "id": "c7a7f5be164611ecaf7070c94ef23b30",
           "label": "Snap Cursor to Selected",
           "command": "bpy.ops.view3d.snap_cursor_to_selected()",
           "active": true,
@@ -481,7 +481,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea73a159611ecb04670c94ef23b30",
+          "id": "c7a7f5bf164611ecaca970c94ef23b30",
           "label": "Toggle Edit Mode",
           "command": "bpy.ops.object.editmode_toggle()",
           "active": true,
@@ -489,7 +489,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea73b159611ec94a370c94ef23b30",
+          "id": "c7a7f5c0164611ecb09470c94ef23b30",
           "label": "Set Origin",
           "command": "bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')",
           "active": true,
@@ -497,7 +497,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea73c159611eca35570c94ef23b30",
+          "id": "c7a7f5c1164611ec898b70c94ef23b30",
           "label": "Snap Cursor to World Origin",
           "command": "bpy.ops.view3d.snap_cursor_to_center()",
           "active": true,
@@ -505,7 +505,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea73d159611ec957d70c94ef23b30",
+          "id": "c7a81cb6164611ecabc070c94ef23b30",
           "label": "Toggle Edit Mode",
           "command": "bpy.ops.object.editmode_toggle()",
           "active": true,
@@ -516,11 +516,11 @@
       "icon": 555
     },
     {
-      "id": "917ea73f159611eca8ef70c94ef23b30",
+      "id": "c7a81cb8164611ecb9ca70c94ef23b30",
       "label": "Seam&UV",
       "macros": [
         {
-          "id": "917ea740159611eca30c70c94ef23b30",
+          "id": "c7a81cb9164611ecb76670c94ef23b30",
           "label": "Mark Seam",
           "command": "bpy.ops.mesh.mark_seam(clear=False)",
           "active": true,
@@ -528,7 +528,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ea741159611ec9b0c70c94ef23b30",
+          "id": "c7a81cba164611ecbc0a70c94ef23b30",
           "label": "Select Linked All",
           "command": "bpy.ops.mesh.select_linked(delimit=set())",
           "active": true,
@@ -536,7 +536,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece26159611ec8acb70c94ef23b30",
+          "id": "c7a81cbb164611ec894f70c94ef23b30",
           "label": "Unwrap",
           "command": "bpy.ops.uv.unwrap()",
           "active": true,
@@ -547,11 +547,11 @@
       "icon": 307
     },
     {
-      "id": "917ece27159611ecb60b70c94ef23b30",
+      "id": "c7a81cbc164611ec8a5a70c94ef23b30",
       "label": "FaceUV",
       "macros": [
         {
-          "id": "917ece28159611ec963070c94ef23b30",
+          "id": "c7a843ad164611ec8e5170c94ef23b30",
           "label": "Mark Seam",
           "command": "bpy.ops.mesh.mark_seam(clear=True)",
           "active": true,
@@ -559,7 +559,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece29159611ec9aab70c94ef23b30",
+          "id": "c7a843ae164611ec84ee70c94ef23b30",
           "label": "Unwrap",
           "command": "bpy.ops.uv.unwrap()",
           "active": true,
@@ -567,7 +567,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece2a159611eca25f70c94ef23b30",
+          "id": "c7a843af164611ec93fc70c94ef23b30",
           "label": "Seams from Islands",
           "command": "bpy.ops.uv.seams_from_islands()",
           "active": true,
@@ -575,7 +575,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece2b159611ecafce70c94ef23b30",
+          "id": "c7a843b0164611ec9ac970c94ef23b30",
           "label": "Select Linked All",
           "command": "bpy.ops.mesh.select_linked(delimit=set())",
           "active": true,
@@ -583,7 +583,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece2c159611ec961870c94ef23b30",
+          "id": "c7a843b1164611ec965570c94ef23b30",
           "label": "Unwrap",
           "command": "bpy.ops.uv.unwrap()",
           "active": true,
@@ -594,11 +594,11 @@
       "icon": 204
     },
     {
-      "id": "917ece2d159611ec9ecb70c94ef23b30",
+      "id": "c7a843b2164611ec929870c94ef23b30",
       "label": "ClearSeam",
       "macros": [
         {
-          "id": "917ece2e159611ecb58f70c94ef23b30",
+          "id": "c7a86aa5164611ecb03f70c94ef23b30",
           "label": "Mark Seam",
           "command": "bpy.ops.mesh.mark_seam(clear=True)",
           "active": true,
@@ -606,7 +606,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece2f159611ecbb2f70c94ef23b30",
+          "id": "c7a86aa6164611ecb4c170c94ef23b30",
           "label": "Select Linked All",
           "command": "bpy.ops.mesh.select_linked(delimit=set())",
           "active": true,
@@ -614,7 +614,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ece30159611ecacc370c94ef23b30",
+          "id": "c7a86aa7164611ec973470c94ef23b30",
           "label": "Unwrap",
           "command": "bpy.ops.uv.unwrap()",
           "active": true,
@@ -625,11 +625,11 @@
       "icon": 132
     },
     {
-      "id": "917ece31159611ecb21b70c94ef23b30",
+      "id": "c7a86aa8164611ec881c70c94ef23b30",
       "label": "Align_X",
       "macros": [
         {
-          "id": "917ece32159611ec98b070c94ef23b30",
+          "id": "c7a86aa9164611eca14b70c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(0, 1, 1))",
           "active": true,
@@ -640,11 +640,11 @@
       "icon": 101
     },
     {
-      "id": "917ece33159611ecb63b70c94ef23b30",
+      "id": "c7a86aaa164611ec9dee70c94ef23b30",
       "label": "Align_Y",
       "macros": [
         {
-          "id": "917ef51d159611ec9dca70c94ef23b30",
+          "id": "c7a86aab164611ec854b70c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(1, 0, 1))",
           "active": true,
@@ -655,11 +655,11 @@
       "icon": 101
     },
     {
-      "id": "917ef51e159611ec924970c94ef23b30",
+      "id": "c7a8918b164611ecb21d70c94ef23b30",
       "label": "AlignLayout",
       "macros": [
         {
-          "id": "917ef51f159611ecb75470c94ef23b30",
+          "id": "c7a8918c164611eca45870c94ef23b30",
           "label": "lock_bounds = True",
           "command": "bpy.context.space_data.uv_editor.lock_bounds = True",
           "active": true,
@@ -667,7 +667,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef520159611ecaa2d70c94ef23b30",
+          "id": "c7a8918d164611ec952670c94ef23b30",
           "label": "pivot_point = 'CURSOR'",
           "command": "bpy.context.space_data.pivot_point = 'CURSOR'",
           "active": true,
@@ -675,7 +675,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef521159611ecb55e70c94ef23b30",
+          "id": "c7a8918e164611ec9ad270c94ef23b30",
           "label": "Select Linked",
           "command": "bpy.ops.uv.select_linked()",
           "active": true,
@@ -683,7 +683,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef522159611ec96b670c94ef23b30",
+          "id": "c7a8918f164611ecbf7070c94ef23b30",
           "label": "Move",
           "command": "bpy.ops.transform.translate(value=(-1000, -1000, 0))",
           "active": true,
@@ -691,7 +691,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef523159611ecbf5570c94ef23b30",
+          "id": "c7a89190164611ec838270c94ef23b30",
           "label": "Resize",
           "command": "bpy.ops.transform.resize(value=(1000, 1000, 1000))",
           "active": true,
@@ -702,11 +702,11 @@
       "icon": 166
     },
     {
-      "id": "917ef525159611ecad1970c94ef23b30",
+      "id": "c7a8b816164611ecab0970c94ef23b30",
       "label": "AddCube",
       "macros": [
         {
-          "id": "917ef526159611ecb46070c94ef23b30",
+          "id": "c7a8b817164611eca25870c94ef23b30",
           "label": "Snap Cursor to Selected",
           "command": "bpy.ops.view3d.snap_cursor_to_selected()",
           "active": true,
@@ -714,7 +714,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef527159611ecbbd170c94ef23b30",
+          "id": "c7a8b818164611ec85e770c94ef23b30",
           "label": "Add Cube",
           "command": "bpy.ops.mesh.primitive_cube_add(size=2, location=bpy.context.scene.cursor.location)",
           "active": true,
@@ -725,11 +725,11 @@
       "icon": 287
     },
     {
-      "id": "917ef528159611ecad2070c94ef23b30",
+      "id": "c7a8b819164611ecb77b70c94ef23b30",
       "label": "SelectCube",
       "macros": [
         {
-          "id": "917ef529159611ec9ee970c94ef23b30",
+          "id": "c7a8b81a164611ec8cca70c94ef23b30",
           "label": "get(\"Cube\").select_set(True)",
           "command": "bpy.context.scene.objects.get(\"Cube\").select_set(True)",
           "active": true,
@@ -737,7 +737,7 @@
           "ui_type": ""
         },
         {
-          "id": "917ef52a159611ec96a070c94ef23b30",
+          "id": "c7a8b81b164611eca09a70c94ef23b30",
           "label": "Active Object = bpy.context.scene.objects.get(\"Cube\")",
           "command": "bpy.context.view_layer.objects.active = bpy.context.scene.objects.get(\"Cube\")",
           "active": true,
@@ -748,11 +748,11 @@
       "icon": 256
     },
     {
-      "id": "917ef52b159611ecbc7070c94ef23b30",
+      "id": "c7a8b81c164611eca23670c94ef23b30",
       "label": "AddPlane_Light",
       "macros": [
         {
-          "id": "917f1c64159611ecb22770c94ef23b30",
+          "id": "c7a8df7a164611ec97b370c94ef23b30",
           "label": "Add Plane",
           "command": "bpy.ops.mesh.primitive_plane_add(align='CURSOR', rotation=(-1.5708, 0, 0))",
           "active": true,
@@ -760,7 +760,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c65159611ec924470c94ef23b30",
+          "id": "c7a8df7b164611ec88e070c94ef23b30",
           "label": "Apply Object Transform",
           "command": "bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)",
           "active": true,
@@ -768,7 +768,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c66159611ec8b5070c94ef23b30",
+          "id": "c7a8df7c164611eca78370c94ef23b30",
           "label": "Name = 'Plane_Light'",
           "command": "bpy.context.active_object.name = 'Plane_Light'",
           "active": true,
@@ -776,7 +776,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c67159611ec9f8e70c94ef23b30",
+          "id": "c7a8df7d164611ec9af070c94ef23b30",
           "label": "Select Pattern",
           "command": "bpy.ops.object.select_pattern(pattern=\"Empty\")",
           "active": true,
@@ -784,7 +784,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c68159611ec830470c94ef23b30",
+          "id": "c7a8df7e164611eca9d670c94ef23b30",
           "label": "Add Constraint (with Targets)",
           "command": "bpy.ops.object.constraint_add_with_targets(type='TRACK_TO')",
           "active": true,
@@ -792,7 +792,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c69159611ec8d5470c94ef23b30",
+          "id": "c7a8df7f164611eca59970c94ef23b30",
           "label": "Disable in Renders = True",
           "command": "bpy.context.object.hide_render = True",
           "active": true,
@@ -803,11 +803,11 @@
       "icon": 302
     },
     {
-      "id": "917f1c6b159611ec80e770c94ef23b30",
+      "id": "c7a90679164611ec880270c94ef23b30",
       "label": "BackUP",
       "macros": [
         {
-          "id": "917f1c6c159611ec8b5770c94ef23b30",
+          "id": "c7a9067a164611ecb55570c94ef23b30",
           "label": "Duplicate Objects",
           "command": "bpy.ops.object.duplicate_move()",
           "active": true,
@@ -815,7 +815,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f1c6d159611ecbd7770c94ef23b30",
+          "id": "c7a9067b164611ecb92370c94ef23b30",
           "label": "Run Script",
           "command": "bpy.ops.text.run_script()",
           "active": true,
@@ -826,11 +826,11 @@
       "icon": 630
     },
     {
-      "id": "917f1c6e159611ec8d9370c94ef23b30",
+      "id": "c7a9067c164611ecb3fd70c94ef23b30",
       "label": "Scatter",
       "macros": [
         {
-          "id": "917f430d159611ec9ea770c94ef23b30",
+          "id": "c7a9067d164611ecb88270c94ef23b30",
           "label": "get(\"Passive\").select_set(True)",
           "command": "bpy.context.scene.objects.get(\"Passive\").select_set(True)",
           "active": true,
@@ -838,7 +838,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f430e159611ec9fc270c94ef23b30",
+          "id": "c7a9067e164611eca65d70c94ef23b30",
           "label": "Active Object = bpy.context.scene.objects.get(\"Passive\")",
           "command": "bpy.context.view_layer.objects.active = bpy.context.scene.objects.get(\"Passive\")",
           "active": true,
@@ -846,7 +846,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f430f159611ec87b670c94ef23b30",
+          "id": "c7a92d77164611ec92b070c94ef23b30",
           "label": "Join",
           "command": "bpy.ops.object.join()",
           "active": true,
@@ -854,7 +854,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4310159611ec9a0370c94ef23b30",
+          "id": "c7a92d78164611ecb1bf70c94ef23b30",
           "label": "Jump to Endpoint",
           "command": "bpy.ops.screen.frame_jump(end=False)",
           "active": true,
@@ -862,7 +862,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4311159611eca73770c94ef23b30",
+          "id": "c7a92d79164611ec8f5c70c94ef23b30",
           "label": "Select Pattern",
           "command": "bpy.ops.object.select_pattern(pattern=\"Cube*\", extend=False)",
           "active": true,
@@ -870,7 +870,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4312159611ecbcb870c94ef23b30",
+          "id": "c7a92d7a164611ecafbb70c94ef23b30",
           "label": "Duplicate Objects",
           "command": "bpy.ops.object.duplicate_move()",
           "active": true,
@@ -878,7 +878,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4313159611ecbc0970c94ef23b30",
+          "id": "c7a92d7b164611ecaf6d70c94ef23b30",
           "label": "ScriptButton",
           "command": "bpy.ops.stb.scriptbutton(btn_name=\"Object Random Loc\")",
           "active": true,
@@ -886,7 +886,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4314159611ec946470c94ef23b30",
+          "id": "c7a92d7c164611ec915e70c94ef23b30",
           "label": "ScriptButton",
           "command": "bpy.ops.stb.scriptbutton(btn_name=\"PlayAnim3\")",
           "active": true,
@@ -897,11 +897,11 @@
       "icon": 655
     },
     {
-      "id": "917f4315159611ecafb870c94ef23b30",
+      "id": "c7a92d7d164611eca77970c94ef23b30",
       "label": "AlignmentEdgeLoop",
       "macros": [
         {
-          "id": "917f4316159611ec8d8b70c94ef23b30",
+          "id": "c7a9545c164611eca60170c94ef23b30",
           "label": "Multi Select Loops",
           "command": "bpy.ops.mesh.loop_multi_select(ring=False)",
           "active": true,
@@ -909,7 +909,7 @@
           "ui_type": ""
         },
         {
-          "id": "917f4317159611ecaf9170c94ef23b30",
+          "id": "c7a9545d164611ec84f870c94ef23b30",
           "label": "bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)",
           "command": "bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)",
           "active": false,

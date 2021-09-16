@@ -21,40 +21,16 @@ space_mode_attribute = {
     'CLIP_EDITOR': 'mode',
     'DOPESHEET_EDITOR': 'ui_mode'
 }
-areas_to_spaces = {
-    'VIEW_3D': 'VIEW_3D', 
-    'IMAGE_EDITOR': 'IMAGE_EDITOR', 
-    'UV': 'IMAGE_EDITOR', 
-    'CompositorNodeTree': 'NODE_EDITOR', 
-    'TextureNodeTree': 'NODE_EDITOR', 
-    'GeometryNodeTree': 'NODE_EDITOR', 
-    'ShaderNodeTree': 'NODE_EDITOR', 
-    'SEQUENCE_EDITOR': 'SEQUENCE_EDITOR', 
-    'CLIP_EDITOR': 'CLIP_EDITOR', 
-    'DOPESHEET': 'DOPESHEET_EDITOR', 
-    'TIMELINE': 'DOPESHEET_EDITOR', 
-    'FCURVES': 'GRAPH_EDITOR', 
-    'DRIVERS': 'GRAPH_EDITOR', 
-    'NLA_EDITOR': 'NLA_EDITOR', 
-    'TEXT_EDITOR': 'TEXT_EDITOR', 
-    'FILES': 'FILE_BROWSER'
-}
 
 # region Panel
-def register_category(AR, category):
-    index = AR.categories.find(category.id)
-    if len(category.areas):
-        space_types = [areas_to_spaces[area.type] for area in category.areas]
-        register_unregister_category(index, space_types)
-    else:
-        register_unregister_category(index)
+def register_category(AR, index):
+    register_unregister_category(index)
 
-def unregister_category(AR, category):
-    index = AR.categories.find(category.id)
+def unregister_category(AR, index):
     register_unregister_category(index, register = False)
 
-def show_category(context, category):
-    if not len(category.areas):
+def category_visible(AR, context, category):
+    if AR.show_all_categories or not len(category.areas):
         return True
     area_type = context.area.ui_type
     area_space = context.area.type
@@ -79,13 +55,14 @@ def register_unregister_category(index, space_types = panels.ui_space_types, reg
             bl_idname = "AR_PT_category_%s_%s" %(index, spaceType)
             bl_parent_id = "AR_PT_global_%s" % spaceType
             bl_order = index + 1
+            bl_options = {"INSTANCED", "DEFAULT_CLOSED"}
 
             @classmethod
             def poll(self, context):
                 AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
                 category = AR.categories[index]
-                return show_category(context, category)
+                return category_visible(AR, context, category)
 
             def draw_header(self, context):
                 AR = context.preferences.addons[__module__].preferences

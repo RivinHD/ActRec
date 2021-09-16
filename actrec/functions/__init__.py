@@ -4,7 +4,6 @@ from .categories import (
     read_category_visbility,
     category_runtime_save,
     category_runtime_load,
-    category_visible,
     get_category_id
 )
 

@@ -71,7 +71,7 @@ class AR_preferences(AddonPreferences):
     local_to_global_mode : EnumProperty(items=[("copy", "Copy", "Copy the Action over to Global"), ("move", "Move", "Move the Action over to Global and Delete it from Local")], name= "Mode")
     local_record_macros : BoolProperty(name= "Record Macros", default= False)
     def hide_show_local_in_texteditor(self, context):
-        if self.hideLocal:
+        if self.hide_local_text:
             for text in bpy.data.texts:
                 if text.lines[0].body.strip().startswith("###AR###"):
                     bpy.data.texts.remove(text)

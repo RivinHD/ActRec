@@ -29,7 +29,7 @@ def global_runtime_load(dummy = None):
     for action in shared_data.global_temp:
         shared.add_data_to_collection(AR.global_actions, action)
 
-def save(AR):
+def save(AR, path= None):
     data = {}
     data['categories'] = shared.property_to_python(AR.categories, exclude= ["name", "selected", "actions.name", "areas.name", "areas.modes.name"])
     data['actions'] = shared.property_to_python(AR.global_actions, exclude= ["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"])
@@ -47,8 +47,8 @@ def load(AR) -> bool:
             data = json.loads(text)
         logger.info('load global actions')
         # cleanup
-        for category in AR.categories:
-            ui_functions.unregister_category(AR, category)
+        for i in range(len(AR.categories)):
+            ui_functions.unregister_category(AR, i)
         AR.categories.clear()
         AR.global_actions.clear()
         if data:
@@ -64,8 +64,8 @@ def import_global_from_dict(AR, data: dict) -> None:
     if value:
         shared.apply_data_to_item(AR.global_actions, value)
         
-    for category in AR.categories:
-        ui_functions.register_category(AR, category)
+    for i in range(len(AR.categories)):
+        ui_functions.register_category(AR, i)
     if len(AR.categories):
         AR.categories[0].selected = True
     if len(AR.global_actions):

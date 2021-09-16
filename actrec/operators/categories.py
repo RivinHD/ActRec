@@ -144,7 +144,7 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
         new = AR.categories.add()
         new.label = functions.check_for_dublicates([c.label for c in AR.categories], self.label)
         self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
-        ui_functions.register_category(AR, new)
+        ui_functions.register_category(AR, len(AR.categories) - 1)
         context.area.tag_redraw()
         functions.category_runtime_save(AR)
         return {"FINISHED"}
@@ -155,11 +155,14 @@ class AR_OT_category_edit(shared.id_based, AR_OT_category_interface ,Operator):
     bl_description = "Edit the selected Category"
 
     cancel_data = {}
+    ignore_selection = False
 
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.categories)
+        ignore = cls.ignore_selection
+        cls.ignore_selection = False
+        return len(AR.categories) and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
 
     def invoke(self, context, event):
         AR = context.preferences.addons[__module__].preferences
@@ -174,10 +177,9 @@ class AR_OT_category_edit(shared.id_based, AR_OT_category_interface ,Operator):
         AR = context.preferences.addons[__module__].preferences
         category = AR.categories[self.id]
         category.areas.clear()
-        ui_functions.unregister_category(AR, category)
-        self.apply_visibility(AR_OT_category_interface.category_visibility, self.id)
-        ui_functions.register_category(AR, category)
+        self.apply_visibility(AR, AR_OT_category_interface.category_visibility, self.id)
         functions.category_runtime_save(AR)
+        context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
 
@@ -210,11 +212,15 @@ class AR_OT_category_delete(shared.id_based, Operator):
     bl_idname = "ar.category_delete"
     bl_label = "Delete Category"
     bl_description = "Delete the selected Category"
+    
+    ignore_selection = False
 
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.categories)
+        ignore = cls.ignore_selection
+        cls.ignore_selection = False
+        return len(AR.categories) and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -229,7 +235,7 @@ class AR_OT_category_delete(shared.id_based, Operator):
             category = categories[id]
             for id_action in category.actions:
                 AR.global_actions.remove(AR.global_actions.find(id_action.id))
-            ui_functions.unregister_category(AR, category)
+            ui_functions.unregister_category(AR, len(categories) - 1)
             categories.remove(categories.find(id))
             if len(categories):
                 categories[0].selected = True
@@ -246,10 +252,14 @@ class AR_OT_category_move_up(shared.id_based, Operator):
     bl_label = "Move Up"
     bl_description = "Move the Category up"
 
+    ignore_selection = False
+
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.categories)
+        ignore = cls.ignore_selection
+        cls.ignore_selection = False
+        return len(AR.categories) and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -258,9 +268,9 @@ class AR_OT_category_move_up(shared.id_based, Operator):
         categories = AR.categories
         i = categories.find(id)
         y = i - 1
-        if i >= 0 and y >= 0:
+        if i >= 0 and y >= 0 and ui_functions.category_visible(AR, context, categories[i]):
             swap_category = categories[y]
-            while not functions.category_visible(swap_category, context): # get next visible category
+            while not ui_functions.category_visible(AR, context, swap_category): # get next visible category
                 y -= 1
                 if y < 0:
                     return {"CANCELLED"}
@@ -277,10 +287,14 @@ class AR_OT_category_move_down(shared.id_based, Operator):
     bl_label = "Move Down"
     bl_description = "Move the Category down"
 
+    ignore_selection = False
+
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.categories)
+        ignore = cls.ignore_selection
+        cls.ignore_selection = False
+        return len(AR.categories) and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -289,9 +303,9 @@ class AR_OT_category_move_down(shared.id_based, Operator):
         categories = AR.categories
         i = categories.find(id)
         y = i + 1 
-        if i >= 0 and y < len(categories):
+        if i >= 0 and y < len(categories) and ui_functions.category_visible(AR, context, categories[i]):
             swap_category = categories[y]
-            while not functions.category_visible(swap_category, context): # get next visible category
+            while not ui_functions.category_visible(AR, context, swap_category): # get next visible category
                 y += 1
                 if y >= len(categories):
                     return {"CANCELLED"}

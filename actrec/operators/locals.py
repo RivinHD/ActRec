@@ -212,9 +212,9 @@ class AR_OT_local_load(Operator):
             data = []
             for text in self.texts:
                 if text.apply:
-                    if bpy.data.texts.find(text) == -1:
+                    if bpy.data.texts.find(text.name) == -1:
                         continue
-                    text = bpy.data.texts[text]
+                    text = bpy.data.texts[text.name]
                     lines = [line.body for line in text.lines]
                     header = {} 
                     for prop in lines[0].split("#")[-1].split(","):
@@ -238,7 +238,7 @@ class AR_OT_local_load(Operator):
     def draw(self, context):
         layout = self.layout
         layout.prop(self, 'source', expand= True)
-        if self.Source == 'text':
+        if self.source == 'text':
             box = layout.box()
             texts = [txt.name for txt in bpy.data.texts]
             for text in self.texts:
@@ -334,7 +334,6 @@ class AR_OT_local_record(shared.id_based, Operator):
                 self.clear()
                 return {"FINISHED"}
             reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions[self.tracker_start_index: ]), dtype= object)
-            print("="*10, "REPORT", "="*10, "\n", reports,"\n", "="*30)
 
             record_undo_end = context.scene.ar.record_undo_end
             redo_steps = 0
@@ -395,7 +394,6 @@ class AR_OT_local_record(shared.id_based, Operator):
             context = bpy.context
 
             error_reports = []
-            print("="*10, "DATA", "="*10, "\n", data,"\n", "="*30)
             action = AR.local_actions[index]
             for report in data:
                 functions.add_report_as_macro(AR, action, report, error_reports)
