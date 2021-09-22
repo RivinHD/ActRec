@@ -331,7 +331,8 @@ class AR_OT_restart(Operator, ExportHelper):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        if self.save and bpy.data.filepath == '':
+        print(self.save, not bpy.data.filepath)
+        if self.save and not bpy.data.filepath:
             return ExportHelper.invoke(self, context, event)
         else:
             return self.execute(context)
