@@ -87,6 +87,8 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
         else:
             update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
         AR.update_progress = 100 * progress / (length * download_length) + 100 / download_length * int(AR.update_progress / (100 / download_length))
+        if finished_downloaded:
+            update_manager.download_list.pop(0)
         return finished_downloaded
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -264,7 +266,7 @@ class AR_OT_update(Operator):
             return self.execute(context)
 
         AR = context.preferences.addons[__module__].preferences
-        path = update_manager.download_list.pop()
+        path = update_manager.download_list[0]
         res = update(AR, path, update_manager.update_respond, update_manager.update_data_chunks, update_manager.download_length)
 
         if res is None:
