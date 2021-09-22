@@ -109,7 +109,7 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
         with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
-            ar_file.write(download_chunks[path]["chunks"])
+            ar_file.write(download_chunks[path]["chunks"].decode('utf-8'))
     for path in version_file['remove']:
         remove_path = os.path.join(AR.addon_directory, path)
         if os.path.exists(remove_path):
@@ -341,7 +341,7 @@ class AR_OT_show_restart_menu(Operator):
         AR = context.preferences.addons[__module__].preferences
         return AR.restart
     
-    def draw(self, popup, context):
+    def draw_menu(self, popup, context):
         layout = self.layout
         box = layout.box()
         box.label(text= "You need to restart Blender to complete the Update")
@@ -350,7 +350,7 @@ class AR_OT_show_restart_menu(Operator):
         row.operator(AR_OT_restart.bl_idname, text= "Restart")
 
     def execute(self, context):
-        context.window_manager.popup_menu(self.draw, title= "Action Recorder Restart")
+        context.window_manager.popup_menu(self.draw_menu, title= "Action Recorder Restart")
         return {"FINISHED"}
 # endregion
 
