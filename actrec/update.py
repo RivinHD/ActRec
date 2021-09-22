@@ -62,12 +62,13 @@ def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tup
 def update(AR, path, update_respond: Optional[requests.Response], download_chunks: dict, download_length: int) -> Optional[bool]:
     finished_downloaded = False
     progress = 0
+    length = 1
     try:
         if update_respond:
             total_length = update_respond.headers.get('content-length', None)
             if total_length is None:
-                progress += update_respond.raw._fp_bytes_read
-                download_chunks[path]["chunks"] += update_respond.content
+                length = progress = update_respond.raw._fp_bytes_read
+                download_chunks[path]["chunks"] = update_respond.content
                 update_respond.close()
                 finished_downloaded = True
                 update_manager.update_respond = None
