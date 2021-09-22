@@ -222,6 +222,7 @@ class AR_OT_update_check(Operator):
         if isinstance(version_file, dict) or version_file is None:
             update_manager.version_file = version_file
             return self.execute(context)
+        self.
         return {'PASS_THROUGH'}
 
     def execute(self, context):
@@ -272,6 +273,8 @@ class AR_OT_update(Operator):
         if res is None:
             self.report({'WARNING'}, "No Internet Connection")
             return {'CANCELLED'}
+        
+        context.area.tag_redraw()
         return {'PASS_THROUGH'}
 
     def execute(self, context):
@@ -284,6 +287,7 @@ class AR_OT_update(Operator):
         AR.update_progress = -1
         self.cancel(context)
         bpy.ops.ar.show_restart_menu('INVOKE_DEFAULT')
+        context.area.tag_redraw()
         return {"FINISHED"}
 
     def cancel(self, context):
@@ -345,6 +349,7 @@ class AR_OT_show_restart_menu(Operator):
 
     def execute(self, context):
         context.window_manager.popup_menu(draw_menu, title= "Action Recorder Restart")
+        context.area.tag_redraw()
         return {"FINISHED"}
 # endregion
 
