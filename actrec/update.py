@@ -86,7 +86,7 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
                     update_manager.update_respond = None
         else:
             update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
-        AR.update_progress = 100 * progress / (length * download_length)
+        AR.update_progress = 100 * progress / (length * download_length) + 100 / download_length * int(AR.update_progress / (100 / download_length))
         return finished_downloaded
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -255,6 +255,7 @@ class AR_OT_update(Operator):
     def invoke(self, context, event):
         update_manager.download_list = get_download_list(update_manager.version_file)
         update_manager.download_length = len(update_manager.download_list)
+        self.timer = context.window_manager.event_timer_add(0.1)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
