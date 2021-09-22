@@ -314,6 +314,12 @@ class AR_OT_restart(Operator, ExportHelper):
         AR = context.preferences.addons[__module__].preferences
         return AR.restart
 
+    def invoke(self, context, event):
+        if self.save and not bpy.data.filepath:
+            return ExportHelper.invoke(self, context, event)
+        else:
+            return self.execute(context)
+
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
         path = bpy.data.filepath
@@ -331,12 +337,10 @@ class AR_OT_restart(Operator, ExportHelper):
         subprocess.Popen(args)
         bpy.ops.wm.quit_blender()
         return {"FINISHED"}
+    
+    def draw(self, context):
+        pass
 
-    def invoke(self, context, event):
-        if self.save and not bpy.data.filepath:
-            return ExportHelper.invoke(self, context, event)
-        else:
-            return self.execute(context)
 
 class AR_OT_show_restart_menu(Operator):
     bl_idname = "ar.show_restart_menu"
