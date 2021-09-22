@@ -341,7 +341,7 @@ class AR_OT_show_restart_menu(Operator):
         AR = context.preferences.addons[__module__].preferences
         return AR.restart
     
-    def draw(self, context):
+    def draw(self, popup, context):
         layout = self.layout
         box = layout.box()
         box.label(text= "You need to restart Blender to complete the Update")
