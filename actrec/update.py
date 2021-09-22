@@ -222,7 +222,6 @@ class AR_OT_update_check(Operator):
         if isinstance(version_file, dict) or version_file is None:
             update_manager.version_file = version_file
             return self.execute(context)
-        self.
         return {'PASS_THROUGH'}
 
     def execute(self, context):
