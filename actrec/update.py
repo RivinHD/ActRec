@@ -25,7 +25,9 @@ from .log import logger
 
 __module__ = __package__.split(".")[0]
 class update_manager:
-    update_responds = {}
+    download_list = []
+    download_length = 0
+    update_respond = None
     update_data_chunks = defaultdict(lambda: {"chunks": b''})
     version_file = {} # used to store downloaded file from "AR_OT_update_check"
     version_file_thread = None
@@ -57,46 +59,33 @@ def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tup
     else:
         return (False, version)
 
-def start_update(version_file) -> Optional[bool]:
-    download_paths = get_download_paths(version_file)
-    if download_paths is None:
-        return False
+def update(AR, path, update_respond: Optional[requests.Response], download_chunks: dict, download_length: int) -> Optional[bool]:
+    finished_downloaded = False
+    progress = 0
     try:
-        for path in download_paths:
-            update_manager.update_responds[path] = requests.get(config.repo_source_url %path, stream= True)
-        logger.info("Start Update Process")
-        return True
-    except Exception as err:
-        logger.warning("no Connection (%s)" %err)
-        return None
-
-def update(AR, update_responds: dict, download_chunks: dict) -> Optional[bool]:
-    finished_downloaded = True
-    complet_length = 0
-    complet_progress = 0
-    try:
-        for path, res in update_responds.items():
-            total_length = res.headers.get('content-length', None)
+        if update_respond:
+            total_length = update_respond.headers.get('content-length', None)
             if total_length is None:
-                complet_progress += res.raw._fp_bytes_read
-                download_chunks[path]["chunks"] += res.content
-                res.close()
-                update_responds[path] = None
+                progress += update_respond.raw._fp_bytes_read
+                download_chunks[path]["chunks"] += update_respond.content
+                update_respond.close()
+                finished_downloaded = True
+                update_manager.update_respond = None
             else:
                 total_length = int(total_length)
-                complet_length += total_length
-                for chunk in res.iter_content(chunk_size= 1024):
+                for chunk in update_respond.iter_content(chunk_size= 1024):
                     if chunk:
                         download_chunks[path]["chunks"] += chunk
 
-                length = res.raw._fp_bytes_read
-                complet_progress += length
-                finished_progress = length == total_length
-                if finished_progress:
-                    res.close()
-                    update_responds[path] = None
-                finished_downloaded = finished_progress and finished_downloaded
-        AR.update_progress = 100 * complet_progress / complet_length
+                length = update_respond.raw._fp_bytes_read
+                progress += length
+                finished_downloaded = length == total_length
+                if finished_downloaded:
+                    update_respond.close()
+                    update_manager.update_respond = None
+        else:
+            update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
+        AR.update_progress = 100 * progress / (length * download_length)
         return finished_downloaded
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -167,7 +156,7 @@ def apply_version_file_result(AR, version_file, update):
     else:
         AR.version = ".".join(map(str, update[1]))
 
-def get_download_paths(version_file) -> Optional[list]:
+def get_download_list(version_file) -> Optional[list]:
     download_files = version_file["files"]
     if download_files is None:
         return None
@@ -263,20 +252,20 @@ class AR_OT_update(Operator):
         return AR.update
 
     def invoke(self, context, event):
-        launch = start_update(update_manager.version_file)
-        if launch:
-            self.timer = context.window_manager.event_timer_add(0.1)
-            context.window_manager.modal_handler_add(self)
-            return {'RUNNING_MODAL'}
-        self.report({'WARNING'}, "No Internet Connection")
-        return {'CANCELLED'}
+        update_manager.download_list = get_download_list(update_manager.version_file)
+        update_manager.download_length = len(update_manager.download_list)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        AR = context.preferences.addons[__module__].preferences
-        res = update(AR, update_manager.update_responds, update_manager.update_data_chunks)
-        if res:
+        if not len(update_manager.download_list):
             return self.execute(context)
-        elif res is None:
+
+        AR = context.preferences.addons[__module__].preferences
+        path = update_manager.download_list.pop()
+        res = update(AR, path, update_manager.update_respond, update_manager.update_data_chunks, update_manager.download_length)
+
+        if res is None:
             self.report({'WARNING'}, "No Internet Connection")
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
@@ -294,10 +283,12 @@ class AR_OT_update(Operator):
         return {"FINISHED"}
 
     def cancel(self, context):
-        for res in update_manager.update_responds.values():
-            if res:
-                res.close()
-        update_manager.update_responds.clear()
+        res = update_manager.update_respond
+        if res:
+            res.close()
+        update_manager.update_respond = None
+        update_manager.download_length = 0
+        update_manager.download_list.clear()
         update_manager.update_data_chunks.clear()
         context.window_manager.event_timer_remove(self.timer)
 
@@ -374,8 +365,10 @@ def unregister():
         bpy.app.handlers.load_post.remove(on_start)
     with suppress(Exception):
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
+    update_manager.download_list.clear()
+    update_manager.download_length = 0
     update_manager.update_data_chunks.clear()
-    update_manager.update_responds.clear()
+    update_manager.update_respond = None
     update_manager.version_file.clear()
     update_manager.version_file_thread = None
 # endregion 
