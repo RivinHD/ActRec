@@ -25,7 +25,7 @@ from .log import logger
 
 __module__ = __package__.split(".")[0]
 class update_manager:
-    download_list = None
+    download_list = []
     download_length = 0
     update_respond = None
     update_data_chunks = defaultdict(lambda: {"chunks": b''})
