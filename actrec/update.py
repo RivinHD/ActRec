@@ -25,7 +25,7 @@ from .log import logger
 
 __module__ = __package__.split(".")[0]
 class update_manager:
-    download_list = []
+    download_list = None
     download_length = 0
     update_respond = None
     update_data_chunks = defaultdict(lambda: {"chunks": b''})
@@ -73,20 +73,19 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
                 finished_downloaded = True
                 update_manager.update_respond = None
             else:
-                total_length = int(total_length)
+                length = int(total_length)
                 for chunk in update_respond.iter_content(chunk_size= 1024):
                     if chunk:
                         download_chunks[path]["chunks"] += chunk
 
-                length = update_respond.raw._fp_bytes_read
-                progress += length
-                finished_downloaded = length == total_length
+                progress = update_respond.raw._fp_bytes_read
+                finished_downloaded = progress == length
                 if finished_downloaded:
                     update_respond.close()
                     update_manager.update_respond = None
         else:
             update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
-        AR.update_progress = 100 * progress / (length * download_length) + 100 / download_length * int(AR.update_progress / (100 / download_length))
+        AR.update_progress = 100 * (progress / (length * download_length) + (download_length - len(update_manager.download_list) / download_length))
         if finished_downloaded:
             update_manager.download_list.pop(0)
         return finished_downloaded
