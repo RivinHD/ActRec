@@ -198,8 +198,8 @@ def draw_menu(self, context):
     layout = self.layout
     layout.label(text= "You need to restart Blender to complete the Update")
     row = self.layout.row()
-    row.operator(AR_OT_restart.bl_idname, text= "Save & Restart").save = True
-    row.operator(AR_OT_restart.bl_idname, text= "Restart")
+    row.operator('ar.restart', text= "Save & Restart").save = True
+    row.operator('ar.restart', text= "Restart")
 # endregion
 
 # region Operator
@@ -318,8 +318,10 @@ class AR_OT_restart(Operator, ExportHelper):
         AR = context.preferences.addons[__module__].preferences
         path = bpy.data.filepath
         if self.save:
-            if path == '':
+            if not path:
                 path = self.filepath
+                if not path:
+                    return ExportHelper.invoke(self, context, None)
             bpy.ops.wm.save_mainfile(filepath= path)
         AR.restart = False
         if os.path.exists(path):
@@ -331,7 +333,6 @@ class AR_OT_restart(Operator, ExportHelper):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        print(self.save, not bpy.data.filepath)
         if self.save and not bpy.data.filepath:
             return ExportHelper.invoke(self, context, event)
         else:
