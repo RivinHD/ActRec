@@ -206,7 +206,7 @@ class AR_OT_local_load(Operator):
         if self.source == 'scene':
             data = json.loads(context.scene.ar.local)
             if not isinstance(data, list):
-                self.report({'ERROR'}, "scenedata couldn't be loaded")
+                self.report({'ERROR'}, "scene data couldn't be loaded")
                 return {'CANCELLED'}
         else:
             data = []
@@ -257,12 +257,13 @@ class AR_OT_local_selection_up(Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        return len(AR.local_actions)
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
-        AR.active_local_action_index = AR.active_local_action_index - 1
-        context.area.tag_redraw()
+        if AR.active_local_action_index - 1 >= 0:
+            AR.active_local_action_index = AR.active_local_action_index - 1
+            context.area.tag_redraw()
         return{'FINISHED'}
 
 class AR_OT_local_selection_down(Operator):
@@ -272,12 +273,13 @@ class AR_OT_local_selection_down(Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        return len(AR.local_actions)
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
-        AR.active_local_action_index = AR.active_local_action_index + 1
-        context.area.tag_redraw()
+        if AR.active_local_action_index + 1 < len(AR.local_actions):
+            AR.active_local_action_index = AR.active_local_action_index + 1
+            context.area.tag_redraw()
         return{'FINISHED'}
 
 class AR_OT_local_play(shared.id_based, Operator):

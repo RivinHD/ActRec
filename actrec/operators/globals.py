@@ -43,7 +43,7 @@ class AR_OT_gloabal_recategorize_action(shared.id_based, Operator):
             return {"CANCELLED"}
         for category in categories:
             if category.selected:
-                for id in set(x.id for x in category.actions).difference(ids):
+                for id in set(ids).difference(x.id for x in category.actions):
                     new_action = category.actions.add()
                     new_action.id = id
             else:
@@ -369,7 +369,7 @@ class AR_OT_global_to_local(shared.id_based, Operator):
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def global_to_local(self, AR, action) -> None:
-        id = uuid.uuid1() if action.id in [x.id for x in AR.local_actions] else action.id
+        id = uuid.uuid1() if action.id in set(x.id for x in AR.local_actions) else action.id
         data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
         data["id"] = id
         functions.add_data_to_collection(AR.local_actions, data)

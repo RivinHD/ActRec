@@ -257,7 +257,7 @@ def create_object_copy(context, source_path: list, attribute: str) -> dict:
 
 def check_object_report(obj, copy_dict, source_path, attribute: str, value):
     if hasattr(obj, attribute) and getattr(obj, attribute) != copy_dict[attribute]:
-        return obj.__class__.__name__, ".".join(source_path), attribute, value
+        return obj.__class__, ".".join(source_path), attribute, value
     for key in copy_dict:
         if hasattr(obj, key):
             if isinstance(copy_dict[key], dict):
@@ -269,17 +269,18 @@ def check_object_report(obj, copy_dict, source_path, attribute: str, value):
 def improve_context_report(context, copy_dict: dict, source_path: list, attribute: str, value: str) -> str:
     id_object = get_id_object(context, source_path, attribute)
     if hasattr(id_object, attribute):
-        object_class = id_object.__class__.__name__
+        object_class = id_object.__class__
         res = [".".join(source_path), attribute, value]
     else:
         res = check_object_report(id_object, copy_dict, source_path, attribute, value)
         if res:
             object_class, *res = res
         else:
-            object_class, *res = id_object.__class__.__name__, ".".join(source_path), attribute, value
+            object_class, *res = id_object.__class__, ".".join(source_path), attribute, value
     for attr in context.__dir__():
-        if attr not in ("button_pointer", "id") and object_class == getattr(bpy.context, attr).__class__.__name__:
+        if attr not in ("button_pointer", "id") and isinstance(getattr(bpy.context, attr), object_class):
             res[0] = attr
+            break
     return "bpy.context.%s.%s = %s" %tuple(res)
 
 def split_operator_report(operator_str: str) -> Tuple[str, str, dict]:

@@ -4,27 +4,26 @@ from contextlib import suppress
 
 # blender modules
 import bpy
-from bpy.types import Menu, PointerProperty
+from bpy.types import Menu
 # endregion
 
 __module__ = __package__.split(".")[0]
 
 # region Menus
 class AR_MT_action_pie(Menu):
-    bl_idname = "ar.action_pie"
+    bl_idname = "AR_MT_action_pie"
     bl_label = "ActRec Pie Menu"
-    bl_idname = "AR_MT_Action_Pie"
 
     def draw(self, context):
         AR = context.preferences.addons[__module__].preferences
         pie = self.layout.menu_pie()
-        actions = AR.local_action
+        actions = AR.local_actions
         for i in range(len(actions)):
             if i >= 8:
                 break
             action = actions[i]
-            ops = pie.operator("ar.local_play", text= actions[i].label, icon_value= action.icon if action.icon else 286)
-            ops.id = action.ids
+            ops = pie.operator("ar.local_play", text= actions[i].label, icon_value= action.icon if action.icon else 101)
+            ops.id = action.id
             ops.index = i
 
 def menu_draw(self, context):
@@ -32,7 +31,7 @@ def menu_draw(self, context):
     layout.separator()
     layout.operator("ar.copy_to_actrec")
     button_prop = getattr(context, "button_prop", None)
-    if button_prop and not isinstance(button_prop, PointerProperty) and button_prop.is_array:
+    if button_prop and hasattr(button_prop, 'is_array') and button_prop.is_array:
         layout.operator("ar.copy_to_actrec", text= "Copy to Action Recorder (Single)").copy_single = True
 
 

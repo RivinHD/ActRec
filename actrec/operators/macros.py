@@ -495,17 +495,18 @@ class AR_OT_copy_to_actrec(Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and (bpy.ops.ui.copy_python_command_button.poll() or bpy.ops.ui.copy_data_path_button.poll())
+        return len(AR.local_actions) and (bpy.ops.ui.copy_python_command_button.poll() or getattr(context, "button_pointer", None) and getattr(context, "button_prop", None))
 
     def execute(self, context):
         button_pointer = getattr(context, "button_pointer", None)
         button_prop = getattr(context, "button_prop", None)
         if not(button_pointer is None or button_prop is None):
-            object_class = button_pointer.__class__
+            base_object = button_pointer.id_data
+            object_class = base_object.__class__
             for attr in dir(context):
                 if isinstance(getattr(bpy.context, attr), object_class):
-                    value = functions.convert_to_python(getattr(getattr(context, attr), button_prop.identifier))
-                    if self.copy_single:
+                    value = functions.convert_to_python(getattr(button_pointer, button_prop.identifier))
+                    if self.copy_single and bpy.ops.ui.copy_data_path_button.poll():
                         clipboard = context.window_manager.clipboard
                         bpy.ops.ui.copy_data_path_button(context.copy(), full_path= True)
                         single_index = context.window_manager.clipboard.split(" = ")[0].split(".")[-1].split("[")[-1].replace("]", "")
@@ -521,6 +522,13 @@ class AR_OT_copy_to_actrec(Operator):
                         for identifier, prop in bpy.data.bl_rna.properties.items():
                             if prop.type == 'COLLECTION' and prop.fixed_type == button_prop.fixed_type and value.name in getattr(bpy.data, identifier):
                                 value = "bpy.data.%s['%s']" %(identifier, value.name)
+                                break
+                                
+                    if base_object != button_pointer:
+                        pointer_class = button_pointer.__class__
+                        for prop in base_object.bl_rna.properties:
+                            if isinstance(getattr(base_object, prop.identifier), pointer_class):
+                                attr = "%s.%s" %(attr, prop.identifier)
                                 break
 
                     if self.copy_single:

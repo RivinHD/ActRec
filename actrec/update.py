@@ -47,11 +47,6 @@ def on_scene_update(dummy= None) -> None:
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
         bpy.app.handlers.load_post.remove(on_start)
 
-def get_json_from_content(content: bytes) -> dict:
-    data = json.loads(content)
-    content = base64.b64decode(data["content"]).decode("utf-8")
-    return json.loads(content)
-
 def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tuple[int, int, int]]]:
     if version_file is None:
         return (False, "No Internet Connection")
@@ -113,7 +108,7 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
         with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
-            ar_file.write(path, get_json_from_content(download_chunks[path]["chunks"]))
+            ar_file.write(path, download_chunks[path]["chunks"])
     for path in version_file['remove']:
         remove_path = os.path.join(AR.addon_directory, path)
         if os.path.exists(remove_path):
@@ -144,7 +139,7 @@ def get_version_file(res: requests.Response) -> Union[bool, dict, None]:
             logger.info("Finsihed Download: version_file")
             content = res.content
             res.close()
-            return get_json_from_content(content)
+            return json.loads(content)
         else:
             for chunk in res.iter_content(chunk_size= 1024):
                 update_manager.version_file['chunk'] += chunk
@@ -152,7 +147,7 @@ def get_version_file(res: requests.Response) -> Union[bool, dict, None]:
             if int(total_length) == length:
                 res.close()
                 logger.info("Finsihed Download: version_file")
-                return get_json_from_content(update_manager.version_file['chunk'])
+                return json.loads(update_manager.version_file['chunk'])
             return True
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
@@ -187,7 +182,7 @@ def no_stream_download_version_file(module_name):
         logger.info("Start Download: version_file")
         res = requests.get(config.check_source_url)
         logger.info("Finsihed Download: version_file")
-        version_file = get_json_from_content(res.content)
+        version_file = json.loads(res.content)
         update = check_for_update(version_file)
         AR = bpy.context.preferences.addons[module_name].preferences
         apply_version_file_result(AR, version_file, update)

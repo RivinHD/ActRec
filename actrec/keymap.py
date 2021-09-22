@@ -15,11 +15,11 @@ def register():
         # operators
         items.new("ar.macro_add", 'COMMA', 'PRESS', alt= True)
         items.new("ar.local_play", 'PERIOD', 'PRESS', alt= True)
-        items.new("ar.local_selection_up", 'WHEELUPMOUSE', 'PRESS', alt= True)
-        items.new("ar.local_selection_down", 'WHEELDOWNMOUSE', 'PRESS', alt= True)
+        items.new("ar.local_selection_up", 'WHEELUPMOUSE', 'PRESS', shift= True, alt= True)
+        items.new("ar.local_selection_down", 'WHEELDOWNMOUSE', 'PRESS', shift= True, alt= True)
         # menu
         kmi = items.new("wm.call_menu_pie", 'A', 'PRESS', shift= True, alt= True)
-        kmi.properties.name = 'ar.action_pie'
+        kmi.properties.name = 'AR_MT_action_pie'
 
 def unregister():
     addon = bpy.context.window_manager.keyconfigs.addon
