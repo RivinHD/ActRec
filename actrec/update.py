@@ -65,6 +65,7 @@ def start_update(version_file) -> Optional[bool]:
         for path in download_paths:
             update_manager.update_responds[path] = requests.get(config.repo_source_url %path, stream= True)
         logger.info("Start Update Process")
+        return True
     except Exception as err:
         logger.warning("no Connection (%s)" %err)
         return None
@@ -80,7 +81,7 @@ def update(AR, update_responds: dict, download_chunks: dict) -> Optional[bool]:
                 complet_progress += res.raw._fp_bytes_read
                 download_chunks[path]["chunks"] += res.content
                 res.close()
-                del update_responds[path]
+                update_responds[path] = None
             else:
                 total_length = int(total_length)
                 complet_length += total_length
@@ -93,7 +94,7 @@ def update(AR, update_responds: dict, download_chunks: dict) -> Optional[bool]:
                 finished_progress = length == total_length
                 if finished_progress:
                     res.close()
-                    del update_responds[path]
+                    update_responds[path] = None
                 finished_downloaded = finished_progress and finished_downloaded
         AR.update_progress = 100 * complet_progress / complet_length
         return finished_downloaded
@@ -281,7 +282,7 @@ class AR_OT_update(Operator):
         AR.restart = True
         install_update(AR, update_manager.update_data_chunks, update_manager.version_file)
         AR.update_progress = -1
-        context.window_manager.event_timer_remove(self.timer)
+        self.cancel(context)
         bpy.ops.ar.show_restart_menu('INVOKE_DEFAULT')
         return {"FINISHED"}
 
