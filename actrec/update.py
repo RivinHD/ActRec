@@ -201,6 +201,13 @@ def draw_update_button(layout, AR) -> None:
         row.prop(AR, 'update_progress', text= "Progress", slider= True)
     else:
         layout.operator('ar.update', text= 'Update')
+
+def draw_menu(self, context):
+    layout = self.layout
+    layout.label(text= "You need to restart Blender to complete the Update")
+    row = self.layout.row()
+    row.operator(AR_OT_restart.bl_idname, text= "Save & Restart").save = True
+    row.operator(AR_OT_restart.bl_idname, text= "Restart")
 # endregion
 
 # region Operator
@@ -340,17 +347,9 @@ class AR_OT_show_restart_menu(Operator):
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
         return AR.restart
-    
-    def draw_menu(self, popup, context):
-        layout = self.layout
-        box = layout.box()
-        box.label(text= "You need to restart Blender to complete the Update")
-        row = self.layout.row()
-        row.operator(AR_OT_restart.bl_idname, text= "Save & Restart").save = True
-        row.operator(AR_OT_restart.bl_idname, text= "Restart")
 
     def execute(self, context):
-        context.window_manager.popup_menu(self.draw_menu, title= "Action Recorder Restart")
+        context.window_manager.popup_menu(draw_menu, title= "Action Recorder Restart")
         return {"FINISHED"}
 # endregion
 
