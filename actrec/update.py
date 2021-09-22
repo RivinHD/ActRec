@@ -109,7 +109,7 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
         with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
-            ar_file.write(path, download_chunks[path]["chunks"])
+            ar_file.write(download_chunks[path]["chunks"])
     for path in version_file['remove']:
         remove_path = os.path.join(AR.addon_directory, path)
         if os.path.exists(remove_path):
@@ -288,7 +288,8 @@ class AR_OT_update(Operator):
 
     def cancel(self, context):
         for res in update_manager.update_responds.values():
-            res.close()
+            if res:
+                res.close()
         update_manager.update_responds.clear()
         update_manager.update_data_chunks.clear()
         context.window_manager.event_timer_remove(self.timer)
