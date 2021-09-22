@@ -257,7 +257,7 @@ class AR_OT_update(Operator):
     def invoke(self, context, event):
         update_manager.download_list = get_download_list(update_manager.version_file)
         update_manager.download_length = len(update_manager.download_list)
-        self.timer = context.window_manager.event_timer_add(0.1)
+        self.timer = context.window_manager.event_timer_add(0.05, window= context.window)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
