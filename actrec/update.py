@@ -35,7 +35,7 @@ class update_manager:
 def on_start(dummy= None) -> None:
     AR = bpy.context.preferences.addons[__module__].preferences
     if AR.auto_update and update_manager.version_file_thread is None:
-        t = threading.Thread(target= no_stream_download_version_file, args= [__module__, update_manager.version_file], daemon= True)
+        t = threading.Thread(target= no_stream_download_version_file, args= [__module__], daemon= True)
         t.start()
         update_manager.version_file_thread = t
 
@@ -177,12 +177,13 @@ def get_download_paths(version_file) -> Optional[list]:
             download_list.append(key)
     return download_list
 
-def no_stream_download_version_file(module_name, version_file):
+def no_stream_download_version_file(module_name):
     try:
         logger.info("Start Download: version_file")
         res = requests.get(config.check_source_url)
         logger.info("Finsihed Download: version_file")
-        version_file = json.loads(res.content)
+        update_manager.version_file = json.loads(res.content)
+        version_file = update_manager.version_file
         update = check_for_update(version_file)
         AR = bpy.context.preferences.addons[module_name].preferences
         apply_version_file_result(AR, version_file, update)
