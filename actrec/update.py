@@ -187,7 +187,7 @@ def no_stream_download_version_file(module_name):
 def draw_update_button(layout, AR) -> None:
     if AR.update_progress >= 0:
         row = layout.row()
-        row.enable = False
+        row.enabled = False
         row.prop(AR, 'update_progress', text= "Progress", slider= True)
     else:
         layout.operator('ar.update', text= 'Update')
