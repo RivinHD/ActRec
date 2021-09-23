@@ -38,6 +38,8 @@ class AR_preferences(AddonPreferences):
             if origin_path != 'Fallback':
                 logger.error("ActRec ERROR: Storage Path \"" + origin_path +"\" don't exist, fallback to " + path)
             self['icon_path'] = path
+            if not os.path.exists(path):
+                os.makedirs(path)
             return path
     def set_icon_path(self, origin_path: str) -> None:
         self['icon_path'] = origin_path

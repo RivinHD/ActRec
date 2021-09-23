@@ -39,7 +39,9 @@ def category_visible(AR, context, category):
             if len(area.modes) == 0:
                 return True
             if area_space == 'VIEW_3D':
-                mode = context.object.mode
+                mode = ""
+                if context.object:
+                    mode = context.object.mode
             else:
                 mode = getattr(context.space_data, space_mode_attribute[area_space])
             return mode in set(mode.type for mode in area.modes)
