@@ -28,43 +28,6 @@ class AR_OT_check_ctrl(Operator):
             return {"FINISHED"}
         return {"CANCELLED"}
 
-class AR_OT_run_queued_macros(Operator):
-    bl_idname = "ar.run_queued_macros"
-    bl_label = "Run Queued Commands"
-    bl_options = {'INTERNAL'}
-
-    timer = None
-
-    def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        for execute_time, action_type, action_id, start in shared_data.timed_macros:
-            if time.time() == execute_time:
-                action = getattr(AR, action_type)[action_id]
-                functions.play(context.copy(), action.macros[start: ], action, action_type)
-        return {"FINISHED"}
-    
-    def modal(self, context, event):
-        if len(shared_data.timed_macros):
-            self.execute(context)
-            return {'PASS_THROUGH'}
-        else:
-            self.cancel(context)
-            return {'FINISHED'}
-
-    def invoke(self, context, event):
-        if self.timer is None:
-            wm = context.window_manager
-            self.timer = wm.event_timer_add(0.05, window= context.window)
-            wm.modal_handler_add(self)
-            return {'RUNNING_MODAL'}
-        return {'CANCELLED'}
-    
-    def cancel(self, context):
-        if self.timer:
-            wm = context.window_manager
-            wm.event_timer_remove(self._timer)
-            self.timer = None
-
 class id_based(Operator):
     id : StringProperty(name= "id", description= "id of the action (1. indicator)")
     index : IntProperty(name= "index", description= "index of the action (2. indicator)", default= -1)
@@ -75,8 +38,7 @@ class id_based(Operator):
 # endregion
 
 classes = [
-    AR_OT_check_ctrl,
-    AR_OT_run_queued_macros
+    AR_OT_check_ctrl
 ]
 
 # region Registration

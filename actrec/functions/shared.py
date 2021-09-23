@@ -8,6 +8,7 @@ import time
 import os
 import sys
 import random, math, numpy
+import functools
 
 # blender modules
 import bpy
@@ -173,6 +174,11 @@ def update_command(command: str) -> Union[str, bool, None]:
     else:
         return False
 
+def run_queued_macros(context_copy, action_type, action_id, start):
+    AR = context_copy['preferences'].addons[__module__].preferences
+    action = getattr(AR, action_type)[action_id]
+    play(context_copy, action.macros[start: ], action, action_type)
+
 def play(context_copy, macros, action, action_type: str): # non-realtime events, execute before macros get executed run
     macros = [macro for macro in macros if macro.active]
     for i, macro in enumerate(macros):
@@ -185,28 +191,33 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
             elif data['Type'] == 'Render Complet':
                 shared_data.render_complete_macros.append((action_type, action.id, i + 1))
                 return
+
+    base_window = context_copy['window']
+    base_screen = context_copy['screen']
+    base_area = context_copy['area']
+    base_space_data = context_copy['space_data']
+                
     for i, macro in enumerate(macros): # realtime events
         split = macro.command.split(":")
         if split[0] == 'ar.event': 
             data = json.loads(":".join(split[1:]))
             if data['Type'] == 'Timer':
-                shared_data.timed_macros.append((time.time() + data['Time'], action_type, action.id, i + 1))
-                bpy.ops.ar.run_queued_macros('INVOKE_DEFAULT')
+                bpy.app.timers.register(functools.partial(run_queued_macros, context_copy, action_type, action.id, i + 1), first_interval= data['Time'])
                 return
             elif data['Type'] == 'Loop':
                 end_index = i + 1
                 loop_count = 1
-                for i, macro in enumerate(macros[i + 1:], i + 1):
-                    if macro.active:
-                        split = macro.command.split(":")
+                for j, process_macro in enumerate(macros[i + 1:], i + 1):
+                    if process_macro.active:
+                        split = process_macro.command.split(":")
                         if split[0] == 'ar.event': # realtime events
-                            data = json.loads(":".join(split[1:]))
-                            if data['Type'] == 'Loop':
+                            process_data = json.loads(":".join(split[1:]))
+                            if process_data['Type'] == 'Loop':
                                 loop_count += 1
-                            elif data['Type'] == 'EndLoop':
+                            elif process_data['Type'] == 'EndLoop':
                                 loop_count -= 1
                     if loop_count == 0:
-                        end_index = i
+                        end_index = j
                         break
                 if loop_count != 0:
                     continue
@@ -219,46 +230,68 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
                     except Exception as err:
                         logger.error(err)
                         action.alert = macro.alert = True
-                        return
+                        return err
                 else:
-                    for k in range(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
-                        play(context_copy, loop_macros, action, action_type)
+                    for k in numpy.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
+                        err = play(context_copy, loop_macros, action, action_type)
+                        if err:
+                            return err
+                
+                return play(context_copy, macros[end_index + 1: ], action, action_type)
             elif data['Type'] == 'Select Object':
                 obj = bpy.data.objects[data['Object']]
-                objs = bpy.context.view_layer.objects
+                objs = context_copy['view_layer'].objects
                 if obj in [o for o in objs]:
                     objs.active = obj
+                    for o in context_copy['selected_objects']:
+                        o.select_set(False)
+                    obj.select_set(True)
+                    context_copy['selected_objects'] = [obj]
                 else:
                     action.alert = macro.alert = True
-                    return
+                    return "%s Object doesn't exist in the active view layer" %data['Object']
+                continue
+            elif data['Type'] == 'EndLoop':
                 continue
         try:
             command = macro.command
             area = context_copy['area']
-            area_type = area.ui_type
-            if macro.ui_type:
-                windows = context_copy['window_manager'].windows
-                windows.reverse()
-                for window in windows:
-                    if windows.screen.areas[0].ui_type == macro.ui_type:
-                        context_copy['window'] = window
-                        context_copy['screen'] = copy_screen = window.screen
-                        context_copy['area'] = copy_area = copy_screen.areas[0]
-                        context_copy['space_data'] = copy_area.spaces[0]
-                else:
-                    area.ui_type = macro.ui_type
+            if area:
+                area_type = area.ui_type
+                if macro.ui_type:
+                    windows = list(context_copy['window_manager'].windows)
+                    windows.reverse()
+                    for window in windows:
+                        if window.screen.areas[0].ui_type == macro.ui_type:
+                            context_copy['window'] = window
+                            context_copy['screen'] = copy_screen = window.screen
+                            context_copy['area'] = copy_area = copy_screen.areas[0]
+                            context_copy['space_data'] = copy_area.spaces[0]
+                            break
+                    else:
+                        area.ui_type = macro.ui_type
             if command.startswith("bpy.ops."):
                 split = command.split("(")
                 command = "%s(context_copy, %s" %(split[0], "(".join(split[1: ]))
             elif command.startswith("bpy.context."):
                 split = command.replace("bpy.context.", "").split(".")
                 command = "context_copy['%s'].%s" %(split[0], ".".join(split[1: ]))
+
             exec(command)
-            area.ui_type = area_type
+            
+            if area and macro.ui_type:
+                context_copy['window'] = base_window
+                context_copy['screen'] = base_screen
+                context_copy['area'] = base_area
+                context_copy['space_data'] = base_space_data
+                area.ui_type = area_type
+
         except Exception as err:
-            logger.error(err)
+            logger.error("%s; command: %s" %(err, command))
             action.alert = macro.alert = True
-            return 
+            if base_area:
+                base_area.ui_type = area_type
+            return err
 
 @persistent
 def execute_render_init(dummy = None):

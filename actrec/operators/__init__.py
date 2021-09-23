@@ -19,7 +19,7 @@ from .locals import (
     AR_OT_local_to_global
 )
 
-from .play_helper import (
+from .helper import (
     AR_OT_helper_object_to_collection
 )
 
@@ -42,7 +42,7 @@ def register():
     reg()
     from .macros import register as reg
     reg()
-    from .play_helper import register as reg
+    from .helper import register as reg
     reg()
     from .preferences import register as reg
     reg()
@@ -58,7 +58,7 @@ def unregister():
     unreg()
     from .macros import unregister as unreg
     unreg()
-    from .play_helper import unregister as unreg
+    from .helper import unregister as unreg
     unreg()
     from .preferences import unregister as unreg
     unreg()

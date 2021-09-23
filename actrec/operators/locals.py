@@ -301,7 +301,9 @@ class AR_OT_local_play(shared.id_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
-        functions.play(context.copy(), action.macros, action, 'local_actions')
+        err = functions.play(context.copy(), action.macros, action, 'local_actions')
+        if err:
+            self.report({'ERROR'}, str(err))
         self.clear()
         return{'FINISHED'}
 

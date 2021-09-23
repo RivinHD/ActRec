@@ -42,10 +42,13 @@ class AR_OT_macro_add(shared.id_based, Operator):
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and not AR.local_record_macros
+        return not AR.local_record_macros
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
+        if not len(AR.local_actions):
+            self.report({'ERROR'}, 'Add a local action first')
+            return {'CANCELLED'}
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         new_report = False
@@ -71,10 +74,11 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     i = 0
                     len_tracked = len(tracked_actions)
                     if len_tracked > i:
-                        tracked = tracked_actions[0]
+                        tracked = tracked_actions[i]
+                        i += 1
                         while tracked[2] != "CONTEXT" and len_tracked > i:
-                            i += 1
                             tracked = tracked_actions[i]
+                            i += 1
                     reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
                 else:
                     reports = functions.merge_report_tracked([command], [])
@@ -101,10 +105,11 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     i = 0
                     len_tracked = len(tracked_actions)
                     if len_tracked > i:
-                        tracked = tracked_actions[0]
+                        tracked = tracked_actions[i]
+                        i += 1
                         while not (tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name) and functions.compare_op_dict(ops_values, tracked[3])) and len_tracked > i:
-                            i += 1
                             tracked = tracked_actions[i]
+                            i += 1
                     reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
                 else:
                     bl_options = getattr(getattr(bpy.ops, ops_type), ops_name).bl_options
@@ -129,7 +134,10 @@ class AR_OT_macro_add(shared.id_based, Operator):
             while bpy.ops.ed.redo.poll():
                 bpy.ops.ed.redo()
 
-            functions.add_report_as_macro(AR, action, command, [])
+            ui_type = ""
+            if context.area:
+                ui_type = context.area.ui_type
+            functions.add_report_as_macro(AR, action, command, [], ui_type)
         else:
             if new_report:
                 self.report({'ERROR'}, "No Action could be added")
@@ -229,9 +237,9 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
             box.prop(self, 'time')
         elif self.type == 'Loop':
             box = layout.box()
-            box.prop(self, 'statements')
+            box.prop(self, 'statement_type', text= "Type")
             box.separator()
-            if self.statements == 'python':
+            if self.statement_type == 'python':
                 box.prop(self, 'python_statement')
             else:
                 box.prop(self, 'start')
@@ -358,34 +366,60 @@ class AR_OT_macro_edit(macro_based, Operator):
     bl_description = "Double click to Edit"
 
     def set_clear_ops(self, value):
-        if value:
-            if self.copy_data:
-                command = self.last_command
-                if command.startswith("bpy.ops."):
-                    self.last_command ="%s()" %command.split("(")[0]
+        if self.copy_data:
+            command = self.last_command
+            if command.startswith("bpy.ops."):
+                self.last_command ="%s()" %command.split("(")[0]
             else:
-                command = self.command
-                if command.startswith("bpy.ops."):
-                    self.command = "%s()" %command.split("(")[0]
+                self.last_command = ""
+        else:
+            command = self.command
+            if command.startswith("bpy.ops."):
+                self.command = "%s()" %command.split("(")[0]
+            else:
+                self.command = ""
+    def get_command(self):
+        if not self.copy_data and any(line.update for line in self.lines):
+            self.command = "".join(line.text for line in self.lines)
+        return self.get('command', '')
+    def set_command(self, value):
+        self['command'] = value
+        if not self.copy_data:
+            self.lines.clear()
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 15):
+                new = self.lines.add()
+                new['text'] = line
+    def get_last_command(self):
+        if self.copy_data and any(line.update for line in self.lines):
+            self.last_command = "".join(line.text for line in self.lines)
+        return self.get('last_command', '')
+    def set_last_command(self, value):
+        self['last_command'] = value
+        if self.copy_data:
+            self.lines.clear()
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 15):
+                new = self.lines.add()
+                new['text'] = line
+
     def get_copy_data(self):
         return self.get("copy_data", False)
     def set_copy_data(self, value):
-        self["last_copy_data"] = self.get("copy_data", False)
         self["copy_data"] = value
-    def get_last_copy_data(self):
-        return self.get("last_copy_data", False)
+        if value: # update lines
+            self.last_command = self.last_command
+        else:
+            self.command = self.command
                     
     label : StringProperty(name= "Label")
-    command : StringProperty(name= "Command")
+    command : StringProperty(name= "Command", get= get_command, set= set_command)
     last_label : StringProperty(name= "Last Label")
-    last_command : StringProperty(name= "Last Command")
+    last_command : StringProperty(name= "Last Command", get= get_last_command, set= set_last_command)
     last_id : StringProperty(name= "Last Id")
     edit : BoolProperty(default= False)
     clear_ops : BoolProperty(name= "Clear Operator Command", get= lambda x: False, set= set_clear_ops)
     copy_data : BoolProperty(default= False, name= "Copy Previous", description= "Copy the data of the previous recorded Macro and place it in this Macro", get= get_copy_data, set= set_copy_data)
-    last_copy_data : BoolProperty(get= get_last_copy_data)
     lines : CollectionProperty(type= properties.AR_macro_multiline)
-    width = 500
+    width : IntProperty(default= 500, name= "width", description= "Window width of the Popup")
     font_text = None
     time = 0
 
@@ -400,6 +434,10 @@ class AR_OT_macro_edit(macro_based, Operator):
         action = AR.local_actions[action_index]
         index = self.index = functions.get_local_macro_index(action, self.id, self.index)
         macro = action.macros[index]
+        
+        fontpath = functions.get_font_path()
+        if AR_OT_macro_edit.font_text is None or AR_OT_macro_edit.font_text.path != fontpath:
+            AR_OT_macro_edit.font_text = text_analysis(fontpath)
 
         t = time.time()
         if self.last_id == macro.id and AR_OT_macro_edit.time + 0.7 > t or self.edit:
@@ -419,18 +457,12 @@ class AR_OT_macro_edit(macro_based, Operator):
                     bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index)
                 self.clear()
                 return {"FINISHED"}
+
             self.label = macro.label
             self.command = macro.command
-            fontpath = functions.get_font_path()
-            if AR_OT_macro_edit.font_text is None or AR_OT_macro_edit.font_text.path != fontpath:
-                AR_OT_macro_edit.font_text = text_analysis(fontpath)
-            self.lines.clear()
-            for line in functions.text_to_lines(self.command, AR_OT_macro_edit.font_text, self.width - 15):
-                new = self.lines.add()
-                new.text = line
             self.last_label = AR.last_macro_label
             self.last_command = AR.last_macro_command
-            return context.window_manager.invoke_props_dialog(self, width=self.width)
+            return context.window_manager.invoke_props_dialog(self, width= self.width)
         else:
             action.active_macro_index = index
         self.last_id = macro.id
@@ -456,22 +488,13 @@ class AR_OT_macro_edit(macro_based, Operator):
     def draw(self, context):
         layout = self.layout
 
-        if self.last_copy_data:
-            self.last_command = "".join(line.text for line in self.lines)
-        else:
-            self.command = "".join(line.text for line in self.lines)
-
         if self.copy_data:
             layout.prop(self, 'last_label', text= "Label")
-            command = self.last_command
+            self.last_command # update
         else:
             layout.prop(self, 'label', text= "Label")
-            command = self.command
+            self.command # update
 
-        self.lines.clear()  
-        for line in functions.text_to_lines(command, AR_OT_macro_edit.font_text, self.width - 16): # 8 left and right of the Stringproperty begins text
-            new = self.lines.add()
-            new.text = line
         col = layout.column(align= True)
         for line in self.lines:
             col.prop(line, 'text', text= "")

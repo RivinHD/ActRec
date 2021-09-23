@@ -85,7 +85,6 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
                     update_manager.update_respond = None
         else:
             update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
-        print(progress, length, download_length, len(update_manager.download_list),  100 * (progress / (length * download_length) + (download_length - len(update_manager.download_list) / download_length)))
         AR.update_progress = 100 * (progress / (length * download_length) + (download_length - len(update_manager.download_list)) / download_length)
         if finished_downloaded:
             update_manager.download_list.pop(0)

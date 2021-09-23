@@ -502,7 +502,9 @@ class AR_OT_global_execute_action(shared.id_based, Operator):
         if id is None:
             return {'CANCELLED'}
         action = AR.global_actions[id]
-        functions.play(context.copy(), action.macros, action, 'global_actions')
+        err = functions.play(context.copy(), action.macros, action, 'global_actions')
+        if err:
+            self.report({'ERROR'}, str(err))
         return{'FINISHED'}
 
 class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):

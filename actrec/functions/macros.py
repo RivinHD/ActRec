@@ -202,13 +202,14 @@ def merge_report_tracked(reports, tracked_actions) -> list:
         continue_tracked = len_tracked > tracked_i
     return data
 
-def add_report_as_macro(AR, action, report: str, error_reports: list) -> None:
+def add_report_as_macro(AR, action, report: str, error_reports: list, ui_type= "") -> None:
     if report.startswith(("bpy.context.", "bpy.ops.")):
         macro = action.macros.add()
         label = shared.get_name_of_command(report)
         macro.id
         macro.label = AR.last_macro_label = label if label else report
         macro.command = AR.last_macro_command = report
+        macro.ui_type = ui_type
         action.active_macro_index = -1
     else:
         error_reports.append(report)
