@@ -4,7 +4,8 @@ used by intra-modules: functions, operators"""
 from .categories import (
     register_category,
     unregister_category,
-    category_visible
+    category_visible,
+    get_visible_categories
 )
 
 from .globals import (

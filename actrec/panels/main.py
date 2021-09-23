@@ -11,7 +11,7 @@ from ..log import logger
 
 __module__ = __package__.split(".")[0]
 classes = []
-ui_space_types = ['CLIP_EDITOR', 'FILE_BROWSER', 'NODE_EDITOR', 'TEXT_EDITOR', 'SEQUENCE_EDITOR', 'NLA_EDITOR', 'DOPESHEET_EDITOR', 'VIEW_3D', 'GRAPH_EDITOR', 'IMAGE_EDITOR'] # blender spaces with UI region
+ui_space_types = ['CLIP_EDITOR', 'NODE_EDITOR', 'TEXT_EDITOR', 'SEQUENCE_EDITOR', 'NLA_EDITOR', 'DOPESHEET_EDITOR', 'VIEW_3D', 'GRAPH_EDITOR', 'IMAGE_EDITOR'] # blender spaces with UI region
 
 # region Panels
 def panel_factory(space_type): #Create Panels for every spacetype with UI

@@ -38,12 +38,15 @@ def category_visible(AR, context, category):
         if area.type == area_type:
             if len(area.modes) == 0:
                 return True
-            if area_space == 'VIEW_3D' or area_space == 'FILE_BROWSER':
-                mode = context.mode
+            if area_space == 'VIEW_3D':
+                mode = context.object.mode
             else:
                 mode = getattr(context.space_data, space_mode_attribute[area_space])
             return mode in set(mode.type for mode in area.modes)
     return False
+
+def get_visible_categories(AR, context):
+    return [category for category in AR.categories if category_visible(AR, context, category)]
 
 def register_unregister_category(index, space_types = panels.ui_space_types, register = True): #Register/Unregister one Category
     for spaceType in space_types:
@@ -61,22 +64,21 @@ def register_unregister_category(index, space_types = panels.ui_space_types, reg
             def poll(self, context):
                 AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                category = AR.categories[index]
-                return category_visible(AR, context, category)
+                return index < len(get_visible_categories(AR, context))
 
             def draw_header(self, context):
                 AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                category = AR.categories[index]
+                category = get_visible_categories(AR, context)[index]
                 layout = self.layout
                 row = layout.row()
-                row.prop(AR.categories[index], 'selected', text= '', icon= 'LAYER_ACTIVE' if AR.categories[index].selected else 'LAYER_USED', emboss= False)
+                row.prop(category, 'selected', text= '', icon= 'LAYER_ACTIVE' if category.selected else 'LAYER_USED', emboss= False)
                 row.label(text= category.label)
 
             def draw(self, context):
                 AR = context.preferences.addons[__module__].preferences
                 index = int(self.bl_idname.split("_")[3])
-                category = AR.categories[index]
+                category = get_visible_categories(AR, context)[index]
                 layout = self.layout
                 col = layout.column()
                 for id in [x.id for x in category.actions]:

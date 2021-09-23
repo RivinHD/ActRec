@@ -47,24 +47,22 @@ class AR_OT_category_interface(Operator):
         'FCURVES': 'GRAPH_EDITOR', 
         'DRIVERS': 'GRAPH_EDITOR', 
         'NLA_EDITOR': 'NLA_EDITOR', 
-        'TEXT_EDITOR': 'TEXT_EDITOR', 
-        'FILES': 'FILE_BROWSER'
+        'TEXT_EDITOR': 'TEXT_EDITOR'
         }
 
     modes = {
-        'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items],
+        'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.ops.object.mode_set.get_rna_type().bl_rna.properties[1].enum_items],
         'IMAGE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceImageEditor.bl_rna.properties['ui_mode'].enum_items],
         'NODE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in  bpy.types.SpaceNodeEditor.bl_rna.properties['texture_type'].enum_items],
         'SEQUENCE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items],
         'CLIP_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items],
         'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items],
-        'GRAPH_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceGraphEditor.bl_rna.properties['mode'].enum_items],
-        'FILE_BROWSER': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.Context.bl_rna.properties['mode'].enum_items]
+        'GRAPH_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceGraphEditor.bl_rna.properties['mode'].enum_items]
     }
     for key, item in modes.items():
         modes[key] = [("all", "All", "use in all available modes", "GROUP_VCOL", 0)] + item
 
-    mode_dict = {mode: functions.enum_list_id_to_name_dict(data) for mode, data in modes.items()}
+    mode_dict = {area: functions.enum_list_id_to_name_dict(data) for area, data in modes.items()}
 
     area_items = [ # (identifier, name, description, icon, value)
         ('VIEW_3D', '3D Viewport', '', 'VIEW3D', 0),
@@ -81,8 +79,7 @@ class AR_OT_category_interface(Operator):
         ('FCURVES', 'Graph Editor', '', 'GRAPH', 11),
         ('DRIVERS', 'Drivers', '', 'DRIVER', 12),
         ('NLA_EDITOR', 'Nonlinear Animation', '', 'NLA', 13),
-        ('TEXT_EDITOR', 'Text Editor', '', 'TEXT', 14),
-        ('FILES', 'File Browser', '', 'FILEBROWSER', 15)
+        ('TEXT_EDITOR', 'Text Editor', '', 'TEXT', 14)
     ]
     area_dict = functions.enum_list_id_to_name_dict(area_items)
 
@@ -128,7 +125,11 @@ class AR_OT_category_interface(Operator):
             for i, (area, mode) in enumerate(cls.category_visibility):
                 row = box.row()
                 row.label(text= cls.area_dict[area])
-                row.label(text= cls.mode_dict[area][mode])
+                mode_str = ""
+                area_modes = cls.mode_dict.get(area)
+                if area_modes:
+                    mode_str = area_modes[mode]
+                row.label(text= mode_str)
                 row.operator(AR_OT_category_delete_visibility.bl_idname, text= '', icon= 'PANEL_CLOSE', emboss= False).index = i
 
 class AR_OT_category_add(AR_OT_category_interface, Operator):

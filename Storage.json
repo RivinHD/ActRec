@@ -23,7 +23,16 @@
           "id": "c7a73281164611eca36c70c94ef23b30"
         }
       ],
-      "areas": []
+      "areas": [
+        {
+          "type": "VIEW_3D",
+          "modes": [
+            {
+              "type": "OBJECT"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "c7a81cb7164611ecb7fe70c94ef23b30",
@@ -51,7 +60,16 @@
           "id": "c7a7f5bd164611ec8b7d70c94ef23b30"
         }
       ],
-      "areas": []
+      "areas": [
+        {
+          "type": "VIEW_3D",
+          "modes": [
+            {
+              "type": "EDIT"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "c7a89191164611ec9cd470c94ef23b30",
@@ -76,7 +94,12 @@
           "id": "c7a8918b164611ecb21d70c94ef23b30"
         }
       ],
-      "areas": []
+      "areas": [
+        {
+          "type": "UV",
+          "modes": []
+        }
+      ]
     },
     {
       "id": "c7a90678164611ec851370c94ef23b30",
