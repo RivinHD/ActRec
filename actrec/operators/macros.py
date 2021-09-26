@@ -299,6 +299,7 @@ class AR_OT_macro_move_up(macro_based, Operator):
             return {"CANCELLED"}
         else:
             action.macros.move(index, index - 1)
+            action.active_macro_index = index - 1
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
@@ -329,6 +330,7 @@ class AR_OT_macro_move_down(macro_based, Operator):
             return {"CANCELLED"}
         else:
             action.macros.move(index, index + 1)
+            action.active_macro_index = index + 1
         functions.local_runtime_save(AR, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
