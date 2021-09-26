@@ -82,6 +82,7 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
                 else:
                     reports = functions.merge_report_tracked([command], [])
+                logger.info("Add Report: %s", reports)
 
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():

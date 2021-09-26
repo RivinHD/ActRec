@@ -338,6 +338,7 @@ class AR_OT_local_record(shared.id_based, Operator):
                 self.clear()
                 return {"FINISHED"}
             reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions[self.tracker_start_index: ]), dtype= object)
+            logger.info("Record Reports: %s", reports)
 
             record_undo_end = context.scene.ar.record_undo_end
             redo_steps = 0

@@ -26,10 +26,11 @@ class log_system:
         while len(all_logs) >= count:
             try:
                 os.remove(min([os.path.join(dirc, filename) for filename in all_logs], key= os.path.getctime)) # delete oldest file
-                all_logs = os.listdir(dirc)
             except PermissionError as err:
-                loglater.append("File is already used -> PermissionError: %" %str(err))
+                loglater.append("File is already used -> PermissionError: %s" %str(err))
                 break
+            except FileNotFoundError as err:
+                loglater.append("For some reason the File doesn't exists %s" %str(err)  )
         path = os.path.join(dirc, "ActRec_%s.log" % datetime.today().strftime('%d-%m-%Y_%H-%M-%S'))
 
         logger = logging.getLogger(__module__)
