@@ -30,7 +30,8 @@ class log_system:
                 loglater.append("File is already used -> PermissionError: %s" %str(err))
                 break
             except FileNotFoundError as err:
-                loglater.append("For some reason the File doesn't exists %s" %str(err)  )
+                loglater.append("For some reason the File doesn't exists %s" %str(err))
+                break
         path = os.path.join(dirc, "ActRec_%s.log" % datetime.today().strftime('%d-%m-%Y_%H-%M-%S'))
 
         logger = logging.getLogger(__module__)
