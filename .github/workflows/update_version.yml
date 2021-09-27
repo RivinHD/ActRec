@@ -30,7 +30,7 @@ jobs:
         working-directory: .github/workflows/scripts
         run: |
           output=$(python update_version.py -files ${{ steps.files.outputs.added_modified }} -removed ${{ steps.files.outputs.removed }})
-          set-output name=log::$output
+          echo "::set-output name=log::$output"
       - name: Print Log
         run: echo "${{ steps.update.outputs.log }}"
         
