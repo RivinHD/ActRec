@@ -27,8 +27,9 @@ jobs:
           format: 'json'
       - name: Update to new Version
         id: "update"
+        working-directory: .github/workflows/scripts
         run: |
-          output=$(python ./scripts/update_version.py -files $(jq -r '.[]' <<<'${{ steps.files.outputs.all }}'))
+          output=$(python update_version.py -files '${{ steps.files.outputs.all }}')
           set-output name=log::$output
       - name: Print Log
         run: echo "${{ steps.update.outputs.log }}"

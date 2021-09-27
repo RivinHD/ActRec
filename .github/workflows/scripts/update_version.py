@@ -28,7 +28,8 @@ if __name__ == "__main__":
     with open(os.path.join(addon_directory, "download_file.json"), 'w+', encoding= 'utf-8') as file:
         data = json.loads(file.read())
         for file in args.files:
-            data[file] = version
+            if data.get(file, None):
+                data[file] = version
         json.dump(data, file, ensure_ascii= False, indent= 4)
     
     with open(os.path.join(addon_directory, "__init__.py"), 'r+', encoding= 'utf-8') as file:
