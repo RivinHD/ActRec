@@ -7,7 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+
+  update:
 
     runs-on: ubuntu-latest
     strategy:
@@ -24,6 +25,11 @@ jobs:
         uses: jitterbit/get-changed-files@v1
         with:
           format: 'json'
-      - run: readarray -t changed_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.all }}')"
       - name: Update to new Version
-        run: python ./scripts/update_version.py
+        id: "update"
+        run: |
+          output=$(python ./scripts/update_version.py -files $(jq -r '.[]' <<<'${{ steps.files.outputs.all }}'))
+          set-output name=log::$output
+      - name: Print Log
+        run: echo "${{ steps.update.outputs.log }}"
+        
