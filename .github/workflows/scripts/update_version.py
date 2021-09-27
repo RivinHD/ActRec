@@ -49,6 +49,7 @@ if __name__ == "__main__":
             print(file)
             if file not in data_remove:
                 data_remove.append(file)
+        data["version"] = version
     with open(os.path.join(addon_directory, "download_file.json"), 'w', encoding= 'utf-8') as download_file:
         download_file.write(collapse_json(json.dumps(data, ensure_ascii= False, indent= 4)))
         

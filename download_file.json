@@ -1,5 +1,5 @@
 {
-    "version": [4, 0, 0],
+    "version": [4, 0, 2],
     "files": {
         "actrec/functions/__init__.py": [4, 0, 0],
         "actrec/functions/categories.py": [4, 0, 0],
