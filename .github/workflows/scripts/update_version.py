@@ -17,7 +17,7 @@ if __name__ == "__main__":
     with open(os.path.join(addon_directory, "actrec/config.py")) as file:
         for line in file.readlines():
             if "version" in line:
-                check_version = line.split("=")[1].strip()
+                check_version = eval(line.split("=")[1].strip())
                 if check_version > version:
                     version = check_version
                 break
