@@ -7,7 +7,7 @@ if __name__ == "__main__":
     parser.add_argument("-files", type= list)
     args = parser.parse_args()
 
-    addon_directory = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    addon_directory = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
     version = (0, 0, 0)
     with open(os.path.join(addon_directory, "__init__.py"), 'r', encoding= 'utf-8') as file:
         for line in file.readlines():
