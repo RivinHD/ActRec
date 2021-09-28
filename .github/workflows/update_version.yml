@@ -36,6 +36,8 @@ jobs:
           echo "::set-output name=log::$output"
       - name: Print Log
         run: echo "${{ steps.update.outputs.log }}"
+      - name: Add Changes
+        run: git add -A
       - name: Update files on GitHub
         uses: test-room-7/action-update-file@v1.5.0
         with:
@@ -44,6 +46,6 @@ jobs:
               download_file.json
               actrec/config.py
           commit-msg: Update Files
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.FILE_UPDATER }}
 
         
