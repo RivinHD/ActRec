@@ -1,20 +1,13 @@
-﻿from . import actrec
+manual_url = 'https://github.com/InamuraJIN/ActionRecorder/blob/master/README.md'
 
-bl_info = {
-    "name" : "ActionRecorder",
-    "author" : "InamuraJIN, Rivin",
-    "version": (4, 0, 2), # also update version in config
-    "blender": (2, 83, 12),
-    "location" : "View 3D",
-    "warning" : "",
-    "wiki_url" : 'https://github.com/InamuraJIN/ActionRecorder/blob/master/README.md', # Documentation
-    "tracker_url" : 'https://inamurajin.wixsite.com/website/post/bug-report', # Report Bug
-    'link': 'https://twitter.com/Inamura_JIN',
-    "category" : "System"
-}
+hint_url = 'https://inamurajin.wixsite.com/website/post/hint-help'
 
-def register():
-    actrec.register()
+bug_report_url = 'https://inamurajin.wixsite.com/website/post/bug-report'
 
-def unregister():
-    actrec.unregister()
+check_source_url = 'https://raw.githubusercontent.com/RivinHD/ActRec/master/download_file.json'
+
+repo_source_url = 'https://raw.githubusercontent.com/RivinHD/ActRec/master/%s'
+
+release_notes_url = 'https://github.com/InamuraJIN/ActionRecorder/wiki'
+
+version = (4, 0, 2)
