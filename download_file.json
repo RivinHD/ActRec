@@ -1,6 +1,7 @@
 {
+    "version": [4, 0, 2],
     "files": {
-        "actrec/functions/__init__.py" : [4, 0, 0],
+        "actrec/functions/__init__.py": [4, 0, 0],
         "actrec/functions/categories.py": [4, 0, 0],
         "actrec/functions/globals.py": [4, 0, 0],
         "actrec/functions/locals.py": [4, 0, 0],
