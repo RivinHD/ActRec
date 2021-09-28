@@ -27,7 +27,7 @@ if __name__ == "__main__":
             if "version" in line:
                 version = eval("%s)" %line.split(":")[1].split(")")[0].strip())
                 break
-    with open(os.path.join(addon_directory, "actrec/config.py")) as file:
+    with open(os.path.join(addon_directory, "actrec/config.py"), 'r', encoding= 'utf-8') as file:
         for line in file.readlines():
             if "version" in line:
                 check_version = eval(line.split("=")[1].strip())
@@ -53,12 +53,23 @@ if __name__ == "__main__":
     with open(os.path.join(addon_directory, "download_file.json"), 'w', encoding= 'utf-8') as download_file:
         download_file.write(collapse_json(json.dumps(data, ensure_ascii= False, indent= 4)))
         
-    
-    with open(os.path.join(addon_directory, "__init__.py"), 'r+', encoding= 'utf-8') as file:
-        lines = []
+    lines = []
+    with open(os.path.join(addon_directory, "__init__.py"), 'r', encoding= 'utf-8') as file:
         for line in file.readlines():
             if "version" in line:
                 split = line.split(": ")
                 sub_split = split[1].split(")")
                 line = "%s: %s%s" %(split[0], tuple(version), sub_split[-1])
             lines.append(line)
+    with open(os.path.join(addon_directory, "__init__.py"), 'w', encoding= 'utf-8') as file:
+        file.write("\n".join(lines))
+
+    lines = []
+    with open(os.path.join(addon_directory, "actrec/config.py"), 'r', encoding= 'utf-8') as file:
+        for line in file.readlines():
+            if "version" in line:
+                split = line.split("=")
+                line = "version = %s" %tuple(version)
+            lines.append(line)
+    with open(os.path.join(addon_directory, "__init__.py"), 'w', encoding= 'utf-8') as file:
+        file.write("\n".join(lines))
