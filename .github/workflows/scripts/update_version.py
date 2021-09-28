@@ -55,7 +55,7 @@ if __name__ == "__main__":
         
     lines = []
     with open(os.path.join(addon_directory, "__init__.py"), 'r', encoding= 'utf-8') as file:
-        for line in file.readlines():
+        for line in file.read().splitlines():
             if "version" in line:
                 split = line.split(": ")
                 sub_split = split[1].split(")")
@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     lines = []
     with open(os.path.join(addon_directory, "actrec/config.py"), 'r', encoding= 'utf-8') as file:
-        for line in file.readlines():
+        for line in file.read().splitlines():
             if "version" in line:
                 split = line.split("=")
                 line = "version = %s" %str(tuple(version))
             lines.append(line)
-    with open(os.path.join(addon_directory, "__init__.py"), 'w', encoding= 'utf-8') as file:
+    with open(os.path.join(addon_directory, "actrec/config.py"), 'w', encoding= 'utf-8') as file:
         file.write("\n".join(lines))
