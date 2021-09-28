@@ -59,7 +59,7 @@ if __name__ == "__main__":
             if "version" in line:
                 split = line.split(": ")
                 sub_split = split[1].split(")")
-                line = "%s: %s%s" %(split[0], tuple(version), sub_split[-1])
+                line = "%s: %s%s" %(split[0], str(tuple(version)), sub_split[-1])
             lines.append(line)
     with open(os.path.join(addon_directory, "__init__.py"), 'w', encoding= 'utf-8') as file:
         file.write("\n".join(lines))
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         for line in file.readlines():
             if "version" in line:
                 split = line.split("=")
-                line = "version = %s" %tuple(version)
+                line = "version = %s" %str(tuple(version))
             lines.append(line)
     with open(os.path.join(addon_directory, "__init__.py"), 'w', encoding= 'utf-8') as file:
         file.write("\n".join(lines))
