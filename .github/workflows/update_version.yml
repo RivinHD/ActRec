@@ -26,7 +26,7 @@ jobs:
         with:
           format: 'csv'
       - name: Update to new Version
-        id: "update"
+        id: update
         working-directory: .github/workflows/scripts
         run: |
           output=$(python update_version.py -files ${{ steps.files.outputs.added_modified }} -removed ${{ steps.files.outputs.removed }})
