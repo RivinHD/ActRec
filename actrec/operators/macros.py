@@ -138,7 +138,7 @@ class AR_OT_macro_add(shared.id_based, Operator):
             ui_type = ""
             if context.area:
                 ui_type = context.area.ui_type
-            functions.add_report_as_macro(AR, action, command, [], ui_type)
+            functions.add_report_as_macro(context, AR, action, command, [], ui_type)
         else:
             if new_report:
                 self.report({'ERROR'}, "No Action could be added")
@@ -200,7 +200,7 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
 
         if self.type == 'Clipboard':
             clipboard = context.window_manager.clipboard
-            name = functions.get_name_of_command(clipboard)
+            name = functions.get_name_of_command(context, clipboard)
             macro.label = name if isinstance(name, str) else clipboard
             macro.command = clipboard
         elif self.type == 'Empty':

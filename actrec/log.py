@@ -32,6 +32,7 @@ class log_system:
             except FileNotFoundError as err:
                 loglater.append("For some reason the File doesn't exists %s" %str(err))
                 break
+            all_logs = os.listdir(dirc)
         path = os.path.join(dirc, "ActRec_%s.log" % datetime.today().strftime('%d-%m-%Y_%H-%M-%S'))
 
         logger = logging.getLogger(__module__)

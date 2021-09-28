@@ -401,7 +401,7 @@ class AR_OT_local_record(shared.id_based, Operator):
             error_reports = []
             action = AR.local_actions[index]
             for report in data:
-                functions.add_report_as_macro(AR, action, report, error_reports)
+                functions.add_report_as_macro(context, AR, action, report, error_reports)
             if error_reports:
                 self.report({'ERROR'}, "Not all reports could be added added:\n%s" %"\n".join(error_reports))
             functions.local_runtime_save(AR, bpy.context.scene)

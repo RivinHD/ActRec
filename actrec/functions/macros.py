@@ -37,15 +37,15 @@ def convert_to_python(value):
         return tuple(row.to_tuple() for row in value)
     return value
 
-def props_to_dict(obj) -> dict:
+def operator_to_dict(op) -> dict:
     data = {}
-    props = obj.properties
-    for key in props.bl_rna.properties.keys()[1: ]:
-        if "_OT_" in key:
-            value = props_to_dict(obj.macros[key])
-        else:
-            value = convert_to_python(getattr(props, key))
-        data[key] = value
+    if 'MACRO' in op.bl_options:
+        for key, item in op.macros.items():
+            data[key] = operator_to_dict(item)
+    else:
+        props = op.properties
+        for key in props.bl_rna.properties.keys()[1: ]:
+            data[key] = convert_to_python(getattr(props, key))
     return data
 
 @persistent
@@ -58,7 +58,7 @@ def track_scene(dummy = None):
         if length > AR.operators_list_length:
             AR.operators_list_length = length
             op = operators[-1]
-            shared_data.tracked_actions.append(['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, props_to_dict(op)])
+            shared_data.tracked_actions.append(['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, operator_to_dict(op)])
         else:
             last_op = last_tracked = shared_data.tracked_actions[-1]
             len_tracked = len(shared_data.tracked_actions)
@@ -67,7 +67,7 @@ def track_scene(dummy = None):
                 last_op = shared_data.tracked_actions[-i]
                 i += 1
             op = operators[-1]
-            props = props_to_dict(op)
+            props = operator_to_dict(op)
             if last_op[2] != "CONTEXT" and props != last_op[3]:
                 last_op[3] = props
             else:
@@ -202,10 +202,10 @@ def merge_report_tracked(reports, tracked_actions) -> list:
         continue_tracked = len_tracked > tracked_i
     return data
 
-def add_report_as_macro(AR, action, report: str, error_reports: list, ui_type= "") -> None:
+def add_report_as_macro(context, AR, action, report: str, error_reports: list, ui_type= "") -> None:
     if report.startswith(("bpy.context.", "bpy.ops.")):
         macro = action.macros.add()
-        label = shared.get_name_of_command(report)
+        label = shared.get_name_of_command(context, report)
         macro.id
         macro.label = AR.last_macro_label = label if label else report
         macro.command = AR.last_macro_command = report
@@ -222,17 +222,19 @@ def split_context_report(report) -> Tuple[list, str, str]:
 def get_id_object(context, source_path, attribute):
     if source_path[0] == 'area':
         for area in context.screen.areas:
-            if hasattr(area, attribute):
+            if hasattr(trace_object(area, source_path[1:]), attribute):
                 return area
     elif source_path[0] == 'space_data':
         for area in context.screen.areas:
             for space in area.spaces:
-                if hasattr(space, attribute):
+                if hasattr(trace_object(space, source_path[1:]), attribute):
                     return space
-    id_object = context
-    for x in source_path:
-        id_object = getattr(id_object, x)
-    return id_object
+    return trace_object(context, source_path)
+
+def trace_object(base, path):
+    for x in path:
+        base = getattr(base, x)
+    return base
 
 def get_copy_of_object(data, obj, attribute, depth= 5):
     if depth and obj:

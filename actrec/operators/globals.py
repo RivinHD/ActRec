@@ -70,13 +70,13 @@ class AR_OT_global_import(Operator, ImportHelper):
     category : StringProperty(default= "Imports")
     mode : EnumProperty(name= 'Mode', items= [("add","Add","Add to the current Global data"), ("overwrite", "Overwrite", "Remove the current Global data")])
 
-    def get_macros_from_file(self, zip_file: zipfile.ZipFile, path: str) -> list:
+    def get_macros_from_file(self, context, zip_file: zipfile.ZipFile, path: str) -> list:
         lines =  zip_file.read(path).decode(encoding= "utf-8").splitlines()
         macros = []
         for line in lines:
             data = {'id' : uuid.uuid1().hex, 'active' : True, 'icon': 0}
             data['command'] = line
-            label = functions.get_name_of_command(line)
+            label = functions.get_name_of_command(context, line)
             data['label'] = label if isinstance(label, str) else line
             macros.append(data)
         return macros
@@ -107,7 +107,7 @@ class AR_OT_global_import(Operator, ImportHelper):
                             {
                             'id' : uuid.uuid1().hex,
                             'label' : action.label,
-                            'macros' : self.get_macros_from_file(zip_file, action.identifier),
+                            'macros' : self.get_macros_from_file(context, zip_file, action.identifier),
                             'icon' : int(action.identifier.split("~")[-1].split(".")[0])
                             }for action in actions
                         ]

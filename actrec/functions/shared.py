@@ -107,7 +107,7 @@ def swap_collection_items(collection, index_1: int, index_2: int) -> None:
     collection.move(index_1, index_2)
     collection.move(index_2 + 1, index_1)
 
-def get_name_of_command(command: str) -> Optional[str]:
+def get_name_of_command(context, command: str) -> Optional[str]:
     if command.startswith("bpy.ops."):
         try:
             return eval("%s.get_rna_type().name" %command.split("(")[0])
@@ -117,16 +117,17 @@ def get_name_of_command(command: str) -> Optional[str]:
         split = command.split(' = ')
         if len(split) > 1:
             *path, prop = split[0].replace("bpy.context.", "").split(".")
-            obj = bpy.context
-            for x in path:
-                if hasattr(obj, x):
-                    obj = getattr(obj, x)
+            obj = context
+            if obj:
+                for x in path:
+                    if hasattr(obj, x):
+                        obj = getattr(obj, x)
+                    else:
+                        break
                 else:
-                    break
-            else:
-                props = obj.bl_rna.properties
-                if prop in props:
-                    prop = props[prop].name
+                    props = obj.bl_rna.properties
+                    if prop in props:
+                        prop = props[prop].name
             
             value = split[1]
             if value.startswith("bpy.data."):
