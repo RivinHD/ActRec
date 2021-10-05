@@ -29,7 +29,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
             layout = self.layout
             if AR.update:
                 box = layout.box()
-                box.label(text= "A new Version is available (%s)" %AR.version)
+                box.label(text= "new Version available (%s)" %AR.version)
                 update.draw_update_button(box, AR)
             box = layout.box()
             box_row = box.row()
@@ -161,9 +161,9 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
                     row.operator('ar.show_restart_menu', text= "Restart to Finsih")
             if AR.version != '':
                 if AR.update:
-                    layout.label(text= "A new Version is available (%s)" %AR.version)
+                    layout.label(text= "new Version available (%s)" %AR.version)
                 else:
-                    layout.label(text= "You are using the latest Vesion (%s)" %AR.version)
+                    layout.label(text= "latest Vesion (%s)" %AR.version)
     AR_PT_help.__name__ = "AR_PT_help_%s" %space_type
 
     class AR_PT_advanced(Panel):
