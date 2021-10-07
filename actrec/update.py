@@ -194,9 +194,11 @@ def draw_update_button(layout, AR) -> None:
         layout.operator('ar.update', text= 'Update')
 
 def draw_menu(self, context):
+    AR = context.preferences.addons[__module__].preferences
     layout = self.layout
-    layout.label(text= "You need to restart Blender to complete the Update")
-    row = self.layout.row()
+    if AR.restart:
+        layout.label(text= "You need to restart Blender to complete the Update")    
+    row = layout.row()
     row.operator('ar.restart', text= "Save & Restart").save = True
     row.operator('ar.restart', text= "Restart")
 # endregion
@@ -302,16 +304,12 @@ class AR_OT_restart(Operator, ExportHelper):
     bl_idname = "ar.restart"
     bl_label = "Restart Blender"
     bl_description = "Restart Blender"
+    bl_options = {"INTERNAL"}
 
     save : BoolProperty(default= False)
     filename_ext = ".blend"
     filter_folder : BoolProperty(default= True, options={'HIDDEN'})
     filter_blender : BoolProperty(default= True, options={'HIDDEN'})
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return AR.restart
 
     def invoke(self, context, event):
         if self.save and not bpy.data.filepath:
@@ -340,16 +338,10 @@ class AR_OT_restart(Operator, ExportHelper):
     def draw(self, context):
         pass
 
-
 class AR_OT_show_restart_menu(Operator):
     bl_idname = "ar.show_restart_menu"
     bl_label = "Restart Blender"
     bl_description = "Restart Blender"
-
-    @classmethod
-    def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return AR.restart
 
     def execute(self, context):
         context.window_manager.popup_menu(draw_menu, title= "Action Recorder Restart")
