@@ -36,7 +36,7 @@ class AR_categories(shared.id_system, PropertyGroup):
         return self.get("selected", False)
     def set_selected(self, value: bool) -> None:
         AR = bpy.context.preferences.addons[__module__].preferences
-        selected_id = AR.get("categories.selected_id", None)
+        selected_id = AR.get("categories.selected_id", "")
         if value:
             AR["categories.selected_id"] = self.id
             self['selected'] = value

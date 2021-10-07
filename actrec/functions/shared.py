@@ -286,6 +286,9 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
                 context_copy['area'] = base_area
                 context_copy['space_data'] = base_space_data
                 area.ui_type = area_type
+            
+            if bpy.context:
+                context_copy = bpy.context.copy()
 
         except Exception as err:
             logger.error("%s; command: %s" %(err, command))
