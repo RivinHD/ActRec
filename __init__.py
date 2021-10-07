@@ -3,7 +3,7 @@
 bl_info = {
     "name" : "ActionRecorder",
     "author" : "InamuraJIN, Rivin",
-    "version" : (4, 0, 3), # also update version in config
+    "version" : (4, 0, 4),
     "blender" : (2, 83, 12),
     "location" : "View 3D",
     "warning" : "",
