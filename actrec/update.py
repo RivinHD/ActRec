@@ -14,7 +14,7 @@ import sys
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import BoolProperty
+from bpy.props import BoolProperty, EnumProperty
 from bpy_extras.io_utils import ExportHelper
 from bpy.app.handlers import persistent
 
@@ -192,15 +192,6 @@ def draw_update_button(layout, AR) -> None:
         row.prop(AR, 'update_progress', text= "Progress", slider= True)
     else:
         layout.operator('ar.update', text= 'Update')
-
-def draw_menu(self, context):
-    AR = context.preferences.addons[__module__].preferences
-    layout = self.layout
-    if AR.restart:
-        layout.label(text= "You need to restart Blender to complete the Update")    
-    row = layout.row()
-    row.operator('ar.restart', text= "Save & Restart").save = True
-    row.operator('ar.restart', text= "Restart")
 # endregion
 
 # region Operator
@@ -342,11 +333,29 @@ class AR_OT_show_restart_menu(Operator):
     bl_idname = "ar.show_restart_menu"
     bl_label = "Restart Blender"
     bl_description = "Restart Blender"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    restart_options : EnumProperty(items= [("exit", "Don't Restart", "Don't restart and exit this window"), ("save", "Save & Restart", "Save & Restart Blender"), ("restart", "Restart", "Restart Blender")])
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        context.window_manager.popup_menu(draw_menu, title= "Action Recorder Restart")
-        context.area.tag_redraw()
+        if self.restart_options == "save":
+            bpy.ops.ar.restart(context.copy(), save= True)
+        elif self.restart_options == "restart":
+            bpy.ops.ar.restart(context.copy())
         return {"FINISHED"}
+    
+    def cancel(self, context):
+        bpy.ops.ar.show_restart_menu("INVOKE_DEFAULT")
+
+    def draw(self, context):
+        AR = context.preferences.addons[__module__].preferences
+        layout = self.layout
+        if AR.restart:
+            layout.label(text= "You need to restart Blender to complete the Update")
+        layout.prop(self, 'restart_options', expand= True)
 # endregion
 
 classes = [
