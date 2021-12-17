@@ -39,15 +39,18 @@ def convert_to_python(value):
 
 def operator_to_dict(op) -> dict:
     data = {}
-    if 'MACRO' in op.bl_options:
+    if hasattr(op, 'macros') and op.macros:
         for key, item in op.macros.items():
             data[key] = operator_to_dict(item)
     else:
         props = op.properties
+        if not hasattr(props, 'bl_rna'):
+            logger.info(props)
+            return props
         for key in props.bl_rna.properties.keys()[1: ]:
             data[key] = convert_to_python(getattr(props, key))
     return data
-
+    
 @persistent
 def track_scene(dummy = None):
     context = bpy.context
@@ -60,8 +63,10 @@ def track_scene(dummy = None):
             op = operators[-1]
             shared_data.tracked_actions.append(['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, operator_to_dict(op)])
         else:
-            last_op = last_tracked = shared_data.tracked_actions[-1]
             len_tracked = len(shared_data.tracked_actions)
+            if not len_tracked:
+                return
+            last_op = last_tracked = shared_data.tracked_actions[-1]
             i = 2
             while last_op[2] == "CONTEXT" and len_tracked > i:
                 last_op = shared_data.tracked_actions[-i]
@@ -118,7 +123,9 @@ def str_dict_to_dict(obj: str):
 
 def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
     for key, str_value in op1_props.items():
-        value = op2_props[key]
+        value = op2_props.get(key, None)
+        if value is None:
+            return False
         if "_OT_" in key:
             if compare_op_dict(str_dict_to_dict(str_value), value):
                 continue
@@ -281,7 +288,11 @@ def improve_context_report(context, copy_dict: dict, source_path: list, attribut
         else:
             object_class, *res = id_object.__class__, ".".join(source_path), attribute, value
     for attr in context.__dir__():
-        if attr not in ("button_pointer", "id") and isinstance(getattr(bpy.context, attr), object_class):
+        if (attr not in set(
+            "button_pointer", "id", "texture_slot", "mesh", "armature", "lattice", "curve", "meta_ball", "speaker",
+            "lightprobe", "camera", "material_slot", "texture", "texture_user", "texture_user_property", "bone", "edit_bone", 
+            "pose_bone", 
+            ) and isinstance(getattr(bpy.context, attr), object_class)): # exclude Buttons Context https://docs.blender.org/api/current/bpy.context.html#buttons-context
             res[0] = attr
             break
     return "bpy.context.%s.%s = %s" %tuple(res)
