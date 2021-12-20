@@ -5,7 +5,7 @@ import logging
 import traceback
 import sys
 from datetime import datetime
-datetime.today().strftime('%d.%m.%Y-%H:%M:%S')
+
 # blender modules
 import bpy
 
