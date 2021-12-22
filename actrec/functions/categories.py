@@ -44,7 +44,7 @@ def category_runtime_load(dummy = None):
 def get_category_id(AR, id, index):
     if AR.categories.find(id) == -1:
         if index >= 0 and len(AR.categories) > index:
-            id = AR.categories[index].id
+            return AR.categories[index].id
         else:
             return AR.selected_category
     else:

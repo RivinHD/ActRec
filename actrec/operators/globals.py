@@ -369,7 +369,7 @@ class AR_OT_global_to_local(shared.id_based, Operator):
         return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
 
     def global_to_local(self, AR, action) -> None:
-        id = uuid.uuid1() if action.id in set(x.id for x in AR.local_actions) else action.id
+        id = uuid.uuid1().hex if action.id in set(x.id for x in AR.local_actions) else action.id
         data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
         data["id"] = id
         functions.add_data_to_collection(AR.local_actions, data)
@@ -512,10 +512,11 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
 
     def invoke(self, context, event):
         AR = context.preferences.addons[__module__].preferences
-        id = self.id = functions.get_global_action_id(AR, self.id, self.index)
+        id = functions.get_global_action_id(AR, self.id, self.index)
         if id is None:
             self.clear()
             return {'CANCELLED'}
+        self.id = id
         if not self.reuse:
             AR.selected_icon = AR.global_actions[id].icon
         self.search = ''

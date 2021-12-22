@@ -140,6 +140,9 @@ def get_name_of_command(context, command: str) -> Optional[str]:
         return None
 
 def extract_properties(properties :str) -> list:
+    """
+    Input Properties as "prop1, prop2, ..."
+    """
     properties = properties.split(",")
     new_props = []
     prop_str = ''
@@ -180,8 +183,10 @@ def run_queued_macros(context_copy, action_type, action_id, start):
     action = getattr(AR, action_type)[action_id]
     play(context_copy, action.macros[start: ], action, action_type)
 
-def play(context_copy, macros, action, action_type: str): # non-realtime events, execute before macros get executed run
+def play(context_copy, macros, action, action_type: str): 
     macros = [macro for macro in macros if macro.active]
+
+    # non-realtime events, execute before macros get executed
     for i, macro in enumerate(macros):
         split = macro.command.split(":")
         if split[0] == 'ar.event': 
@@ -256,6 +261,12 @@ def play(context_copy, macros, action, action_type: str): # non-realtime events,
                 continue
         try:
             command = macro.command
+            if command.startswith("bpy.ops.ar.local_play") and set(extract_properties(command.split("(")[1][:-1])) == {"id=\"\"", "index=-1"}:
+                err = "Don't run Local Play with default properties, this can leads to a recursion"
+                logger.error(err)
+                action.alert = macro.alert = True
+                return err
+
             area = context_copy['area']
             if area:
                 area_type = area.ui_type

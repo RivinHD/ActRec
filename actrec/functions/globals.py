@@ -74,7 +74,7 @@ def import_global_from_dict(AR, data: dict) -> None:
 def get_global_action_id(AR, id, index):
     if AR.global_actions.find(id) == -1:
         if index >= 0 and len(AR.global_actions) > index:
-            id = AR.global_actions[index].id
+            return AR.global_actions[index].id
         else:
             return None
     else:
