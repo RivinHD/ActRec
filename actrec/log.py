@@ -18,7 +18,7 @@ __module__ = __package__.split(".")[0]
 # region Logsystem 
 class log_system:
     def __init__(self, count: int) -> None:
-        dirc = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+        dirc = self.directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
         if not os.path.exists(dirc):
             os.mkdir(dirc)
         all_logs = os.listdir(dirc)
@@ -33,7 +33,11 @@ class log_system:
                 loglater.append("For some reason the File doesn't exists %s" %str(err))
                 break
             all_logs = os.listdir(dirc)
-        path = os.path.join(dirc, "ActRec_%s.log" % datetime.today().strftime('%d-%m-%Y_%H-%M-%S'))
+        name = ""
+        for arg in sys.argv:
+            if arg.endswith(".blend"):
+                name = "%s_" %".".join(os.path.basename(arg).split(".")[:-1])
+        path = os.path.join(dirc, "ActRec_%s%s.log" %(name, datetime.today().strftime('%d-%m-%Y_%H-%M-%S')))
 
         logger = logging.getLogger(__module__)
         logger.setLevel(logging.DEBUG)

@@ -29,7 +29,7 @@ class AR_OT_local_to_global(Operator):
         return len(AR.local_actions) and not AR.local_record_macros
 
     def local_to_global(self, AR, category, action) -> None:
-        id = uuid.uuid1() if action.id in [x.id for x in AR.global_actions] else action.id
+        id = uuid.uuid1().hex if action.id in [x.id for x in AR.global_actions] else action.id
         data = functions.property_to_python(action, exclude= ["name", "alert", "macros.name", "macros.alert", "macros.is_available"])
         data["id"] = id
         data["selected"] = True

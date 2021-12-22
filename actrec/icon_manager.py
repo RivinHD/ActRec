@@ -5,6 +5,7 @@ import os
 
 # blender modules
 import bpy
+import bpy.utils.previews
 from bpy.types import Operator, PropertyGroup
 from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty
 from bpy_extras.io_utils import ImportHelper

@@ -1,6 +1,8 @@
 # region Imports
 # external modules
 import os
+import sys
+import subprocess
 
 # blender modules
 import bpy
@@ -49,11 +51,28 @@ class AR_OT_preferences_recover_directory(Operator):
         AR = context.preferences.addons[__module__].preferences
         setattr(AR, self.pref_property, os.path.join(AR.addon_directory, self.path_extension))
         return{'FINISHED'}
+        
+class AR_OT_preferences_open_explorer(Operator):
+    bl_idname = "ar.preferences_open_explorer"
+    bl_label = "Open Explorer"
+    bl_description = "Open the Explorer with the given path"
+    bl_options = {'REGISTER','INTERNAL'}
+
+    directory : StringProperty(name="Directory", description= "Open the explorer with the given directory")
+
+    def execute(self, context):
+        if sys.platform == "win32":
+            os.startfile(self.directory)
+        else:
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.call([opener, self.directory])
+        return {'FINISHED'}
 # endregion
 
 classes = [
     AR_OT_preferences_directory_selector,
-    AR_OT_preferences_recover_directory
+    AR_OT_preferences_recover_directory,
+    AR_OT_preferences_open_explorer
 ]
 
 # region Registration

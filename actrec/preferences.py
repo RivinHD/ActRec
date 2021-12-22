@@ -10,7 +10,7 @@ import rna_keymap_ui
 
 # relative imports
 from . import properties, functions, config, update, keymap
-from .log import logger
+from .log import logger, log_sys
 # endregion
 
 __module__ = __package__.split(".")[0]
@@ -171,6 +171,8 @@ class AR_preferences(AddonPreferences):
             ops.path_extension = ""
             box = col.box()
             box.label(text= self.icon_path)
+            col.separator(factor= 1.5)
+            col.operator('ar.preferences_open_explorer', text= "Open Log").directory = log_sys.directory
         elif AR.prefernece_tab == 'keymap':
             col2 = col.column()
             kc = bpy.context.window_manager.keyconfigs.user
