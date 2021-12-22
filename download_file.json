@@ -1,5 +1,5 @@
 {
-    "version": [4, 0, 5],
+    "version": [4, 0, 6],
     "files": {
         "actrec/functions/__init__.py": [4, 0, 0],
         "actrec/functions/categories.py": [4, 0, 0],
@@ -32,14 +32,14 @@
         "actrec/uilist/locals.py": [4, 0, 0],
         "actrec/uilist/macros.py": [4, 0, 0],
         "actrec/__init__.py": [4, 0, 0],
-        "actrec/config.py": [4, 0, 5],
+        "actrec/config.py": [4, 0, 6],
         "actrec/icon_manager.py": [4, 0, 0],
         "actrec/keymap.py": [4, 0, 0],
-        "actrec/log.py": [4, 0, 3],
+        "actrec/log.py": [4, 0, 6],
         "actrec/preferences.py": [4, 0, 0],
         "actrec/shared_data.py": [4, 0, 0],
         "actrec/update.py": [4, 0, 5],
-        "__init__.py": [4, 0, 5],
+        "__init__.py": [4, 0, 6],
         "Storage.json": [4, 0, 0]
     },
     "remove": []
