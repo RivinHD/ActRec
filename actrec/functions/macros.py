@@ -180,7 +180,10 @@ def merge_report_tracked(reports, tracked_actions) -> list:
                     tracked_i += 1
                 report_i += 1
             else:
-                if tracked[2] != 'CONTEXT':
+                if len_tracked <= tracked_i: # no tracked left but report operator exists
+                    data.append((1, True, 'UNDO' in getattr(getattr(bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
+                    report_i += 1
+                elif tracked[2] != 'CONTEXT': 
                     tracked_type, tracked_name = tracked[2].split("_OT_")
                     data.append((1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
                 tracked_i += 1
@@ -327,4 +330,5 @@ def imporve_operator_report(context, ops_type: str, ops_name: str, ops_values: d
             if ops_name == "collection_drop":
                 return "bpy.ops.ar.helper_object_to_collection()"
     return "bpy.ops.%s.%s(%s)" %(ops_type, ops_name, dict_to_kwarg_str(ops_values))
+
 # endregion

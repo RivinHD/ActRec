@@ -150,7 +150,7 @@ def panel_factory(space_type): #Create Panels for every spacetype with UI
             AR = context.preferences.addons[__module__].preferences
             layout.operator('wm.url_open', text= "Manual", icon= 'ASSET_MANAGER').url = config.manual_url
             layout.operator('wm.url_open', text= "Hint", icon= 'HELP').url = config.hint_url
-            layout.operator('ar.preferences_open_explorer', text= "Open Log").directory = log_sys.directory
+            layout.operator('ar.preferences_open_explorer', text= "Open Log").path = log_sys.path
             layout.operator('wm.url_open', text= "Bug Report", icon= 'URL').url = config.bug_report_url
             layout.operator('wm.url_open', text= "Release Notes").url = config.release_notes_url
             row = layout.row()
