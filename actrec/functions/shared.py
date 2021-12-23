@@ -338,7 +338,7 @@ def split_and_keep(sep, text):
     return text.split(p)
 
 def text_to_lines(text, font_text, limit, endcharacter = " ,"):
-    if text == '' or not font_text.use_dynamic_text:
+    if text == "" or not font_text.use_dynamic_text:
         return [text]
     characters_width = font_text.get_width_of_text(text)
     possible_breaks = split_and_keep(endcharacter, text)
@@ -355,7 +355,7 @@ def text_to_lines(text, font_text, limit, endcharacter = " ,"):
             if sum(characters_width[total_line_length : total_length]) > limit:
                 start += line_length
                 while psb != "":
-                    i = bl_math.clamp(int(limit / width * len(psb)), 0, len(psb))
+                    i = int(bl_math.clamp(limit / width * len(psb), 0, len(psb)))
                     if len(psb) != i:
                         if sum(characters_width[start : start + i]) <= limit:
                             while sum(characters_width[start : start + i]) <= limit:
