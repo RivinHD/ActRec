@@ -32,7 +32,7 @@
         "actrec/uilist/locals.py": [4, 0, 0],
         "actrec/uilist/macros.py": [4, 0, 0],
         "actrec/__init__.py": [4, 0, 0],
-        "actrec/config.py": [4, 0, 8],
+        "actrec/config.py": [4, 0, 9],
         "actrec/icon_manager.py": [4, 0, 7],
         "actrec/keymap.py": [4, 0, 0],
         "actrec/log.py": [4, 0, 8],
