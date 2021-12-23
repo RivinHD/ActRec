@@ -411,7 +411,7 @@ class AR_OT_macro_edit(macro_based, Operator):
         self['command'] = value
         if not self.copy_data:
             self.lines.clear()
-            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 15):
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
                 new = self.lines.add()
                 new['text'] = line
     def get_last_command(self):
@@ -422,7 +422,7 @@ class AR_OT_macro_edit(macro_based, Operator):
         self['last_command'] = value
         if self.copy_data:
             self.lines.clear()
-            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 15):
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
                 new = self.lines.add()
                 new['text'] = line
 
