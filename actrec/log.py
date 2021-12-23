@@ -37,7 +37,7 @@ class log_system:
         for arg in sys.argv:
             if arg.endswith(".blend"):
                 name = "%s_" %".".join(os.path.basename(arg).split(".")[:-1])
-        path = os.path.join(dirc, "ActRec_%s%s.log" %(name, datetime.today().strftime('%d-%m-%Y_%H-%M-%S')))
+        path = self.path = os.path.join(dirc, "ActRec_%s%s.log" %(name, datetime.today().strftime('%d-%m-%Y_%H-%M-%S')))
 
         logger = logging.getLogger(__module__)
         logger.setLevel(logging.DEBUG)

@@ -172,7 +172,7 @@ class AR_preferences(AddonPreferences):
             box = col.box()
             box.label(text= self.icon_path)
             col.separator(factor= 1.5)
-            col.operator('ar.preferences_open_explorer', text= "Open Log").directory = log_sys.directory
+            col.operator('ar.preferences_open_explorer', text= "Open Log").path = log_sys.path
         elif AR.prefernece_tab == 'keymap':
             col2 = col.column()
             kc = bpy.context.window_manager.keyconfigs.user

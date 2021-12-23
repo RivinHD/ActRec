@@ -342,13 +342,35 @@ class text_analysis():
         if importlib.util.find_spec('fontTools') is None:
             ensurepip.bootstrap()
             os.environ.pop("PIP_REQ_TRACKER", None)
+            path = "%s\\test_actrec" %os.path.dirname(sys.executable)
             try:
-                output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color'])
+                os.mkdir(path)
+                os.rmdir(path)
+                output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color']).decode('utf-8').replace("\r", "")
                 logger.info(output)
-            except subprocess.CalledProcessError as e:
-                logger.warning(e.output)
+            except PermissionError as err:
+                if sys.platform == "win32":
+                    logger.info("Need Admin Permisons to write to %s"%path)
+                    logger.info("Try again to install fontTools as admin")
+                    output = subprocess.check_output([sys.executable, '-m', 'pip', 'uninstall', '-y', 'fonttools', '--no-color'], stderr= subprocess.STDOUT).decode('utf-8').replace("\r", "")
+                    logger.info(output)
+                    output = subprocess.check_output(['powershell.exe', '-Command', '& { Start-Process \'%s\' -Wait -ArgumentList \'-m\', \'pip\', \'install\', \'fonttools\'-Verb RunAs}' %sys.executable], stderr= subprocess.STDOUT).decode('unicode_escape').replace("\r", "")
+                    if output != '':
+                        logger.warning(output)
+                        self.use_dynamic_text = False
+                        return  
+                else:
+                    logger.error(err)
+            except subprocess.CalledProcessError as err:
+                logger.warning(err.output)
                 self.use_dynamic_text = False
-                return
+                return            
+
+        if importlib.util.find_spec('fontTools') is None:
+            logger.warning("For some reason fontTools couldn't be installed :(")
+            self.use_dynamic_text = False
+            return
+            
         self.use_dynamic_text = True
         from fontTools.ttLib import TTFont
 

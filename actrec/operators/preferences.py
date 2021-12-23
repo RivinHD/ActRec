@@ -9,6 +9,9 @@ import bpy
 from bpy.types import Operator
 from bpy.props import StringProperty
 from bpy_extras.io_utils import ExportHelper
+
+# relative imports
+from ..log import logger
 # endregion
 
 __module__ = __package__.split(".")[0]
@@ -58,14 +61,34 @@ class AR_OT_preferences_open_explorer(Operator):
     bl_description = "Open the Explorer with the given path"
     bl_options = {'REGISTER','INTERNAL'}
 
-    directory : StringProperty(name="Directory", description= "Open the explorer with the given directory")
+    path : StringProperty(name="Path", description= "Open the explorer with the given path")
 
-    def execute(self, context):
+    def open_file_in_explorer(self, path):
+        if sys.platform == "win32":
+            subprocess.call(["explorer", "/select,", path])
+        elif sys.platform == "darwin":
+            subprocess.call(["open", "-R", path])
+        else:
+            subprocess.call(["xdg-open", os.path.dirname(path)])
+
+    def open_directory_in_explorer(self, directory):
         if sys.platform == "win32":
             os.startfile(self.directory)
         else:
             opener = "open" if sys.platform == "darwin" else "xdg-open"
             subprocess.call([opener, self.directory])
+
+
+    def execute(self, context):
+        self.path = os.path.normpath(self.path)
+        if os.path.isdir(self.path):
+            self.open_directory_in_explorer(self.path)
+        elif os.path.isfile(self.path):
+            try:
+                self.open_file_in_explorer(self.path)
+            except Exception as err:
+                self.open_directory_in_explorer(os.path.dirname(self.path))
+                logger.info("Fallback to show directory: %s" %err)                
         return {'FINISHED'}
 # endregion
 
