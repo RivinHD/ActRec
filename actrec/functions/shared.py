@@ -154,7 +154,7 @@ def extract_properties(properties :str) -> list:
             prop_str += "=".join(prop)
         else:
             prop_str += ",%s" %prop[0]
-    new_props.append(prop_str)
+    new_props.append(prop_str.strip())
     return new_props[1:]
 
 def update_command(command: str) -> Union[str, bool, None]:
@@ -162,7 +162,7 @@ def update_command(command: str) -> Union[str, bool, None]:
         command, values = command.split("(", 1)
         values = extract_properties(values[:-1])
         for i in range(len(values)):
-            values[i] = values[i].strip().split("=")
+            values[i] = values[i].split("=")
         try:
             props = eval("%s.get_rna_type().properties[1:]" %command)
         except:

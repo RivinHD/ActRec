@@ -69,6 +69,7 @@ class AR_OT_macro_add(shared.id_based, Operator):
         
         if command and (AR.last_macro_command != command if new_report else True):
             if command.startswith("bpy.context."):
+                tracked_actions = []
                 if not self.command:
                     tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
                     i = 0
@@ -79,11 +80,10 @@ class AR_OT_macro_add(shared.id_based, Operator):
                         while tracked[2] != "CONTEXT" and len_tracked > i:
                             tracked = tracked_actions[i]
                             i += 1
-                    reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
-                else:
-                    reports = functions.merge_report_tracked([command], [])
+                    tracked_actions = tracked_actions[ :i + 1]
+                reports = functions.merge_report_tracked([command], tracked_actions)
                 logger.info("Add Report: %s", reports)
-
+                
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():
                         break
@@ -146,7 +146,7 @@ class AR_OT_macro_add(shared.id_based, Operator):
                 bpy.ops.ar.macro_add_event("EXEC_DEFAULT", id= action.id, index= index, type= "Empty")
         functions.local_runtime_save(AR, context.scene)
         bpy.context.area.tag_redraw()
-        self.clear()
+        shared_data.tracked_actions.clear()
         self.command = ""
         return {"FINISHED"}
 
