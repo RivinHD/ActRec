@@ -149,7 +149,7 @@ def extract_properties(properties :str) -> list:
     for prop in properties:
         prop = prop.split('=')
         if prop[0].strip().isidentifier() and len(prop) > 1:
-            new_props.append(prop_str)
+            new_props.append(prop_str.strip())
             prop_str = ''
             prop_str += "=".join(prop)
         else:
