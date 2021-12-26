@@ -66,15 +66,20 @@ def track_scene(dummy = None):
             len_tracked = len(shared_data.tracked_actions)
             if not len_tracked:
                 return
-            last_op = last_tracked = shared_data.tracked_actions[-1]
             i = 2
-            while last_op[2] == "CONTEXT" and len_tracked > i:
-                last_op = shared_data.tracked_actions[-i]
-                i += 1
             op = operators[-1]
+            operators_length = len(operators)
+            while 'REGISTER' not in op.bl_options and operators_length > i:
+                op = operators[-i]
+                i += 1
+            last_register_op = last_tracked = shared_data.tracked_actions[-1]
+            i = 2
+            while last_register_op[2] != op.bl_idname and len_tracked > i:
+                last_register_op = shared_data.tracked_actions[-i]
+                i += 1
             props = operator_to_dict(op)
-            if last_op[2] != "CONTEXT" and props != last_op[3]:
-                last_op[3] = props
+            if last_register_op[2] == op.bl_idname and props != last_register_op[3]:
+                last_register_op[3] = props
             else:
                 if last_tracked[2] == "CONTEXT":
                     last_tracked[3] += 1 
@@ -180,6 +185,8 @@ def merge_report_tracked(reports, tracked_actions) -> list:
                     if continue_report:
                         data.append((1, True, tracked[1], ops_type, ops_name, ops_values))
                     tracked_i += 1
+                elif not continue_report: # no reports left use latest report
+                    data.append((1, True, 'UNDO' in getattr(getattr(bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
                 report_i += 1
             else:
                 if len_tracked <= tracked_i: # no tracked left but report operator exists
