@@ -1,11 +1,11 @@
 {
-    "version": [4, 0, 10],
+    "version": [4, 0, 11],
     "files": {
         "actrec/functions/__init__.py": [4, 0, 0],
         "actrec/functions/categories.py": [4, 0, 7],
         "actrec/functions/globals.py": [4, 0, 7],
         "actrec/functions/locals.py": [4, 0, 0],
-        "actrec/functions/macros.py": [4, 0, 10],
+        "actrec/functions/macros.py": [4, 0, 11],
         "actrec/functions/shared.py": [4, 0, 10],
         "actrec/menus/__init__.py": [4, 0, 0],
         "actrec/menus/locals.py": [4, 0, 0],
@@ -39,7 +39,7 @@
         "actrec/preferences.py": [4, 0, 8],
         "actrec/shared_data.py": [4, 0, 0],
         "actrec/update.py": [4, 0, 5],
-        "__init__.py": [4, 0, 10],
+        "__init__.py": [4, 0, 11],
         "Storage.json": [4, 0, 0]
     },
     "remove": []
