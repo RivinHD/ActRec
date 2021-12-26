@@ -133,6 +133,7 @@ def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
         elif isinstance(value, tuple):
             str_value = str_value[1: -1]
             if isinstance(value[0], tuple):
+                value = [[value[i][j] for i in range(len(value[0]))] for j in range(len(value))] # switch column and row
                 str_vectors = str_value.replace("(","").split(")")
                 for str_vec, vec in zip(str_vectors, value):
                     str_vec = [x for x in str_vec.split(", ") if x]
@@ -164,7 +165,7 @@ def merge_report_tracked(reports, tracked_actions) -> list:
     continue_report = len_report > report_i
     continue_tracked = len_tracked > tracked_i
     tracked = [True, True, "CONTEXT", 1]
-    logger.info("reports: %s\ntracked:%s"%(reports, tracked))
+    logger.info("reports: %s\ntracked:%s"%(reports, tracked_actions))
     while continue_report or continue_tracked:
         if continue_report:
             report = reports[report_i]

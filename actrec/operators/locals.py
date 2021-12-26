@@ -313,7 +313,6 @@ class AR_OT_local_record(shared.id_based, Operator):
 
     ignore_selection = False
     record_start_index : IntProperty()
-    tracker_start_index : IntProperty()
 
     @classmethod
     def poll(cls, context):
@@ -329,7 +328,6 @@ class AR_OT_local_record(shared.id_based, Operator):
             self.id = action.id
             self.index = index
             self.record_start_index = functions.get_report_text(context).count('\n')
-            self.tracker_start_index = len(shared_data.tracked_actions)
             context.scene.ar.record_undo_end = not context.scene.ar.record_undo_end
         else: # end recording and add reports as macros
             reports = functions.get_report_text(context).splitlines()[self.record_start_index: ]
@@ -337,7 +335,8 @@ class AR_OT_local_record(shared.id_based, Operator):
             if not len(reports):
                 self.clear()
                 return {"FINISHED"}
-            reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions[self.tracker_start_index: ]), dtype= object)
+            reports = numpy.array(functions.merge_report_tracked(reports, shared_data.tracked_actions), dtype= object)
+            shared_data.tracked_actions.clear()
             logger.info("Record Reports: %s", reports)
 
             record_undo_end = context.scene.ar.record_undo_end
