@@ -1,4 +1,4 @@
-# only mutable types define immutable with BlenderProperty
+# only mutable types define immutable with BlenderProperties
 local_temp = {}
 global_temp = {}
 categories_temp = {}

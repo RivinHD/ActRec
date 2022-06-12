@@ -375,4 +375,7 @@ def text_to_lines(text, font_text, limit, endcharacter = " ,"):
     if(lines[0] == ""):
         lines.pop(0)
     return lines
+
+def enum_items_to_enum_prop_list(items):
+    return [(item.identifier, item.name, item.description, item.icon, item.value) for item in items]
 # endregion

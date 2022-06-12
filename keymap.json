@@ -1,0 +1,18 @@
+{
+  "keymap": [
+    {
+      "id": "c7a1f271164611eca91770c94ef23b30",
+      "active": true,
+      "type": "L",
+      "value": "PRESS",
+      "any": false,
+      "shift": 0,
+      "ctrl": 1,
+      "alt": 1,
+      "oskey": 0,
+      "key_modifier": "NONE",
+      "repeat": false,
+      "map_type": "KEYBOARD"
+    }
+  ]
+}

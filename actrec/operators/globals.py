@@ -14,7 +14,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProp
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 # relative imports
-from .. import functions, properties, icon_manager, ui_functions
+from .. import functions, properties, icon_manager, ui_functions, keymap
 from . import shared
 # endregion
 
@@ -531,6 +531,51 @@ class AR_OT_global_icon(icon_manager.icontable, shared.id_based, Operator):
         bpy.context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
+
+class AR_OT_add_ar_shortcut(Operator):
+    bl_idname = "ar.add_ar_shortcut"
+    bl_label = "Add Shortcut"
+    bl_options = {'REGISTER','UNDO','INTERNAL'}
+
+    id : StringProperty()
+
+    def draw(self, context):
+        for kmi in keymap.keymaps['default'].keymap_items:
+            if kmi.idname == "ar.global_execute_action" and kmi.properties.id == self.id:
+                self.layout.prop(kmi, "type", text="", full_event=True)
+                kmi.active = True
+                break
+
+    def invoke(self, context, event):
+        if functions.get_action_keymap(self.id) == None:
+            functions.add_empty_action_keymap(self.id)
+        return context.window_manager.invoke_props_popup(self, event)
+    
+    def execute(self, context):
+        AR = context.preferences.addons[__module__].preferences
+        if functions.is_action_keymap_empty(functions.get_action_keymap(self.id)):
+            return {"CANCELLED"}
+        functions.global_runtime_save(AR)
+        return {"FINISHED"}
+
+    def cancel(self, context):
+        functions.remove_action_keymap(self.id)
+
+
+class AR_OT_remove_ar_shortcut(Operator):
+    bl_idname = "ar.remove_ar_shortcut"
+    bl_label = "Remove Shortcut"
+    bl_options = {'REGISTER','UNDO','INTERNAL'}
+
+    id : StringProperty()
+    
+    def execute(self, context):
+        AR = context.preferences.addons[__module__].preferences
+        if functions.get_action_keymap(self.id) == None:
+            return {"CANCELLED"}
+        functions.remove_action_keymap(self.id)
+        return {"FINISHED"}
+
 # endregion
 
 classes = [
@@ -546,7 +591,9 @@ classes = [
     AR_OT_global_move_down,
     AR_OT_global_rename,
     AR_OT_global_execute_action,
-    AR_OT_global_icon
+    AR_OT_global_icon,
+    AR_OT_add_ar_shortcut,
+    AR_OT_remove_ar_shortcut
 ]
 
 # region Registration

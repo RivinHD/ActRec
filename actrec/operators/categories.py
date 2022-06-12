@@ -51,13 +51,13 @@ class AR_OT_category_interface(Operator):
         }
 
     modes = {
-        'VIEW_3D': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.ops.object.mode_set.get_rna_type().bl_rna.properties[1].enum_items],
-        'IMAGE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceImageEditor.bl_rna.properties['ui_mode'].enum_items],
-        'NODE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in  bpy.types.SpaceNodeEditor.bl_rna.properties['texture_type'].enum_items],
-        'SEQUENCE_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items],
-        'CLIP_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items],
-        'DOPESHEET_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items],
-        'GRAPH_EDITOR': [(item.identifier, item.name, item.description, item.icon, item.value + 1) for item in bpy.types.SpaceGraphEditor.bl_rna.properties['mode'].enum_items]
+        'VIEW_3D': functions.enum_items_to_enum_prop_list(bpy.ops.object.mode_set.get_rna_type().bl_rna.properties[1].enum_items),
+        'IMAGE_EDITOR': functions.enum_items_to_enum_prop_list(bpy.types.SpaceImageEditor.bl_rna.properties['ui_mode'].enum_items),
+        'NODE_EDITOR': functions.enum_items_to_enum_prop_list( bpy.types.SpaceNodeEditor.bl_rna.properties['texture_type'].enum_items),
+        'SEQUENCE_EDITOR': functions.enum_items_to_enum_prop_list(bpy.types.SpaceSequenceEditor.bl_rna.properties['view_type'].enum_items),
+        'CLIP_EDITOR': functions.enum_items_to_enum_prop_list(bpy.types.SpaceClipEditor.bl_rna.properties['mode'].enum_items),
+        'DOPESHEET_EDITOR': functions.enum_items_to_enum_prop_list(bpy.types.SpaceDopeSheetEditor.bl_rna.properties['ui_mode'].enum_items),
+        'GRAPH_EDITOR': functions.enum_items_to_enum_prop_list(bpy.types.SpaceGraphEditor.bl_rna.properties['mode'].enum_items)
     }
     for key, item in modes.items():
         modes[key] = [("all", "All", "use in all available modes", "GROUP_VCOL", 0)] + item

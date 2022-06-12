@@ -5,7 +5,7 @@ import uuid
 # blender modules
 import bpy
 from bpy.types import PropertyGroup
-from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, EnumProperty
 
 # relative imports
 from .. import shared_data, functions
@@ -81,7 +81,8 @@ class AR_scene_data(PropertyGroup): # as Scene PointerProperty
 
 classes = [
     AR_macro,
-    AR_scene_data
+    AR_scene_data,
+    #AR_keymap
 ]
 
 # region Registration

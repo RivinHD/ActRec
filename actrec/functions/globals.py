@@ -9,7 +9,7 @@ from bpy.app.handlers import persistent
 
 # relative imports
 from ..log import logger
-from .. import ui_functions, shared_data
+from .. import ui_functions, shared_data, keymap
 from . import shared
 # endregion
 
@@ -26,6 +26,8 @@ def global_runtime_save(AR, use_autosave: bool = True):
 def global_runtime_load(dummy = None):
     AR = bpy.context.preferences.addons[__module__].preferences
     AR.global_actions.clear()
+    AR["global_actions.selected_ids"] = [] # needed otherwise all global actions get selected
+    # Writes data from global_temp (JSON format) to global_actions (Blender Property)
     for action in shared_data.global_temp:
         shared.add_data_to_collection(AR.global_actions, action)
 
@@ -51,6 +53,7 @@ def load(AR) -> bool:
             ui_functions.unregister_category(AR, i)
         AR.categories.clear()
         AR.global_actions.clear()
+        #load data
         if data:
             import_global_from_dict(AR, data)
             return True
@@ -85,4 +88,26 @@ def get_global_action_ids(AR, id, index):
     if id is None:
         return AR.get("global_actions.selected_ids", [])
     return [id]
+
+def add_empty_action_keymap(id):
+    logger.info("add empty action")
+    kmi = get_action_keymap(id)
+    if kmi == None:
+        kmi = keymap.keymaps['default'].keymap_items.new("ar.global_execute_action", "NONE", "PRESS")
+        kmi.properties.id = id
+    return kmi
+
+def is_action_keymap_empty(kmi: bpy.types.KeyMapItem):
+    return kmi.type == "NONE"
+
+def get_action_keymap(id) -> bpy.types.KeyMapItem:
+    items = keymap.keymaps['default'].keymap_items
+    for kmi in items:
+        if kmi.idname == "ar.global_execute_action" and kmi.properties.id == id:
+            return kmi
+
+def remove_action_keymap(id):
+    kmi = get_action_keymap(id)
+    items = keymap.keymaps['default'].keymap_items
+    items.remove(kmi)
 # endregion

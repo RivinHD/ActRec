@@ -61,8 +61,8 @@ def register():
     uilist.register()
     icon_manager.register()
     update.register()
-    keymap.register()
     preferences.register()
+    keymap.register()
 
     handlers = bpy.app.handlers
     handlers.undo_post.append(functions.category_runtime_load)
@@ -87,8 +87,8 @@ def unregister():
     uilist.unregister()
     icon_manager.unregister()
     update.unregister()
-    keymap.unregister()
     preferences.unregister()
+    keymap.unregister()
     
     handlers = bpy.app.handlers
     handlers.undo_post.remove(functions.category_runtime_load)

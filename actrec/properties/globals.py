@@ -2,22 +2,23 @@
 # blender modules
 import bpy
 from bpy.types import PropertyGroup
-from bpy.props import BoolProperty, StringProperty, CollectionProperty, EnumProperty
+from bpy.props import BoolProperty, StringProperty, CollectionProperty, PointerProperty
 
 # relative Imports
 from . import shared
+from .. import functions
 # endregion
 
 __module__ = __package__.split(".")[0]
 
 # region PropertyGroups
 class AR_global_actions(shared.AR_action, PropertyGroup):
-    def get_value(self) -> bool:
+    def get_selected(self) -> bool:
         return self.get("selected", False)
-    def set_value(self, value: bool) -> None:
+    def set_selected(self, value: bool) -> None:
         AR = bpy.context.preferences.addons[__module__].preferences
         selected_ids = list(AR.get("global_actions.selected_ids", []))
-        if len(selected_ids) > 1:
+        if len(selected_ids) > 1: 
             value = True
         if value:
             ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
@@ -33,7 +34,8 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
             self['selected'] = value
         elif not (self.id in selected_ids):
             self['selected'] = value
-    selected : BoolProperty(default= False, set= set_value, get= get_value, description= "Select this Action Button\n use ctrl to select muliple", name = 'Select')
+
+    selected : BoolProperty(default= False, set= set_selected, get= get_selected, description= "Select this Action Button\nuse ctrl to select muliple", name = 'Select')
 
 class AR_global_import_action(PropertyGroup):
     def get_use(self):
