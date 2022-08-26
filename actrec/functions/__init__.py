@@ -39,7 +39,7 @@ from .macros import (
     improve_context_report,
     split_operator_report,
     create_operator_based_copy,
-    imporve_operator_report,
+    improve_operator_report,
     dict_to_kwarg_str,
     track_scene,
     merge_report_tracked,
@@ -48,7 +48,7 @@ from .macros import (
 )
 
 from .shared import (
-    check_for_dublicates,
+    check_for_duplicates,
     add_data_to_collection,
     insert_to_collection,
     swap_collection_items,

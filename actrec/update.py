@@ -3,7 +3,6 @@
 from typing import Optional, Union
 import requests
 import json
-import base64
 import os
 import subprocess
 from collections import defaultdict
@@ -18,38 +17,72 @@ from bpy.props import BoolProperty, EnumProperty
 from bpy_extras.io_utils import ExportHelper
 from bpy.app.handlers import persistent
 
-# realtive imports
+# relative imports
 from . import config
 from .log import logger
 # endregion
 
 __module__ = __package__.split(".")[0]
-class update_manager:
+
+
+class Update_manager:
+    """manage data for update processes"""
     download_list = []
     download_length = 0
     update_respond = None
     update_data_chunks = defaultdict(lambda: {"chunks": b''})
-    version_file = {} # used to store downloaded file from "AR_OT_update_check"
+    version_file = {}  # used to store downloaded file from "AR_OT_update_check"
     version_file_thread = None
 
 # region functions
-@persistent
-def on_start(dummy= None) -> None:
-    AR = bpy.context.preferences.addons[__module__].preferences
-    if AR.auto_update and update_manager.version_file_thread is None:
-        t = threading.Thread(target= no_stream_download_version_file, args= [__module__], daemon= True)
-        t.start()
-        update_manager.version_file_thread = t
+
 
 @persistent
-def on_scene_update(dummy= None) -> None:
-    t = update_manager.version_file_thread
-    if t and update_manager.version_file.get("version", None):
+def on_start(dummy: bpy.types.Scene = None):
+    """
+    get called on start of Blender with on_load handler and checks for available update of ActRec
+    opens a thread to run the process faster (the thread get closed in on_scene_update)
+
+    Args:
+        dummy (bpy.types.Scene, optional):
+        needed because blender handler inputs the scene as argument for a handler function. Defaults to None.
+    """
+    AR = bpy.context.preferences.addons[__module__].preferences
+    if AR.auto_update and Update_manager.version_file_thread is None:
+        t = threading.Thread(target=no_stream_download_version_file, args=[__module__], daemon=True)
+        t.start()
+        Update_manager.version_file_thread = t
+
+
+@persistent
+def on_scene_update(dummy: bpy.types.Scene = None):
+    """
+    get called on the first scene update of Blender and closes the thread from on start,
+    which is used to check for updates and removes the functions from the handler
+
+    Args:
+        dummy (bpy.type.Scene, optional):
+        needed because blender handler inputs the scene as argument for a handler function. Defaults to None.
+    """
+    t = Update_manager.version_file_thread
+    if t and Update_manager.version_file.get("version", None):
         t.join()
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
         bpy.app.handlers.load_post.remove(on_start)
 
+
 def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tuple[int, int, int]]]:
+    """
+    checks if a new version of ActRec is available on GitHub
+
+    Args:
+        version_file (Optional[dict]): contains data about the addon version and the version of each file
+
+    Returns:
+        tuple[bool, Union[str, tuple[int, int, int]]]:
+        [0] False for error or the latest version, True for new available version;
+        [1] error message or tuple of the version
+    """
     if version_file is None:
         return (False, "No Internet Connection")
     version = config.version
@@ -59,7 +92,24 @@ def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tup
     else:
         return (False, version)
 
-def update(AR, path, update_respond: Optional[requests.Response], download_chunks: dict, download_length: int) -> Optional[bool]:
+
+def update(
+        AR: bpy.types.AddonPreferences, path: str, update_respond: Optional[requests.Response],
+        download_chunks: dict, download_length: int) -> Optional[bool]:
+    """
+    runs the update process and shows the download process with a progress bar if possible
+
+    Args:
+        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        path (str): path to the file to update
+        update_respond (Optional[requests.Response]): open response to file,
+        needed if file is to large to download in one function call (chunk size 1024)
+        download_chunks (dict): contains all downloaded files and their data
+        download_length (int): the current length of the chunks, needed to show progress bar
+
+    Returns:
+        Optional[bool]: the downloaded file or None if an error occurred
+    """
     finished_downloaded = False
     progress = 0
     length = 1
@@ -71,10 +121,10 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
                 download_chunks[path]["chunks"] = update_respond.content
                 update_respond.close()
                 finished_downloaded = True
-                update_manager.update_respond = None
+                Update_manager.update_respond = None
             else:
                 length = int(total_length)
-                for chunk in update_respond.iter_content(chunk_size= 1024):
+                for chunk in update_respond.iter_content(chunk_size=1024):
                     if chunk:
                         download_chunks[path]["chunks"] += chunk
 
@@ -82,29 +132,41 @@ def update(AR, path, update_respond: Optional[requests.Response], download_chunk
                 finished_downloaded = progress == length
                 if finished_downloaded:
                     update_respond.close()
-                    update_manager.update_respond = None
+                    Update_manager.update_respond = None
         else:
-            update_manager.update_respond = requests.get(config.repo_source_url %path, stream= True)
-        AR.update_progress = 100 * (progress / (length * download_length) + (download_length - len(update_manager.download_list)) / download_length)
+            Update_manager.update_respond = requests.get(
+                config.repo_source_url % path, stream=True)
+        AR.update_progress = 100 * (progress / (length * download_length) + (
+            download_length - len(Update_manager.download_list)) / download_length)
         if finished_downloaded:
-            update_manager.download_list.pop(0)
+            Update_manager.download_list.pop(0)
         return finished_downloaded
     except Exception as err:
-        logger.warning("no Connection (%s)" %err)
+        logger.warning("no Connection (%s)" % err)
         return None
 
-def install_update(AR, download_chunks: dict, version_file: dict) -> None:
+
+def install_update(AR: bpy.types.AddonPreferences, download_chunks: dict, version_file: dict):
+    """
+    installs all downloaded files successively and removes old files if needed
+    + cleans up all unused data
+
+    Args:
+        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        download_chunks (dict): contains all downloaded files and their data
+        version_file (dict): contains data about the addon version, the version of each file and the open request
+    """
     for path in download_chunks:
         absolute_path = os.path.join(AR.addon_directory, path)
         absolute_directory = os.path.dirname(absolute_path)
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
-        with open(absolute_path, 'w', encoding= 'utf-8') as ar_file:
+        with open(absolute_path, 'w', encoding='utf-8') as ar_file:
             ar_file.write(download_chunks[path]["chunks"].decode('utf-8'))
     for path in version_file['remove']:
         remove_path = os.path.join(AR.addon_directory, path)
         if os.path.exists(remove_path):
-            for root, dirs, files in os.walk(remove_path, topdown= False):
+            for root, dirs, files in os.walk(remove_path, topdown=False):
                 for name in files:
                     os.remove(os.path.join(root, name))
                 for name in dirs:
@@ -112,41 +174,74 @@ def install_update(AR, download_chunks: dict, version_file: dict) -> None:
     version = tuple(AR.version.split("."))
     download_chunks.clear()
     version_file.clear()
-    logger.info("Updated Action Recorder to Version: %s" %str(version))
+    logger.info("Updated Action Recorder to Version: %s" % str(version))
 
-def start_get_version_file() -> Optional[bool]:
+
+def start_get_version_file() -> bool:
+    """
+    starts the request process to get the version file, which is needed to only update the changed files
+
+    Returns:
+        bool: success of the process
+    """
     try:
-        update_manager.version_file['respond'] = requests.get(config.check_source_url, stream= True)
-        update_manager.version_file['chunk'] = b''
+        Update_manager.version_file['respond'] = requests.get(
+            config.check_source_url, stream=True)
+        Update_manager.version_file['chunk'] = b''
         logger.info("Start Download: version_file")
         return True
     except Exception as err:
-        logger.warning("no Connection (%s)" %err)
-        return None
+        logger.warning("no Connection (%s)" % err)
+        return False
+
 
 def get_version_file(res: requests.Response) -> Union[bool, dict, None]:
+    """
+    downloads the data of the version file and needed to be called again if the download process isn't finished
+
+    Args:
+        res (requests.Response): response that was created by start_get_version_file
+
+    Returns:
+        Union[bool, dict, None]:
+        [None] error;
+        [True] needed to be called again;
+        [dict] data of the version file in JSON-format
+    """
     try:
         total_length = res.headers.get('content-length', None)
         if total_length is None:
-            logger.info("Finsihed Download: version_file")
+            logger.info("Finished Download: version_file")
             content = res.content
             res.close()
             return json.loads(content)
         else:
-            for chunk in res.iter_content(chunk_size= 1024):
-                update_manager.version_file['chunk'] += chunk
+            for chunk in res.iter_content(chunk_size=1024):
+                Update_manager.version_file['chunk'] += chunk
             length = res.raw._fp_bytes_read
             if int(total_length) == length:
                 res.close()
-                logger.info("Finsihed Download: version_file")
-                return json.loads(update_manager.version_file['chunk'])
+                logger.info("Finished Download: version_file")
+                return json.loads(Update_manager.version_file['chunk'])
             return True
     except Exception as err:
-        logger.warning("no Connection (%s)" %err)
+        logger.warning("no Connection (%s)" % err)
         res.close()
         return None
 
-def apply_version_file_result(AR, version_file, update):
+
+def apply_version_file_result(
+        AR: bpy.types.AddonPreferences, version_file: dict, update: tuple[bool, Union[tuple, str]]):
+    """
+    updates the version in the addon preferences if needed and closes the open request from version file
+
+    Args:
+        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        version_file (dict): contains data about the addon version, the version of each file and the open request
+        update (tuple[bool, Union[tuple, str]]):
+        [0] update is available;
+        [1] version of the addon in str or tuple format
+    """
     AR.update = update[0]
     if not update[0]:
         res = version_file.get('respond')
@@ -158,7 +253,19 @@ def apply_version_file_result(AR, version_file, update):
     else:
         AR.version = ".".join(map(str, update[1]))
 
-def get_download_list(version_file) -> Optional[list]:
+
+def get_download_list(version_file: dict) -> Optional[list]:
+    """
+    creates a list of which files needed to be downloaded to install the update
+
+    Args:
+        version_file (dict): contains data about the addon version, the version of each file and the open request
+
+    Returns:
+        Optional[list]:
+        [None] no paths are written;
+        [list] list of the paths that needed to be downloaded
+    """
     download_files = version_file["files"]
     if download_files is None:
         return None
@@ -169,37 +276,54 @@ def get_download_list(version_file) -> Optional[list]:
             download_list.append(key)
     return download_list
 
-def no_stream_download_version_file(module_name):
+
+def no_stream_download_version_file(module_name: str):
+    """
+    downloads the version file without needed to be called again. Is faster but stops Blender from executing other code.
+
+    Args:
+        module_name (str): name of the addon to get the addon preferences
+    """
     try:
         logger.info("Start Download: version_file")
         res = requests.get(config.check_source_url)
-        logger.info("Finsihed Download: version_file")
-        update_manager.version_file = json.loads(res.content)
-        version_file = update_manager.version_file
+        logger.info("Finished Download: version_file")
+        Update_manager.version_file = json.loads(res.content)
+        version_file = Update_manager.version_file
         update = check_for_update(version_file)
         AR = bpy.context.preferences.addons[module_name].preferences
         apply_version_file_result(AR, version_file, update)
     except Exception as err:
-        logger.warning("no Connection (%s)" %err)
-        return None
+        logger.warning("no Connection (%s)" % err)
 # endregion functions
 
 # region UI functions
-def draw_update_button(layout, AR) -> None:
+
+
+def draw_update_button(layout: bpy.types.UILayout, AR: bpy.types.AddonPreferences):
+    """
+    draws the update button and show a progressbar when files get downloaded
+
+    Args:
+        layout (bpy.types.UILayout): context where to draw the button
+        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+    """
     if AR.update_progress >= 0:
         row = layout.row()
         row.enabled = False
-        row.prop(AR, 'update_progress', text= "Progress", slider= True)
+        row.prop(AR, 'update_progress', text="Progress", slider=True)
     else:
-        layout.operator('ar.update', text= 'Update')
+        layout.operator('ar.update', text='Update')
 # endregion
 
 # region Operator
+
+
 class AR_OT_update_check(Operator):
     bl_idname = "ar.update_check"
     bl_label = "Check for Update"
     bl_description = "check for available update"
-    
+
     def invoke(self, context, event):
         res = start_get_version_file()
         if res:
@@ -210,14 +334,14 @@ class AR_OT_update_check(Operator):
         return {'CANCELLED'}
 
     def modal(self, context, event):
-        version_file = get_version_file(update_manager.version_file['respond'])
+        version_file = get_version_file(Update_manager.version_file['respond'])
         if isinstance(version_file, dict) or version_file is None:
-            update_manager.version_file = version_file
+            Update_manager.version_file = version_file
             return self.execute(context)
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        version_file = update_manager.version_file
+        version_file = Update_manager.version_file
         if not version_file:
             return {'CANCELLED'}
         if version_file.get('respond'):
@@ -229,12 +353,13 @@ class AR_OT_update_check(Operator):
         return {"FINISHED"}
 
     def cancel(self, context):
-        if update_manager.version_file:
-            res = update_manager.version_file.get('respond')
+        if Update_manager.version_file:
+            res = Update_manager.version_file.get('respond')
             if res:
                 res.close()
-            update_manager.version_file.clear()
+            Update_manager.version_file.clear()
         context.window_manager.event_timer_remove(self.timer)
+
 
 class AR_OT_update(Operator):
     bl_idname = "ar.update"
@@ -247,34 +372,38 @@ class AR_OT_update(Operator):
         return AR.update
 
     def invoke(self, context, event):
-        update_manager.download_list = get_download_list(update_manager.version_file)
-        update_manager.download_length = len(update_manager.download_list)
-        self.timer = context.window_manager.event_timer_add(0.05, window= context.window)
+        Update_manager.download_list = get_download_list(
+            Update_manager.version_file)
+        Update_manager.download_length = len(Update_manager.download_list)
+        self.timer = context.window_manager.event_timer_add(
+            0.05, window=context.window)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        if not len(update_manager.download_list):
+        if not len(Update_manager.download_list):
             return self.execute(context)
 
         AR = context.preferences.addons[__module__].preferences
-        path = update_manager.download_list[0]
-        res = update(AR, path, update_manager.update_respond, update_manager.update_data_chunks, update_manager.download_length)
+        path = Update_manager.download_list[0]
+        res = update(AR, path, Update_manager.update_respond,
+                     Update_manager.update_data_chunks, Update_manager.download_length)
 
         if res is None:
             self.report({'WARNING'}, "No Internet Connection")
             return {'CANCELLED'}
-        
+
         context.area.tag_redraw()
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        if not(update_manager.version_file and update_manager.update_data_chunks):
+        if not(Update_manager.version_file and Update_manager.update_data_chunks):
             return {'CANCELLED'}
         AR = context.preferences.addons[__module__].preferences
         AR.update = False
         AR.restart = True
-        install_update(AR, update_manager.update_data_chunks, update_manager.version_file)
+        install_update(AR, Update_manager.update_data_chunks,
+                       Update_manager.version_file)
         AR.update_progress = -1
         self.cancel(context)
         bpy.ops.ar.show_restart_menu('INVOKE_DEFAULT')
@@ -282,14 +411,15 @@ class AR_OT_update(Operator):
         return {"FINISHED"}
 
     def cancel(self, context):
-        res = update_manager.update_respond
+        res = Update_manager.update_respond
         if res:
             res.close()
-        update_manager.update_respond = None
-        update_manager.download_length = 0
-        update_manager.download_list.clear()
-        update_manager.update_data_chunks.clear()
+        Update_manager.update_respond = None
+        Update_manager.download_length = 0
+        Update_manager.download_list.clear()
+        Update_manager.update_data_chunks.clear()
         context.window_manager.event_timer_remove(self.timer)
+
 
 class AR_OT_restart(Operator, ExportHelper):
     bl_idname = "ar.restart"
@@ -297,10 +427,10 @@ class AR_OT_restart(Operator, ExportHelper):
     bl_description = "Restart Blender"
     bl_options = {"INTERNAL"}
 
-    save : BoolProperty(default= False)
+    save: BoolProperty(default=False)
     filename_ext = ".blend"
-    filter_folder : BoolProperty(default= True, options={'HIDDEN'})
-    filter_blender : BoolProperty(default= True, options={'HIDDEN'})
+    filter_folder: BoolProperty(default=True, options={'HIDDEN'})
+    filter_blender: BoolProperty(default=True, options={'HIDDEN'})
 
     def invoke(self, context, event):
         if self.save and not bpy.data.filepath:
@@ -316,7 +446,7 @@ class AR_OT_restart(Operator, ExportHelper):
                 path = self.filepath
                 if not path:
                     return ExportHelper.invoke(self, context, None)
-            bpy.ops.wm.save_mainfile(filepath= path)
+            bpy.ops.wm.save_mainfile(filepath=path)
         AR.restart = False
         if os.path.exists(path):
             args = [*sys.argv, path]
@@ -325,9 +455,10 @@ class AR_OT_restart(Operator, ExportHelper):
         subprocess.Popen(args)
         bpy.ops.wm.quit_blender()
         return {"FINISHED"}
-    
+
     def draw(self, context):
         pass
+
 
 class AR_OT_show_restart_menu(Operator):
     bl_idname = "ar.show_restart_menu"
@@ -335,18 +466,21 @@ class AR_OT_show_restart_menu(Operator):
     bl_description = "Restart Blender"
     bl_options = {'REGISTER', 'UNDO'}
 
-    restart_options : EnumProperty(items= [("exit", "Don't Restart", "Don't restart and exit this window"), ("save", "Save & Restart", "Save & Restart Blender"), ("restart", "Restart", "Restart Blender")])
+    restart_options: EnumProperty(
+        items=[("exit", "Don't Restart", "Don't restart and exit this window"),
+               ("save", "Save & Restart", "Save & Restart Blender"),
+               ("restart", "Restart", "Restart Blender")])
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         if self.restart_options == "save":
-            bpy.ops.ar.restart(context.copy(), save= True)
+            bpy.ops.ar.restart(context.copy(), save=True)
         elif self.restart_options == "restart":
             bpy.ops.ar.restart(context.copy())
         return {"FINISHED"}
-    
+
     def cancel(self, context):
         bpy.ops.ar.show_restart_menu("INVOKE_DEFAULT")
 
@@ -354,9 +488,11 @@ class AR_OT_show_restart_menu(Operator):
         AR = context.preferences.addons[__module__].preferences
         layout = self.layout
         if AR.restart:
-            layout.label(text= "You need to restart Blender to complete the Update")
-        layout.prop(self, 'restart_options', expand= True)
+            layout.label(
+                text="You need to restart Blender to complete the Update")
+        layout.prop(self, 'restart_options', expand=True)
 # endregion
+
 
 classes = [
     AR_OT_update_check,
@@ -366,11 +502,14 @@ classes = [
 ]
 
 # region Registration
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.app.handlers.load_post.append(on_start)
     bpy.app.handlers.depsgraph_update_post.append(on_scene_update)
+
 
 def unregister():
     for cls in classes:
@@ -379,10 +518,10 @@ def unregister():
         bpy.app.handlers.load_post.remove(on_start)
     with suppress(Exception):
         bpy.app.handlers.depsgraph_update_post.remove(on_scene_update)
-    update_manager.download_list.clear()
-    update_manager.download_length = 0
-    update_manager.update_data_chunks.clear()
-    update_manager.update_respond = None
-    update_manager.version_file.clear()
-    update_manager.version_file_thread = None
-# endregion 
+    Update_manager.download_list.clear()
+    Update_manager.download_length = 0
+    Update_manager.update_data_chunks.clear()
+    Update_manager.update_respond = None
+    Update_manager.version_file.clear()
+    Update_manager.version_file_thread = None
+# endregion

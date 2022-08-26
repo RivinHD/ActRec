@@ -1,26 +1,17 @@
 # region Imports
-# external modules
-import ensurepip
-import os
-import subprocess
-import importlib
-import json
-import time
-
 # blender modules
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionProperty, FloatProperty, BoolProperty
-
-# relative imports
-from . import shared
-from .. import functions, properties
-from ..log import logger
 # endregion
 
 __module__ = __package__.split(".")[0]
 
+# Why Helper Operator?
+# Helper Operator are used to mimic Operator that are executed on an object or need specific user interaction to work
+
 # region Operators
+
+
 class AR_OT_helper_object_to_collection(Operator):
     bl_idname = "ar.helper_object_to_collection"
     bl_label = "Object to Collection"
@@ -35,14 +26,18 @@ class AR_OT_helper_object_to_collection(Operator):
         return {'FINISHED'}
 # endregion
 
+
 classes = [
     AR_OT_helper_object_to_collection
 ]
 
 # region Registration
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
 
 def unregister():
     for cls in classes:

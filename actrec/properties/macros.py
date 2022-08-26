@@ -5,27 +5,52 @@ from bpy.types import PropertyGroup
 from bpy.props import StringProperty, BoolProperty
 # endregion
 
+
 class AR_macro_multiline(PropertyGroup):
-    def get_text(self):
+    def get_text(self) -> str:
+        """
+        default Blender property getter
+
+        Returns:
+            str: text of the multiline macro
+        """
         return self.get('text', '')
-    def set_text(self, value):
+
+    def set_text(self, value: str):
+        """
+        set the text of the multiline macro and update to True
+
+        Args:
+            value (str): text for the multiline macro
+        """
         self['text'] = value
         self['update'] = True
-    def get_update(self):
+
+    def get_update(self) -> bool:
+        """
+        reset update back to false but the previous value will be passed on
+
+        Returns:
+            bool: state of update
+        """
         value = self.get('update', False)
         self['update'] = False
         return value
-    text : StringProperty(get= get_text, set= set_text)
-    update : BoolProperty(get= get_update)
+    text: StringProperty(get=get_text, set=set_text)
+    update: BoolProperty(get=get_update)
+
 
 classes = [
     AR_macro_multiline
 ]
 
 # region Registration
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
 
 def unregister():
     for cls in classes:

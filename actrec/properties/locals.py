@@ -9,22 +9,46 @@ from . import shared
 # endregion
 
 # region PropertyGroups
-class AR_local_actions(shared.AR_action, PropertyGroup):
-    def get_active_macro_index(self):
-        value = self.get('active_macro_index', 0)
-        macors_length = len(self.macros)
-        return value if value < macors_length else macors_length - 1
-    def set_active_macro_index(self, value):
-        macors_length = len(self.macros)
-        value = value if value < macors_length else macors_length - 1
-        self['active_macro_index'] = value if value >= 0 else macors_length - 1
 
-    active_macro_index : IntProperty(name= "Select", min= 0, get= get_active_macro_index, set= set_active_macro_index)
+
+class AR_local_actions(shared.AR_action, PropertyGroup):
+    def get_active_macro_index(self) -> int:
+        """
+        get the active index of the local macro.
+        If the index is out of range the last index of all macros is passed on.
+
+        Returns:
+            int: macro index
+        """
+        value = self.get('active_macro_index', 0)
+        macros_length = len(self.macros)
+        return value if value < macros_length else macros_length - 1
+
+    def set_active_macro_index(self, value: int):
+        """
+        sets the active index of the local macro.
+        if value is out of range the last index of the macros is passed on.
+
+        Args:
+            value (int): index of the active macro
+        """
+        macros_length = len(self.macros)
+        value = value if value < macros_length else macros_length - 1
+        self['active_macro_index'] = value if value >= 0 else macros_length - 1
+
+    active_macro_index: IntProperty(
+        name="Select",
+        min=0,
+        get=get_active_macro_index,
+        set=set_active_macro_index
+    )
+
 
 class AR_local_load_text(PropertyGroup):
-    name : StringProperty()
-    apply : BoolProperty(default= False)
+    name: StringProperty()
+    apply: BoolProperty(default=False)
 # endregion
+
 
 classes = [
     AR_local_actions,
@@ -32,9 +56,12 @@ classes = [
 ]
 
 # region Registration
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
 
 def unregister():
     for cls in classes:

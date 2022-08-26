@@ -33,6 +33,8 @@ from .shared import (
 )
 
 # region Registration
+
+
 def register():
     from .categories import register as reg
     reg()
@@ -48,6 +50,7 @@ def register():
     reg()
     from .shared import register as reg
     reg()
+
 
 def unregister():
     from .categories import unregister as unreg

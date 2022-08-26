@@ -8,21 +8,24 @@ from bpy.app.handlers import persistent
 from bpy.props import PointerProperty
 
 # relative imports
+# unused import needed to give direct access to the modules
 from . import functions, menus, operators, panels, properties, ui_functions, uilist
 from . import config, icon_manager, keymap, log, preferences, shared_data, update
 # endregion
 
 __module__ = __package__.split(".")[0]
 
+
 @persistent
-def on_load(dummy= None):
+def on_load(dummy=None):
     log.logger.info("Start: Load ActRec Data")
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     # load local actions
     if bpy.data.filepath == "":
         context.scene.ar.local = "{}"
-    elif context.scene.ar.local == "{}" and context.scene.get('ar_local', None): # load old local action data
+    # load old local action data
+    elif context.scene.ar.local == "{}" and context.scene.get('ar_local', None):
         try:
             data = []
             old_data = json.loads(context.scene.get('ar_local'))
@@ -39,7 +42,7 @@ def on_load(dummy= None):
                 })
             context.scene.ar.local = json.dumps(data)
         except json.JSONDecodeError as err:
-            log.logger.info("old scene-data couldn't be parsed (%s)" %err)
+            log.logger.info("old scene-data couldn't be parsed (%s)" % err)
     functions.load_local_action(AR, json.loads(context.scene.ar.local))
     # update paths
     AR.storage_path
@@ -53,6 +56,8 @@ def on_load(dummy= None):
     log.logger.info("Finished: Load ActRec Data")
 
 # region Registration
+
+
 def register():
     properties.register()
     menus.register()
@@ -75,9 +80,10 @@ def register():
     handlers.render_complete.append(functions.execute_render_complete)
     handlers.depsgraph_update_post.append(functions.track_scene)
     handlers.load_post.append(on_load)
-    
-    bpy.types.Scene.ar = PointerProperty(type= properties.AR_scene_data)
+
+    bpy.types.Scene.ar = PointerProperty(type=properties.AR_scene_data)
     log.logger.info("Registered Action Recorder")
+
 
 def unregister():
     properties.unregister()
@@ -89,7 +95,7 @@ def unregister():
     update.unregister()
     preferences.unregister()
     keymap.unregister()
-    
+
     handlers = bpy.app.handlers
     handlers.undo_post.remove(functions.category_runtime_load)
     handlers.undo_post.remove(functions.global_runtime_load)

@@ -1,7 +1,7 @@
 """used by intra-modules: preferences, operators"""
 
 from .categories import (
-    AR_categories
+    AR_category
 )
 
 from .globals import (
@@ -20,13 +20,15 @@ from .macros import (
 )
 
 from .shared import (
-    id_system,
+    Id_based,
     AR_macro,
     AR_action,
     AR_scene_data
 )
 
 # region Registration
+
+
 def register():
     from .shared import register as reg
     reg()
@@ -38,6 +40,7 @@ def register():
     reg()
     from .macros import register as reg
     reg()
+
 
 def unregister():
     from .shared import unregister as unreg

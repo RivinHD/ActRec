@@ -16,33 +16,41 @@ from . import shared
 __module__ = __package__.split(".")[0]
 
 # region Functions
+#TODO Descriptions
+
 def global_runtime_save(AR, use_autosave: bool = True):
     """includes autosave"""
     shared_data.global_temp = shared.property_to_python(AR.global_actions)
     if use_autosave and AR.autosave:
         save(AR)
 
+
 @persistent
-def global_runtime_load(dummy = None):
+def global_runtime_load(dummy=None):
     AR = bpy.context.preferences.addons[__module__].preferences
     AR.global_actions.clear()
-    AR["global_actions.selected_ids"] = [] # needed otherwise all global actions get selected
+    # needed otherwise all global actions get selected
+    AR["global_actions.selected_ids"] = []
     # Writes data from global_temp (JSON format) to global_actions (Blender Property)
     for action in shared_data.global_temp:
         shared.add_data_to_collection(AR.global_actions, action)
 
-def save(AR, path= None):
+
+def save(AR, path=None):
     data = {}
-    data['categories'] = shared.property_to_python(AR.categories, exclude= ["name", "selected", "actions.name", "areas.name", "areas.modes.name"])
-    data['actions'] = shared.property_to_python(AR.global_actions, exclude= ["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"])
-    with open(AR.storage_path, 'w', encoding= 'utf-8') as storage_file:
-        json.dump(data, storage_file, ensure_ascii= False, indent= 2)
+    data['categories'] = shared.property_to_python(AR.categories, exclude=[
+                                                   "name", "selected", "actions.name", "areas.name", "areas.modes.name"])
+    data['actions'] = shared.property_to_python(AR.global_actions, exclude=[
+                                                "name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"])
+    with open(AR.storage_path, 'w', encoding='utf-8') as storage_file:
+        json.dump(data, storage_file, ensure_ascii=False, indent=2)
     logger.info('saved global actions')
+
 
 def load(AR) -> bool:
     """return Succeses"""
     if os.path.exists(AR.storage_path):
-        with open(AR.storage_path, 'r', encoding= 'utf-8') as storage_file:
+        with open(AR.storage_path, 'r', encoding='utf-8') as storage_file:
             text = storage_file.read()
             if not text:
                 text = "{}"
@@ -53,26 +61,28 @@ def load(AR) -> bool:
             ui_functions.unregister_category(AR, i)
         AR.categories.clear()
         AR.global_actions.clear()
-        #load data
+        # load data
         if data:
             import_global_from_dict(AR, data)
             return True
     return False
 
-def import_global_from_dict(AR, data: dict) -> None:
+
+def import_global_from_dict(AR, data: dict):
     value = data.get('categories', None)
     if value:
         shared.apply_data_to_item(AR.categories, value)
     value = data.get('actions', None)
     if value:
         shared.apply_data_to_item(AR.global_actions, value)
-        
+
     for i in range(len(AR.categories)):
         ui_functions.register_category(AR, i)
     if len(AR.categories):
         AR.categories[0].selected = True
     if len(AR.global_actions):
         AR.global_actions[0].selected = True
+
 
 def get_global_action_id(AR, id, index):
     if AR.global_actions.find(id) == -1:
@@ -83,28 +93,34 @@ def get_global_action_id(AR, id, index):
     else:
         return id
 
+
 def get_global_action_ids(AR, id, index):
     id = get_global_action_id(AR, id, index)
     if id is None:
         return AR.get("global_actions.selected_ids", [])
     return [id]
 
+
 def add_empty_action_keymap(id):
     logger.info("add empty action")
     kmi = get_action_keymap(id)
     if kmi == None:
-        kmi = keymap.keymaps['default'].keymap_items.new("ar.global_execute_action", "NONE", "PRESS")
+        kmi = keymap.keymaps['default'].keymap_items.new(
+            "ar.global_execute_action", "NONE", "PRESS")
         kmi.properties.id = id
     return kmi
 
+
 def is_action_keymap_empty(kmi: bpy.types.KeyMapItem):
     return kmi.type == "NONE"
+
 
 def get_action_keymap(id) -> bpy.types.KeyMapItem:
     items = keymap.keymaps['default'].keymap_items
     for kmi in items:
         if kmi.idname == "ar.global_execute_action" and kmi.properties.id == id:
             return kmi
+
 
 def remove_action_keymap(id):
     kmi = get_action_keymap(id)

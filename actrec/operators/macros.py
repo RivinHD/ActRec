@@ -23,21 +23,24 @@ from ..log import logger
 __module__ = __package__.split(".")[0]
 
 # region Operators
-class macro_based(shared.id_based):
-    action_index : IntProperty(default= -1)
+
+
+class Macro_based(shared.Id_based):
+    action_index: IntProperty(default=-1)
     ignore_selection = False
 
     def clear(self):
         self.action_index = -1
         super().clear()
 
-class AR_OT_macro_add(shared.id_based, Operator):
+
+class AR_OT_macro_add(shared.Id_based, Operator):
     bl_idname = "ar.macro_add"
     bl_label = "ActRec Add Macro"
     bl_description = "Add the last operation you executed"
 
-    command : StringProperty(default= "")
-    report_length : IntProperty(default= 0)
+    command: StringProperty(default="")
+    report_length: IntProperty(default=0)
 
     @classmethod
     def poll(cls, context):
@@ -46,14 +49,17 @@ class AR_OT_macro_add(shared.id_based, Operator):
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
+
         if not len(AR.local_actions):
             self.report({'ERROR'}, 'Add a local action first')
             return {'CANCELLED'}
+
         index = functions.get_local_action_index(AR, self.id, self.index)
         action = AR.local_actions[index]
         new_report = False
         command = None
-        if not self.command:
+
+        if not self.command:  # get the command from the latest Blender report
             reports = functions.get_report_text(context).splitlines()
             length = len(reports)
             if self.report_length != length:
@@ -64,9 +70,13 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     if report.startswith("bpy.ops.") or report.startswith("bpy.context."):
                         command = report
                         break
-        else:
+        else:  # command was passed through with the operator parameter
             command = self.command
-        
+
+        undo_count = 0
+        # improve command by comparing to tracked_actions
+        # tracked actions is written by the function track_scene in functions.macros
+        # which keeps track of all executed Operator in detail but none information about changed Properties
         if command and (AR.last_macro_command != command if new_report else True):
             if command.startswith("bpy.context."):
                 tracked_actions = []
@@ -74,16 +84,13 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     tracked_actions = numpy.array(shared_data.tracked_actions)[::-1]
                     i = 0
                     len_tracked = len(tracked_actions)
-                    if len_tracked > i:
-                        tracked = tracked_actions[i]
+                    while i < len_tracked and tracked_actions[i][2] != "CONTEXT":
                         i += 1
-                        while tracked[2] != "CONTEXT" and len_tracked > i:
-                            tracked = tracked_actions[i]
-                            i += 1
-                    tracked_actions = tracked_actions[ :i + 1]
+                    tracked_actions = tracked_actions[:i + 1]
                 reports = functions.merge_report_tracked([command], tracked_actions)
-                logger.info("Add Report: %s", reports)
-                
+
+                # tries to recover more data of changed Properties
+                # by creating a copy of former data and try to match and complete it with the active data
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():
                         break
@@ -91,14 +98,17 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     copy_dict = functions.create_object_copy(context, parent, name)
 
                     bpy.ops.ed.undo()
+                    undo_count += 1
                     context = bpy.context
 
                     ret = functions.improve_context_report(context, copy_dict, parent, name, value)
-                    if not undo:
+                    if not undo:  # revert redo if report didn't triggered any undo save
                         bpy.ops.ed.redo()
+                        undo_count -= 1
                     if ret:
                         command = ret
                         break
+
             elif command.startswith("bpy.ops."):
                 ops_type, ops_name, ops_values = functions.split_operator_report(command)
                 if not self.command:
@@ -108,14 +118,22 @@ class AR_OT_macro_add(shared.id_based, Operator):
                     if len_tracked > i:
                         tracked = tracked_actions[i]
                         i += 1
-                        while not (tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name) and functions.compare_op_dict(ops_values, tracked[3])) and len_tracked > i:
+                        # compare tracked operator data with the command operator data
+                        while (not (tracked[2] == "%s_OT_%s" % (ops_type.upper(), ops_name)
+                                    and functions.compare_op_dict(ops_values, tracked[3]))
+                               and len_tracked > i):
                             tracked = tracked_actions[i]
                             i += 1
-                    reports = functions.merge_report_tracked([command], tracked_actions[ :i + 1])
-                else:
+                    reports = functions.merge_report_tracked([command], tracked_actions[:i + 1])
+                else:  # convert command to simple incase the command was passthrough with the operator
                     bl_options = getattr(getattr(bpy.ops, ops_type), ops_name).bl_options
                     reports = [(1, "REGISTER" in bl_options, "UNDO" in bl_options, ops_type, ops_name, ops_values)]
 
+                # tries to recover more data of changed properties
+                # by creating a copy of former data and try to match and complete it with the active data
+                # not needed till now for operator but might be in the future
+                # now catch operators that won't work by simple call, because they need a specific selection
+                # this operators will be replaced by self written Operators with similar behavior
                 for bpy_type, register, undo, parent, name, value in reports:
                     if not bpy.ops.ed.undo.poll():
                         break
@@ -124,16 +142,19 @@ class AR_OT_macro_add(shared.id_based, Operator):
 
                     if undo:
                         bpy.ops.ed.undo()
+                        undo_count += 1
                         context = bpy.context
-                    
+
                     if register:
-                        ret = functions.imporve_operator_report(context, parent, name, value, copy_dict)
+                        ret = functions.improve_operator_report(context, parent, name, value, copy_dict)
                         if ret:
                             command = ret
                             break
-            
-            while bpy.ops.ed.redo.poll():
+
+            # redo all undo actions which where taken during the improve process
+            while undo_count > 0:
                 bpy.ops.ed.redo()
+                undo_count -= 1
 
             ui_type = ""
             if context.area:
@@ -143,40 +164,50 @@ class AR_OT_macro_add(shared.id_based, Operator):
             if new_report:
                 self.report({'ERROR'}, "No Action could be added")
             if AR.local_create_empty:
-                bpy.ops.ar.macro_add_event("EXEC_DEFAULT", id= action.id, index= index, type= "Empty")
+                bpy.ops.ar.macro_add_event("EXEC_DEFAULT", id=action.id, index=index, type="Empty")
         functions.local_runtime_save(AR, context.scene)
         bpy.context.area.tag_redraw()
         shared_data.tracked_actions.clear()
         self.command = ""
         return {"FINISHED"}
 
-class AR_OT_macro_add_event(shared.id_based, Operator):
+
+class AR_OT_macro_add_event(shared.Id_based, Operator):
     bl_idname = "ar.macro_add_event"
     bl_label = "Add Event"
     bl_description = "Add a Event to the selected Action"
 
     types = [
         ('Timer', 'Timer', 'Wait the chosen Time and continue with the Macros', 'SORTTIME', 0),
-        ('Render Complet', 'Render complet', 'Wait until the rendering has finished', 'IMAGE_RGB_ALPHA', 1),
+        ('Render Complete', 'Render complete', 'Wait until the rendering has finished', 'IMAGE_RGB_ALPHA', 1),
         ('Render Init', 'Render Init', 'Wait until the rendering has started', 'IMAGE_RGB', 2),
-        ('Loop', 'Loop', 'Loop the conatining Makros until the Statment is False \nNote: The Loop need the EndLoop Event to work, otherwise the Event get skipped', 'FILE_REFRESH', 3),
-        ('EndLoop', 'EndLoop', 'Ending the latetest called loop, when no Loop Event was called this Event get skipped', 'FILE_REFRESH', 4),
+        ('Loop', 'Loop',
+         """Loop the containing Macros until the Statement is False \n
+         Note: The Loop need the EndLoop Event to work, otherwise the Event get skipped""",
+         'FILE_REFRESH', 3),
+        ('EndLoop', 'EndLoop', 'Ending the latest called loop, when no Loop Event was called this Event get skipped',
+         'FILE_REFRESH', 4),
         ('Clipboard', 'Clipboard', 'Adding a command with the data from the Clipboard', 'CONSOLE', 5),
         ('Empty', 'Empty', 'Crates an Empty Macro', 'SHADING_BBOX', 6),
-        ('Select Object', 'Select Object', 'Select the choosen object', 'OBJECT_DATA', 7)
+        ('Select Object', 'Select Object', 'Select the chosen object', 'OBJECT_DATA', 7)
     ]
-    type : EnumProperty(items= types, name= "Event Type", description= 'Shows all possible Events', default= 'Empty')
+    type: EnumProperty(items=types, name="Event Type", description='Shows all possible Events', default='Empty')
 
-    time : FloatProperty(name= "Time", description= "Time in Seconds", unit='TIME')
-    statement_type : EnumProperty(items=[('count', 'Count', 'Count a Number from the Start with the Step to the End, \nStop when Number > End', '', 0),
-                                    ('python', 'Python Statment', 'Create a custom statement with python code', '', 1)])
-    start : FloatProperty(name= "Start", description= "Start of the Count statements", default=0)
-    end : FloatProperty(name= "End", description= "End of the Count statements", default= 1)
-    step: FloatProperty(name= "Step", description= "Step of the Count statements", default= 1)
-    python_statement : StringProperty(name= "Statement", description= "Statment for the Python Statement")
-    object : StringProperty(name= "Object", description= "Choose an Object which get select when this Event is played")
+    time: FloatProperty(name="Time", description="Time in Seconds", unit='TIME')
+    statement_type: EnumProperty(
+        items=[
+            ('count', 'Count',
+             'Count a Number from the Start with the Step to the End, \nStop when Number > End', '', 0),
+            ('python', 'Python Statement', 'Create a custom statement with python code', '', 1)
+        ]
+    )
+    start: FloatProperty(name="Start", description="Start of the Count statements", default=0)
+    end: FloatProperty(name="End", description="End of the Count statements", default=1)
+    step: FloatProperty(name="Step", description="Step of the Count statements", default=1)
+    python_statement: StringProperty(name="Statement", description="Statement for the Python Statement")
+    object: StringProperty(name="Object", description="Choose an Object which get select when this Event is played")
 
-    macro_index : IntProperty(name= "Macro Index", default= -1)
+    macro_index: IntProperty(name="Macro Index", default=-1)
 
     @classmethod
     def poll(cls, context):
@@ -184,7 +215,7 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
         return len(AR.local_actions) and not AR.local_record_macros
 
     def invoke(self, context, event):
-        if context.object != None:
+        if context.object is not None:
             self.object = context.object.name
         return context.window_manager.invoke_props_dialog(self)
 
@@ -206,9 +237,9 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
         elif self.type == 'Empty':
             macro.label = "<Empty>"
             macro.command = ""
-            bpy.ops.ar.macro_edit('INVOKE_DEFAULT', index= index, edit= True)
+            bpy.ops.ar.macro_edit('INVOKE_DEFAULT', index=index, edit=True)
         else:
-            macro.label = "Event: %s" %self.type
+            macro.label = "Event: %s" % self.type
             data = {'Type': self.type}
             if self.type == 'Timer':
                 data['Time'] = self.time
@@ -222,7 +253,7 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
                     data["Stepnumber"] = self.step
             elif self.type == 'Select Object':
                 data['Object'] = self.object
-            macro.command = "ar.event: %s" %json.dumps(data)
+            macro.command = "ar.event: %s" % json.dumps(data)
         functions.local_runtime_save(AR, context.scene)
         if not AR.hide_local_text:
             functions.local_action_to_text(action)
@@ -238,7 +269,7 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
             box.prop(self, 'time')
         elif self.type == 'Loop':
             box = layout.box()
-            box.prop(self, 'statement_type', text= "Type")
+            box.prop(self, 'statement_type', text="Type")
             box.separator()
             if self.statement_type == 'python':
                 box.prop(self, 'python_statement')
@@ -250,7 +281,8 @@ class AR_OT_macro_add_event(shared.id_based, Operator):
             box = layout.box()
             box.prop_search(self, 'object', context.view_layer, 'objects')
 
-class AR_OT_macro_remove(macro_based, Operator):
+
+class AR_OT_macro_remove(Macro_based, Operator):
     bl_idname = "ar.macro_remove"
     bl_label = "Remove Macro"
     bl_description = "Remove the selected Macro"
@@ -260,7 +292,11 @@ class AR_OT_macro_remove(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.local_actions) and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore) and not AR.local_record_macros
+        return (
+            len(AR.local_actions)
+            and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore)
+            and not AR.local_record_macros
+        )
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -273,7 +309,8 @@ class AR_OT_macro_remove(macro_based, Operator):
         self.clear()
         return {"FINISHED"}
 
-class AR_OT_macro_move_up(macro_based, Operator):
+
+class AR_OT_macro_move_up(Macro_based, Operator):
     bl_idname = "ar.macro_move_up"
     bl_label = "Move Macro Up"
     bl_description = "Move the selected Macro up"
@@ -304,7 +341,8 @@ class AR_OT_macro_move_up(macro_based, Operator):
         context.area.tag_redraw()
         return {"FINISHED"}
 
-class AR_OT_macro_move_down(macro_based, Operator):
+
+class AR_OT_macro_move_down(Macro_based, Operator):
     bl_idname = "ar.macro_move_down"
     bl_label = "Move Macro Down"
     bl_description = "Move the selected Macro down"
@@ -317,7 +355,8 @@ class AR_OT_macro_move_down(macro_based, Operator):
         if not len(AR.local_actions):
             return False
         action = AR.local_actions[AR.active_local_action_index]
-        return (len(action.macros) >= 2 and action.active_macro_index + 1 < len(action.macros) or ignore) and not AR.local_record_macros
+        return ((len(action.macros) >= 2 and action.active_macro_index + 1 < len(action.macros) or ignore)
+                and not AR.local_record_macros)
 
     def execute(self, context):
         AR = context.preferences.addons[__module__].preferences
@@ -335,116 +374,199 @@ class AR_OT_macro_move_down(macro_based, Operator):
         context.area.tag_redraw()
         return {"FINISHED"}
 
-class text_analysis():
-    def __init__(self, fontpath):
-        self.path = fontpath
-        # install the fonttools to blender modules if not exists
+
+class Text_analysis():
+    # TODO move package installation to a separate function
+    def __init__(self, font_path):
+        self.path = font_path
+        # install the fonttools to blender modules if not installed
         if importlib.util.find_spec('fontTools') is None:
             ensurepip.bootstrap()
             os.environ.pop("PIP_REQ_TRACKER", None)
-            path = "%s\\test_actrec" %os.path.dirname(sys.executable)
+            path = "%s\\test_actrec" % os.path.dirname(sys.executable)
             try:
+                # FIXME Maybe use --user option to ignore permission problem
+                # creates and removes dir to check for writing permission to this path
                 os.mkdir(path)
                 os.rmdir(path)
-                output = subprocess.check_output([sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color']).decode('utf-8').replace("\r", "")
+                output = subprocess.check_output(
+                    [sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color']
+                ).decode('utf-8').replace("\r", "")
                 logger.info(output)
             except PermissionError as err:
                 if sys.platform == "win32":
-                    logger.info("Need Admin Permisons to write to %s"%path)
+                    logger.info("Need Admin Permissions to write to %s" % path)
                     logger.info("Try again to install fontTools as admin")
-                    output = subprocess.check_output([sys.executable, '-m', 'pip', 'uninstall', '-y', 'fonttools', '--no-color'], stderr= subprocess.STDOUT).decode('utf-8').replace("\r", "")
+                    output = subprocess.check_output(
+                        [sys.executable, '-m', 'pip', 'uninstall', '-y', 'fonttools', '--no-color'],
+                        stderr=subprocess.STDOUT
+                    ).decode('utf-8').replace("\r", "")
                     logger.info(output)
-                    output = subprocess.check_output(['powershell.exe', '-Command', '& { Start-Process \'%s\' -Wait -ArgumentList \'-m\', \'pip\', \'install\', \'fonttools\'-Verb RunAs}' %sys.executable], stderr= subprocess.STDOUT).decode('unicode_escape').replace("\r", "")
+                    output = subprocess.check_output(
+                        ['powershell.exe', '-Command',
+                         """& { Start-Process \'%s\' -Wait -ArgumentList \'-m\',
+                         \'pip\', \'install\', \'fonttools\'-Verb RunAs}""" % sys.executable],
+                        stderr=subprocess.STDOUT
+                    ).decode('unicode_escape').replace("\r", "")
                     if output != '':
                         logger.warning(output)
                         self.use_dynamic_text = False
-                        return  
+                        return
                 else:
                     logger.error(err)
             except subprocess.CalledProcessError as err:
                 logger.warning(err.output)
                 self.use_dynamic_text = False
-                return            
+                return
 
         if importlib.util.find_spec('fontTools') is None:
             logger.warning("For some reason fontTools couldn't be installed :(")
             self.use_dynamic_text = False
             return
-            
+
         self.use_dynamic_text = True
         from fontTools.ttLib import TTFont
 
-        font = TTFont(fontpath)
-        self.t = font['cmap'].getcmap(3,1).cmap
+        font = TTFont(font_path)
+        self.t = font['cmap'].getcmap(3, 1).cmap
         self.s = font.getGlyphSet()
-        self.width_in_pixels = 10/font['head'].unitsPerEm
-    
-    def get_width_of_text(self, text):
+        self.width_in_pixels = 10 / font['head'].unitsPerEm
+
+    def get_width_of_text(self, text: str) -> list[float]:
+        """
+        get the width of each character of the text in pixels,
+        because Blender uses Pixel for measurement of window width
+
+        Args:
+            text (str): text to get width from
+
+        Returns:
+            list[float]: width for each character in the text
+        """
         total = []
         for c in text:
             total.append(self.s[self.t[ord(c)]].width * self.width_in_pixels)
         return total
-    
-class AR_OT_macro_edit(macro_based, Operator):
+
+
+class AR_OT_macro_edit(Macro_based, Operator):
     bl_idname = "ar.macro_edit"
     bl_label = "Edit"
     bl_description = "Double click to Edit"
 
-    def set_clear_ops(self, value):
-        if self.copy_data:
+    def set_clear_operator(self, value: bool):
+        """
+        setter of clear_operator.
+        Delete the parameters of an operator command. Otherwise the complete command is cleared.
+
+        Args:
+            value (bool): unused
+        """
+        if self.use_last_command:
             command = self.last_command
             if command.startswith("bpy.ops."):
-                self.last_command ="%s()" %command.split("(")[0]
+                self.last_command = "%s()" % command.split("(")[0]
             else:
                 self.last_command = ""
         else:
             command = self.command
             if command.startswith("bpy.ops."):
-                self.command = "%s()" %command.split("(")[0]
+                self.command = "%s()" % command.split("(")[0]
             else:
                 self.command = ""
-    def get_command(self):
-        if not self.copy_data and any(line.update for line in self.lines):
+
+    def get_command(self) -> str:
+        """
+        get the command, which is created from the splitted lines of the command
+
+        Returns:
+            str: command as single line
+        """
+        if not self.use_last_command and any(line.update for line in self.lines):
             self.command = "".join(line.text for line in self.lines)
         return self.get('command', '')
-    def set_command(self, value):
+
+    def set_command(self, value: str):
+        """
+        set the command and convert it into multiple lines, which fit into the width of the popup
+
+        Args:
+            value (str): command as single line
+        """
         self['command'] = value
-        if not self.copy_data:
-            self.lines.clear()
-            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
-                new = self.lines.add()
-                new['text'] = line
-    def get_last_command(self):
-        if self.copy_data and any(line.update for line in self.lines):
-            self.last_command = "".join(line.text for line in self.lines)
-        return self.get('last_command', '')
-    def set_last_command(self, value):
-        self['last_command'] = value
-        if self.copy_data:
+        if not self.use_last_command:
             self.lines.clear()
             for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
                 new = self.lines.add()
                 new['text'] = line
 
-    def get_copy_data(self):
-        return self.get("copy_data", False)
-    def set_copy_data(self, value):
-        self["copy_data"] = value
-        if value: # update lines
+    def get_last_command(self) -> str:
+        """
+        get the last command, which is created from the splitted lines of the command
+        last command is the last added command
+
+        Returns:
+            str: last command as single line
+        """
+        if self.use_last_command and any(line.update for line in self.lines):
+            self.last_command = "".join(line.text for line in self.lines)
+        return self.get('last_command', '')
+
+    def set_last_command(self, value: str):
+        """
+        set the last command and convert it into multiple lines, which fit into the width of the popup
+        last command is the last added command
+
+        Args:
+            value (str): last command as single line
+        """
+        self['last_command'] = value
+        if self.use_last_command:
+            self.lines.clear()
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
+                new = self.lines.add()
+                new['text'] = line
+
+    def get_use_last_command(self) -> str:
+        """
+        default Blender property getter
+
+        Returns:
+            str: state if last command is used. Defaults to False
+        """
+        return self.get("use_last_command", False)
+
+    def set_use_last_command(self, value: bool):
+        """
+        set the state, whether to use the last command
+
+        Args:
+            value (bool): state
+        """
+        self["use_last_command"] = value
+        if value:  # update multi line representation of the switched command
             self.last_command = self.last_command
         else:
             self.command = self.command
-                    
-    label : StringProperty(name= "Label")
-    command : StringProperty(name= "Command", get= get_command, set= set_command)
-    last_label : StringProperty(name= "Last Label")
-    last_command : StringProperty(name= "Last Command", get= get_last_command, set= set_last_command)
-    last_id : StringProperty(name= "Last Id")
-    edit : BoolProperty(default= False)
-    clear_ops : BoolProperty(name= "Clear Operator Command", get= lambda x: False, set= set_clear_ops)
-    copy_data : BoolProperty(default= False, name= "Copy Previous", description= "Copy the data of the previous recorded Macro and place it in this Macro", get= get_copy_data, set= set_copy_data)
-    lines : CollectionProperty(type= properties.AR_macro_multiline)
-    width : IntProperty(default= 500, name= "width", description= "Window width of the Popup")
+
+    label: StringProperty(name="Label")
+    command: StringProperty(name="Command", get=get_command, set=set_command)
+    last_label: StringProperty(name="Last Label")
+    last_command: StringProperty(name="Last Command", get=get_last_command, set=set_last_command)
+    last_id: StringProperty(name="Last Id")
+    edit: BoolProperty(default=False)
+    clear_operator: BoolProperty(
+        name="Clear Operator Command",
+        description="Delete the parameters of an operator command. Otherwise the complete command is cleared",
+        get=lambda x: False, set=set_clear_operator)
+    use_last_command: BoolProperty(
+        default=False, name="Copy Previous",
+        description="Copy the data of the previous recorded Macro and place it in this Macro",
+        get=get_use_last_command,
+        set=set_use_last_command
+    )
+    lines: CollectionProperty(type=properties.AR_macro_multiline)
+    width: IntProperty(default=500, name="width", description="Window width of the Popup")
     font_text = None
     time = 0
 
@@ -452,34 +574,59 @@ class AR_OT_macro_edit(macro_based, Operator):
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
         return not AR.local_record_macros
-    
+
     def invoke(self, context, event):
         AR = context.preferences.addons[__module__].preferences
         action_index = self.action_index = functions.get_local_action_index(AR, '', self.action_index)
         action = AR.local_actions[action_index]
         index = self.index = functions.get_local_macro_index(action, self.id, self.index)
         macro = action.macros[index]
-        
-        fontpath = functions.get_font_path()
-        if AR_OT_macro_edit.font_text is None or AR_OT_macro_edit.font_text.path != fontpath:
-            AR_OT_macro_edit.font_text = text_analysis(fontpath)
+
+        font_path = functions.get_font_path()
+        if AR_OT_macro_edit.font_text is None or AR_OT_macro_edit.font_text.path != font_path:
+            AR_OT_macro_edit.font_text = Text_analysis(font_path)
 
         t = time.time()
+        # register double click if user clicks on same macro within 0.7 seconds
         if self.last_id == macro.id and AR_OT_macro_edit.time + 0.7 > t or self.edit:
             split = macro.command.split(":")
-            if split[0] == 'ar.event':
+            if split[0] == 'ar.event':  # Event Macro
                 data = json.loads(":".join(split[1:]))
                 if data['Type'] == 'Timer':
-                    bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index, time= data['Time'])
+                    bpy.ops.ar.macro_add_event(
+                        'INVOKE_DEFAULT',
+                        type=data['Type'],
+                        macro_index=self.index,
+                        time=data['Time']
+                    )
                 elif data['Type'] == 'Loop':
                     if data['StatementType'] == 'python':
-                        bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index, statement_type= data['StatementType'], python_statement= data["PyStatement"])
+                        bpy.ops.ar.macro_add_event(
+                            'INVOKE_DEFAULT',
+                            type=data['Type'],
+                            macro_index=self.index,
+                            statement_type=data['StatementType'],
+                            python_statement=data["PyStatement"]
+                        )
                     else:
-                        bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index, statement_type= data['StatementType'], start= data["Startnumber"], end= data["Endnumber"], step= data["Stepnumber"])
+                        bpy.ops.ar.macro_add_event(
+                            'INVOKE_DEFAULT',
+                            type=data['Type'],
+                            macro_index=self.index,
+                            statement_type=data['StatementType'],
+                            start=data["Startnumber"],
+                            end=data["Endnumber"],
+                            step=data["Stepnumber"]
+                        )
                 elif data['Type'] == 'Select Object':
-                    bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index, object= data['Object'])
+                    bpy.ops.ar.macro_add_event(
+                        'INVOKE_DEFAULT',
+                        type=data['Type'],
+                        macro_index=self.index,
+                        object=data['Object']
+                    )
                 else:
-                    bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type= data['Type'], macro_index= self.index)
+                    bpy.ops.ar.macro_add_event('INVOKE_DEFAULT', type=data['Type'], macro_index=self.index)
                 self.clear()
                 return {"FINISHED"}
 
@@ -487,7 +634,7 @@ class AR_OT_macro_edit(macro_based, Operator):
             self.command = macro.command
             self.last_label = AR.last_macro_label
             self.last_command = AR.last_macro_command
-            return context.window_manager.invoke_props_dialog(self, width= self.width)
+            return context.window_manager.invoke_props_dialog(self, width=self.width)
         else:
             action.active_macro_index = index
         self.last_id = macro.id
@@ -499,8 +646,8 @@ class AR_OT_macro_edit(macro_based, Operator):
         AR = context.preferences.addons[__module__].preferences
         action = AR.local_actions[self.action_index]
         macro = action.macros[self.index]
-        if self.copy_data:
-            macro.label = self.last_label 
+        if self.use_last_command:
+            macro.label = self.last_label
             macro.command = self.last_command
         else:
             macro.label = self.label
@@ -509,82 +656,94 @@ class AR_OT_macro_edit(macro_based, Operator):
         context.area.tag_redraw()
         self.cancel(context)
         return {"FINISHED"}
-    
+
     def draw(self, context):
         layout = self.layout
 
-        if self.copy_data:
-            layout.prop(self, 'last_label', text= "Label")
-            self.last_command # update
+        if self.use_last_command:
+            layout.prop(self, 'last_label', text="Label")
+            self.last_command  # update last command by calling the internal get method
         else:
-            layout.prop(self, 'label', text= "Label")
-            self.command # update
+            layout.prop(self, 'label', text="Label")
+            self.command   # update command by calling the internal get method
 
-        col = layout.column(align= True)
+        col = layout.column(align=True)
         for line in self.lines:
-            col.prop(line, 'text', text= "")
+            col.prop(line, 'text', text="")
 
-        row = layout.row().split(factor= 0.65)
-        row.prop(self, 'clear_ops', toggle= True)
-        row.prop(self, 'copy_data', toggle= True)
+        row = layout.row().split(factor=0.65)
+        row.prop(self, 'clear_operator', toggle=True)
+        row.prop(self, 'use_last_command', toggle=True)
 
     def cancel(self, context):
         self.edit = False
-        self.copy_data = False
+        self.use_last_command = False
         self.clear()
 
-class AR_OT_copy_to_actrec(Operator):
+
+class AR_OT_copy_to_actrec(Operator):  # used in the right click menu of Blender
     bl_idname = "ar.copy_to_actrec"
     bl_label = "Copy to Action Recorder"
     bl_description = "Copy the selected Operator to Action Recorder Macro"
 
-    copy_single : BoolProperty()
+    copy_single: BoolProperty()
 
     @classmethod
     def poll(cls, context):
         AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and (bpy.ops.ui.copy_python_command_button.poll() or getattr(context, "button_pointer", None) and getattr(context, "button_prop", None))
+        return (
+            len(AR.local_actions)
+            and (bpy.ops.ui.copy_python_command_button.poll()
+                 or getattr(context, "button_pointer", None)
+                 and getattr(context, "button_prop", None))
+        )
 
     def execute(self, context):
+        # referring to https://docs.blender.org/api/current/bpy.types.Menu.html?menu#extending-the-button-context-menu
         button_pointer = getattr(context, "button_pointer", None)
         button_prop = getattr(context, "button_prop", None)
         if not(button_pointer is None or button_prop is None):
             base_object = button_pointer.id_data
             object_class = base_object.__class__
+            # scans to the context attributes to get data for adding context commands
             for attr in dir(context):
                 if isinstance(getattr(bpy.context, attr), object_class):
                     value = functions.convert_to_python(getattr(button_pointer, button_prop.identifier))
                     if self.copy_single and bpy.ops.ui.copy_data_path_button.poll():
                         clipboard = context.window_manager.clipboard
-                        bpy.ops.ui.copy_data_path_button(context.copy(), full_path= True)
-                        single_index = context.window_manager.clipboard.split(" = ")[0].split(".")[-1].split("[")[-1].replace("]", "")
+                        bpy.ops.ui.copy_data_path_button(context.copy(), full_path=True)
+                        single_index = context.window_manager.clipboard.split(
+                            " = ")[0].split(".")[-1].split("[")[-1].replace("]", "")
                         context.window_manager.clipboard = clipboard
                         if single_index.isdigit():
                             value = value[int(single_index)]
 
                     if isinstance(value, str):
-                        value = "'%s'" %value
+                        value = "'%s'" % value
                     elif isinstance(value, float):
                         value = round(value, button_prop.precision)
                     elif isinstance(button_prop, PointerProperty) and value is not None:
                         for identifier, prop in bpy.data.bl_rna.properties.items():
-                            if prop.type == 'COLLECTION' and prop.fixed_type == button_prop.fixed_type and value.name in getattr(bpy.data, identifier):
-                                value = "bpy.data.%s['%s']" %(identifier, value.name)
+                            if (prop.type == 'COLLECTION'
+                                and prop.fixed_type == button_prop.fixed_type
+                                    and value.name in getattr(bpy.data, identifier)):
+                                value = "bpy.data.%s['%s']" % (identifier, value.name)
                                 break
-                                
+
                     if base_object != button_pointer:
                         pointer_class = button_pointer.__class__
                         for prop in base_object.bl_rna.properties:
                             if isinstance(getattr(base_object, prop.identifier), pointer_class):
-                                attr = "%s.%s" %(attr, prop.identifier)
+                                attr = "%s.%s" % (attr, prop.identifier)
                                 break
 
                     if self.copy_single:
-                        command = "bpy.context.%s.%s[%s] = %s" %(attr, button_prop.identifier, single_index, str(value))
+                        command = "bpy.context.%s.%s[%s] = %s" % (
+                            attr, button_prop.identifier, single_index, str(value))
                     else:
-                        command = "bpy.context.%s.%s = %s" %(attr, button_prop.identifier, str(value))
+                        command = "bpy.context.%s.%s = %s" % (attr, button_prop.identifier, str(value))
                     self.copy_single = False
-                    bpy.ops.ar.macro_add('EXEC_DEFAULT', command= command)
+                    bpy.ops.ar.macro_add('EXEC_DEFAULT', command=command)
                     for area in context.screen.areas:
                         area.tag_redraw()
                     return {"FINISHED"}
@@ -595,13 +754,14 @@ class AR_OT_copy_to_actrec(Operator):
         if button_operator is not None:
             clipboard = context.window_manager.clipboard
             bpy.ops.ui.copy_python_command_button(context.copy())
-            bpy.ops.ar.macro_add('EXEC_DEFAULT', command= context.window_manager.clipboard)
+            bpy.ops.ar.macro_add('EXEC_DEFAULT', command=context.window_manager.clipboard)
             context.window_manager.clipboard = clipboard
             for area in context.screen.areas:
                 area.tag_redraw()
             return {"FINISHED"}
         return {"CANCELLED"}
 # endregion
+
 
 classes = [
     AR_OT_macro_add,
@@ -614,9 +774,12 @@ classes = [
 ]
 
 # region Registration
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
 
 def unregister():
     for cls in classes:

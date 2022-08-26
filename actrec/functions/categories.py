@@ -16,6 +16,8 @@ from .. import shared_data
 __module__ = __package__.split(".")[0]
 
 # region functions
+#TODO Descriptions
+
 def read_category_visbility(AR, id) -> Optional[list]:
     """return None on Fail, dict on Successes"""
     visibility = []
@@ -28,18 +30,21 @@ def read_category_visbility(AR, id) -> Optional[list]:
                 visibility.append((area.type, 'all'))
         return visibility
 
-def category_runtime_save(AR, use_autosave: bool = True) -> None:
+
+def category_runtime_save(AR, use_autosave: bool = True):
     """includes autosave"""
     shared_data.categories_temp = shared.property_to_python(AR.categories)
     if use_autosave and AR.autosave:
         globals.save(AR)
 
+
 @persistent
-def category_runtime_load(dummy = None):
+def category_runtime_load(dummy=None):
     AR = bpy.context.preferences.addons[__module__].preferences
     AR.categories.clear()
     for category in shared_data.categories_temp:
         shared.add_data_to_collection(AR.categories, category)
+
 
 def get_category_id(AR, id, index):
     if AR.categories.find(id) == -1:

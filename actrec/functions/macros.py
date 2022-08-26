@@ -1,7 +1,7 @@
 # region Imports
 # external modules
 import numpy
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 import mathutils
 
 # blender modules
@@ -17,25 +17,31 @@ from ..log import logger
 __module__ = __package__.split(".")[0]
 
 # region Functions
+#TODO Descriptions
+
 def get_local_macro_index(action, id, index):
     macro = action.macros.find(id)
     if macro == -1:
-        if len(action.macros) > index and index >= 0: # fallback to input index
+        if len(action.macros) > index and index >= 0:  # fallback to input index
             macro = index
         else:
-            macro = action.active_macro_index # fallback to selection
+            macro = action.active_macro_index  # fallback to selection
     return macro
+
 
 def convert_to_python(value):
     if value.__class__.__name__ == 'bpy_prop_array':
         return tuple(convert_to_python(x) for x in value)
     elif isinstance(value, mathutils.Vector):
         return value.to_tuple()
-    elif isinstance(value, mathutils.Euler) or isinstance(value, mathutils.Quaternion) or isinstance(value, mathutils.Color):
+    elif (isinstance(value, mathutils.Euler)
+          or isinstance(value, mathutils.Quaternion)
+          or isinstance(value, mathutils.Color)):
         return tuple(x for x in value)
     elif isinstance(value, mathutils.Matrix):
         return tuple(row.to_tuple() for row in value)
     return value
+
 
 def operator_to_dict(op) -> dict:
     data = {}
@@ -47,12 +53,13 @@ def operator_to_dict(op) -> dict:
         if not hasattr(props, 'bl_rna'):
             logger.info(props)
             return props
-        for key in props.bl_rna.properties.keys()[1: ]:
+        for key in props.bl_rna.properties.keys()[1:]:
             data[key] = convert_to_python(getattr(props, key))
     return data
-    
+
+
 @persistent
-def track_scene(dummy = None):
+def track_scene(dummy=None):
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     operators = context.window_manager.operators
@@ -61,7 +68,8 @@ def track_scene(dummy = None):
         if length > AR.operators_list_length:
             AR.operators_list_length = length
             op = operators[-1]
-            shared_data.tracked_actions.append(['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, operator_to_dict(op)])
+            shared_data.tracked_actions.append(
+                ['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, operator_to_dict(op)])
         else:
             len_tracked = len(shared_data.tracked_actions)
             if not len_tracked:
@@ -82,34 +90,39 @@ def track_scene(dummy = None):
                 last_register_op[3] = props
             else:
                 if last_tracked[2] == "CONTEXT":
-                    last_tracked[3] += 1 
+                    last_tracked[3] += 1
                 else:
-                    shared_data.tracked_actions.append([True, True, "CONTEXT", 1])
+                    shared_data.tracked_actions.append(
+                        [True, True, "CONTEXT", 1])
     else:
         AR.operators_list_length = 0
+
 
 def get_report_text(context) -> str:
     override = context.copy()
     area_type = override['area'].type
     clipboard_data = override['window_manager'].clipboard
     override['area'].type = 'INFO'
-    bpy.ops.info.select_all(override, action= 'SELECT')
+    bpy.ops.info.select_all(override, action='SELECT')
     bpy.ops.info.report_copy(override)
-    bpy.ops.info.select_all(override, action= 'DESELECT')
+    bpy.ops.info.select_all(override, action='DESELECT')
     report_text = override['window_manager'].clipboard
     override['area'].type = area_type
     override['window_manager'].clipboard = clipboard_data
     return report_text
 
+
 def compare_fstr_float(fstr: str, fnum: float) -> bool:
     precision = len(fstr.split(".")[-1])
     return float(fstr) == round(fnum, precision)
 
+
 def compare_value(str_value, value) -> bool:
     return (isinstance(value, float) and compare_fstr_float(str_value, value)
-        or isinstance(value, bool) and str_value == str(value)
-        or isinstance(value, int) and str_value == str(value)
-        or isinstance(value, str) and str_value[1: -1] == value)
+            or isinstance(value, bool) and str_value == str(value)
+            or isinstance(value, int) and str_value == str(value)
+            or isinstance(value, str) and str_value[1: -1] == value)
+
 
 def str_dict_to_dict(obj: str):
     "converts str in dict format to a dict with str as values"
@@ -123,8 +136,9 @@ def str_dict_to_dict(obj: str):
             last_key = key[1:-1]
             data[last_key] = value
         else:
-            data[last_key] += ", %s" %split[0]
+            data[last_key] += ", %s" % split[0]
     return data
+
 
 def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
     for key, str_value in op1_props.items():
@@ -138,8 +152,9 @@ def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
         elif isinstance(value, tuple):
             str_value = str_value[1: -1]
             if isinstance(value[0], tuple):
-                value = [[value[i][j] for i in range(len(value[0]))] for j in range(len(value))] # switch column and row
-                str_vectors = str_value.replace("(","").split(")")
+                value = [[value[i][j] for i in range(len(value[0]))] for j in range(
+                    len(value))]  # switch column and row
+                str_vectors = str_value.replace("(", "").split(")")
                 for str_vec, vec in zip(str_vectors, value):
                     str_vec = [x for x in str_vec.split(", ") if x]
                     for str_v, v in zip(str_vec, vec):
@@ -153,6 +168,7 @@ def compare_op_dict(op1_props: dict, op2_props: dict) -> bool:
         elif not compare_value(str_value, value):
             return False
     return True
+
 
 def merge_report_tracked(reports, tracked_actions) -> list:
     """
@@ -170,7 +186,7 @@ def merge_report_tracked(reports, tracked_actions) -> list:
     continue_report = len_report > report_i
     continue_tracked = len_tracked > tracked_i
     tracked = [True, True, "CONTEXT", 1]
-    logger.info("reports: %s\ntracked:%s"%(reports, tracked_actions))
+    logger.info("reports: %s\ntracked:%s" % (reports, tracked_actions))
     while continue_report or continue_tracked:
         if continue_report:
             report = reports[report_i]
@@ -178,30 +194,37 @@ def merge_report_tracked(reports, tracked_actions) -> list:
             tracked = tracked_actions[tracked_i]
         if report.startswith('bpy.ops.'):
             if last_i != report_i:
-                ops_type, ops_name, ops_values = split_operator_report(report) # clean up reports first before merge with tracked actions!!!
+                # clean up reports first before merge with tracked actions!!!
+                ops_type, ops_name, ops_values = split_operator_report(report)
             last_i = report_i
-            if tracked[2] == "%s_OT_%s" %(ops_type.upper(), ops_name):
+            if tracked[2] == "%s_OT_%s" % (ops_type.upper(), ops_name):
                 if compare_op_dict(ops_values, tracked[3]):
                     if continue_report:
-                        data.append((1, True, tracked[1], ops_type, ops_name, ops_values))
+                        data.append(
+                            (1, True, tracked[1], ops_type, ops_name, ops_values))
                     tracked_i += 1
-                elif not continue_report: # no reports left use latest report
-                    data.append((1, True, 'UNDO' in getattr(getattr(bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
+                elif not continue_report:  # no reports left use latest report
+                    data.append((1, True, 'UNDO' in getattr(getattr(
+                        bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
                     break
                 report_i += 1
             else:
-                if len_tracked <= tracked_i: # no tracked left but report operator exists
-                    data.append((1, True, 'UNDO' in getattr(getattr(bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
+                if len_tracked <= tracked_i:  # no tracked left but report operator exists
+                    data.append((1, True, 'UNDO' in getattr(getattr(
+                        bpy.ops, ops_type), ops_name).bl_options, ops_type, ops_name, ops_values))
                     report_i += 1
-                elif tracked[2] != 'CONTEXT': 
+                elif tracked[2] != 'CONTEXT':
                     tracked_type, tracked_name = tracked[2].split("_OT_")
-                    data.append((1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
+                    data.append(
+                        (1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
                 tracked_i += 1
         elif report.startswith('bpy.context.'):
             if tracked[2] == 'CONTEXT':
                 if continue_report:
-                    source_path, attribute, value = split_context_report(report)
-                    undo = not (any(x in source_path for x in ("screen", "area", "space_data")) or all(x in attribute for x in ("active", "index"))) # exclude index set of UIList
+                    source_path, attribute, value = split_context_report(
+                        report)
+                    undo = not (any(x in source_path for x in ("screen", "area", "space_data")) or all(
+                        x in attribute for x in ("active", "index")))  # exclude index set of UIList
                     data.append((0, True, undo, source_path, attribute, value))
                     report_i += 1
                 tracked[3] -= 1
@@ -209,7 +232,8 @@ def merge_report_tracked(reports, tracked_actions) -> list:
                     tracked_i += 1
             elif not continue_report or not tracked[0]:
                 tracked_type, tracked_name = tracked[2].split("_OT_")
-                data.append((1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
+                data.append(
+                    (1, tracked[0], tracked[1], tracked_type.lower(), tracked_name, tracked[3]))
                 tracked_i += 1
             else:
                 report_i += 1
@@ -222,7 +246,8 @@ def merge_report_tracked(reports, tracked_actions) -> list:
         continue_tracked = len_tracked > tracked_i
     return data
 
-def add_report_as_macro(context, AR, action, report: str, error_reports: list, ui_type= "") -> None:
+
+def add_report_as_macro(context, AR, action, report: str, error_reports: list, ui_type=""):
     if report.startswith(("bpy.context.", "bpy.ops.")):
         macro = action.macros.add()
         label = shared.get_name_of_command(context, report)
@@ -234,10 +259,12 @@ def add_report_as_macro(context, AR, action, report: str, error_reports: list, u
     else:
         error_reports.append(report)
 
+
 def split_context_report(report) -> Tuple[list, str, str]:
     base, value = report.split(" = ")
     split = base.replace("bpy.context.", "").split(".")
-    return split[:-1], split[-1], value # source_path, attribute, value
+    return split[:-1], split[-1], value  # source_path, attribute, value
+
 
 def get_id_object(context, source_path, attribute):
     if source_path[0] == 'area':
@@ -251,24 +278,28 @@ def get_id_object(context, source_path, attribute):
                     return space
     return trace_object(context, source_path)
 
+
 def trace_object(base, path):
     for x in path:
         base = getattr(base, x)
     return base
 
-def get_copy_of_object(data, obj, attribute, depth= 5):
+
+def get_copy_of_object(data, obj, attribute, depth=5):
     if depth and obj:
         if hasattr(obj, attribute):
-            return {attribute : getattr(obj, attribute)}
+            return {attribute: getattr(obj, attribute)}
         if hasattr(obj, 'bl_rna'):
-            for prop in obj.bl_rna.properties[1: ]:
+            for prop in obj.bl_rna.properties[1:]:
                 if prop.type == 'COLLECTION' or prop.type == 'POINTER':
                     sub_obj = getattr(obj, prop.identifier)
                     if obj != sub_obj:
-                        res = get_copy_of_object({}, sub_obj, attribute, depth - 1)
+                        res = get_copy_of_object(
+                            {}, sub_obj, attribute, depth - 1)
                         if res != {}:
                             data[prop.identifier] = res
     return data
+
 
 def create_object_copy(context, source_path: list, attribute: str) -> dict:
     data = {}
@@ -278,16 +309,19 @@ def create_object_copy(context, source_path: list, attribute: str) -> dict:
         data[attribute] = res
     return data
 
+
 def check_object_report(obj, copy_dict, source_path, attribute: str, value):
     if hasattr(obj, attribute) and getattr(obj, attribute) != copy_dict[attribute]:
         return obj.__class__, ".".join(source_path), attribute, value
     for key in copy_dict:
         if hasattr(obj, key):
             if isinstance(copy_dict[key], dict):
-                res = check_object_report(getattr(obj, key), copy_dict[key], [*source_path, key], attribute, value)
+                res = check_object_report(getattr(obj, key), copy_dict[key], [
+                                          *source_path, key], attribute, value)
                 if res:
                     return res
     return
+
 
 def improve_context_report(context, copy_dict: dict, source_path: list, attribute: str, value: str) -> str:
     id_object = get_id_object(context, source_path, attribute)
@@ -295,23 +329,29 @@ def improve_context_report(context, copy_dict: dict, source_path: list, attribut
         object_class = id_object.__class__
         res = [".".join(source_path), attribute, value]
     else:
-        res = check_object_report(id_object, copy_dict, source_path, attribute, value)
+        res = check_object_report(
+            id_object, copy_dict, source_path, attribute, value)
         if res:
             object_class, *res = res
         else:
-            object_class, *res = id_object.__class__, ".".join(source_path), attribute, value
+            object_class, * \
+                res = id_object.__class__, ".".join(
+                    source_path), attribute, value
     for attr in context.__dir__():
         if (attr not in set(
             "button_pointer", "id", "texture_slot", "mesh", "armature", "lattice", "curve", "meta_ball", "speaker",
-            "lightprobe", "camera", "material_slot", "texture", "texture_user", "texture_user_property", "bone", "edit_bone", 
-            "pose_bone", 
-            ) and isinstance(getattr(bpy.context, attr), object_class)): # exclude Buttons Context https://docs.blender.org/api/current/bpy.context.html#buttons-context
+            "lightprobe", "camera", "material_slot", "texture", "texture_user", "texture_user_property", "bone",
+            "edit_bone", "pose_bone",
+        ) and isinstance(getattr(bpy.context, attr), object_class)):
+            # exclude Buttons Context https://docs.blender.org/api/current/bpy.context.html#buttons-context
             res[0] = attr
             break
-    return "bpy.context.%s.%s = %s" %tuple(res)
+    return "bpy.context.%s.%s = %s" % tuple(res)
+
 
 def split_operator_report(operator_str: str) -> Tuple[str, str, dict]:
-    ops_type, ops_name = operator_str.replace("bpy.ops.", "").split("(")[0].split(".")
+    ops_type, ops_name = operator_str.replace(
+        "bpy.ops.", "").split("(")[0].split(".")
     ops_values = {}
     key = ""
     for x in "(".join(operator_str.split("(")[1:])[:-1].split(", "):
@@ -321,11 +361,13 @@ def split_operator_report(operator_str: str) -> Tuple[str, str, dict]:
                 key = split[0]
                 ops_values[key] = split[1]
             else:
-                ops_values[key] += ", %s"%(split[0])
+                ops_values[key] += ", %s" % (split[0])
     return ops_type, ops_name, ops_values
+
 
 def dict_to_kwarg_str(values: dict) -> str:
     return ", ".join(f"{key}={value}" for key, value in values.items())
+
 
 def create_operator_based_copy(context, ops_type: str, ops_name: str, ops_values: dict) -> Union[dict, bool, None]:
     if ops_type == "outliner":
@@ -334,11 +376,12 @@ def create_operator_based_copy(context, ops_type: str, ops_name: str, ops_values
         elif ops_name in {"collection_drop"}:
             return True
 
-def imporve_operator_report(context, ops_type: str, ops_name: str, ops_values: dict, copy_data):
+
+def improve_operator_report(context, ops_type: str, ops_name: str, ops_values: dict, copy_data):
     if copy_data:
         if ops_type == "outliner":
             if ops_name == "collection_drop":
                 return "bpy.ops.ar.helper_object_to_collection()"
-    return "bpy.ops.%s.%s(%s)" %(ops_type, ops_name, dict_to_kwarg_str(ops_values))
+    return "bpy.ops.%s.%s(%s)" % (ops_type, ops_name, dict_to_kwarg_str(ops_values))
 
 # endregion
