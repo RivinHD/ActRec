@@ -125,7 +125,6 @@ class AR_OT_global_import(Operator, ImportHelper):
                 # Only used because old Version used .zip to export and directory and file structure
                 # Categories where saved as directories and Actions where saved as files in the specific directory
                 data = defaultdict(list)
-                current_actions_length = 0
                 zip_file = zipfile.ZipFile(self.filepath, mode='r')
                 for category in AR.import_settings:
                     if category.use and any(action.use for action in category.actions):
@@ -139,12 +138,9 @@ class AR_OT_global_import(Operator, ImportHelper):
                                 'icon': int(action.identifier.split("~")[-1].split(".")[0])
                             }for action in actions
                         ]
-                        # FIXME check if start and length can be removed
                         data['categories'].append({
                             'id': uuid.uuid1().hex,
                             'label': category.label,
-                            'start': current_actions_length,
-                            'length': len(actions),
                             'actions': [{"id": action['id']} for action in category_actions]
                         })
                         data['actions'] += category_actions
@@ -158,10 +154,8 @@ class AR_OT_global_import(Operator, ImportHelper):
                     action_ids += [action.identifier for action in category.actions]
                 action_ids = set(action_ids)
 
-                data['categories'] = [category for category in data['categories']
-                                      if category['id'] not in category_ids]
-                data['actions'] = [action for action in data['actions']
-                                   if action['id'] not in action_ids]
+                data['categories'] = [category for category in data['categories'] if category['id'] not in category_ids]
+                data['actions'] = [action for action in data['actions'] if action['id'] not in action_ids]
                 functions.import_global_from_dict(AR, data)
         else:
             self.report({'ERROR'}, "Select a .json or .zip file {%s}" % self.filepath)
