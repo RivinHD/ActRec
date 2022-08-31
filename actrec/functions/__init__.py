@@ -1,7 +1,7 @@
 """only relative import from intra-modules: ui, shared_data"""
 
 from .categories import (
-    read_category_visbility,
+    read_category_visibility,
     category_runtime_save,
     category_runtime_load,
     get_category_id
@@ -38,13 +38,13 @@ from .macros import (
     create_object_copy,
     improve_context_report,
     split_operator_report,
-    create_operator_based_copy,
+    evaluate_operator,
     improve_operator_report,
     dict_to_kwarg_str,
     track_scene,
     merge_report_tracked,
     compare_op_dict,
-    convert_to_python
+    convert_value_to_python
 )
 
 from .shared import (

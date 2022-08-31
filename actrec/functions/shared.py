@@ -22,12 +22,20 @@ from .. import shared_data
 __module__ = __package__.split(".")[0]
 
 # region functions
-# TODO Descriptions
-
-# Check for name duplicates and append .001, .002 etc.
 
 
 def check_for_duplicates(check_list: list, name: str, num: int = 1) -> str:
+    """
+    Check for the same name in check_list and append .001, .002 etc. if found
+
+    Args:
+        check_list (list): list to check against
+        name (str): name to check
+        num (int, optional): starting number to append. Defaults to 1.
+
+    Returns:
+        str: name with expansion if necessary
+    """
     split = name.split(".")
     base_name = name
     if split[-1].isnumeric():
@@ -38,7 +46,22 @@ def check_for_duplicates(check_list: list, name: str, num: int = 1) -> str:
     return name
 
 
-def get_pointer_as_dict(property, exclude, depth):
+def get_pointer_as_dict(property: bpy.types.PointerProperty, exclude: list, depth: int) -> dict:
+    """
+    converts a Blender PointerProperty to a python dict
+    (used internal for property_to_python, pls use property_to_python to convert any Ble)
+
+    Args:
+        property (bpy.types.PointerProperty): Blender Property to convert
+        exclude (list):
+            property values to exclude, to exclude deeper values use form <value>.<sub-value>
+            E.g. for AR_global_actions "actions.name" to excluded the names from the actions
+            the <value>.<sub-value> can only be used if the value is of type CollectionProperty or PointerProperty
+        depth (int): depth to extract the value, needed because some Properties have recursive definition
+
+    Returns:
+        dict: python dict based on property
+    """
     data = {}  # PointerProperty
     main_exclude = []
     sub_exclude = defaultdict(list)
@@ -53,67 +76,138 @@ def get_pointer_as_dict(property, exclude, depth):
         identifier = attr.identifier
         if identifier not in main_exclude:
             data[identifier] = property_to_python(
-                getattr(property, identifier), sub_exclude.get(identifier, []), depth - 1)
+                getattr(property, identifier),
+                sub_exclude.get(identifier, []),
+                depth - 1
+            )
     return data
 
 
-def property_to_python(property, exclude: list = [], depth=5):
+def property_to_python(property: bpy.types.Property, exclude: list = [], depth: int = 5) -> Union[list, dict, str]:
+    """
+    converts any Blender Property to a python object, only needed for Property with complex structure
+
+    Args:
+        property (bpy.types.Property): Blender Property to convert
+        exclude (list, optional):
+            property values to exclude, to exclude deeper values use form <value>.<sub-value>
+            E.g. for AR_global_actions "actions.name" to excluded the names from the actions
+            the <value>.<sub-value> can only be used if the value is of type CollectionProperty or PointerProperty.
+            Defaults to [].
+        depth (int, optional):
+            depth to extract the value, needed because some Properties have recursive definition.
+            Defaults to 5.
+
+    Returns:
+        Union[list, dict, str]: converts Collection, Arrays to lists and PointerProperty to dict
+    """
+    # CollectionProperty are a list of PointerProperties
     if depth <= 0:
         return "max depth"
     if hasattr(property, 'id_data'):
-        id_property = property.id_data
-        if property == id_property:
+        id_object = property.id_data
+
+        # exclude conversions of same property
+        if property == id_object:
             return property
+
         class_name = property.__class__.__name__
         if class_name == 'bpy_prop_collection_idprop':
-            # ColllectionProperty
+            # CollectionProperty
             return [property_to_python(item, exclude, depth) for item in property]
         elif class_name == 'bpy_prop_collection':
+            # CollectionProperty
             if hasattr(property, "bl_rna"):
                 data = get_pointer_as_dict(property, exclude, depth)
-                data["items"] = [property_to_python(
-                    item, exclude, depth) for item in property]
+                data["items"] = [property_to_python(item, exclude, depth) for item in property]
                 return data
             else:
                 return [property_to_python(item, exclude, depth) for item in property]
         elif class_name == 'bpy_prop_array':
+            # ArrayProperty
             return [property_to_python(item, exclude, depth) for item in property]
         else:
+            # PointerProperty
             return get_pointer_as_dict(property, exclude, depth)
     return property
 
 
-def apply_data_to_item(item, data, key=""):
+def apply_data_to_item(property: bpy.types.Property, data, key=""):
+    """
+    apply given python data to a property,
+    used to convert python data (from property_to_python) to Blender Property.
+    - list to CollectionsProperty or ArrayProperty
+    - dict to PointerProperty
+    - single data (like int, string, etc.) with a given key
+
+    Args:
+        property (bpy.types.Property): Blender Property to apply the data to
+        data (any): data to apply
+        key (str, optional): used to apply a single value of a given Blender Property dynamic. Defaults to "".
+    """
     if isinstance(data, list):
         for element in data:
             if key:
-                subitem = getattr(item, key).add()
+                subitem = getattr(property, key).add()
             else:
-                subitem = item.add()
+                subitem = property.add()
             apply_data_to_item(subitem, element)
     elif isinstance(data, dict):
         for key, value in data.items():
-            apply_data_to_item(item, value, key)
-    elif hasattr(item, key):
+            apply_data_to_item(property, value, key)
+    elif hasattr(property, key):
         with suppress(AttributeError):  # catch Exception from read-only property
-            setattr(item, key, data)
+            setattr(property, key, data)
 
 
-def add_data_to_collection(collection, data: dict):
+def add_data_to_collection(collection: bpy.types.CollectionProperty, data: dict):
+    """
+    creates new collection element and applies the data to it
+
+    Args:
+        collection (bpy.types.CollectionProperty): collection to apply to
+        data (dict): data to apply
+    """
     new_item = collection.add()
     apply_data_to_item(new_item, data)
 
 
-def insert_to_collection(collection, index: int, data: dict):
+def insert_to_collection(collection: bpy.types.CollectionProperty, index: int, data: dict):
+    """
+    inset a new element inside a collection and apply the given data to it
+
+    Args:
+        collection (bpy.types.CollectionProperty): collection to apply to
+        index (int): index where to insert
+        data (dict): data to apply
+    """
     add_data_to_collection(collection, data)
     collection.move(len(collection) - 1, index)
 
 
-def enum_list_id_to_name_dict(data: list) -> dict:
-    return {identifier: name for identifier, name, *tail in data}
+def enum_list_id_to_name_dict(enum_list: list) -> dict:
+    """
+    converts an enum list, used in EnumProperties,
+    to a dict with the identifier as key and the corresponding name as value
+
+    Args:
+        enum_list (list): enum list to convert
+
+    Returns:
+        dict: created identifier to name dict
+    """
+    return {identifier: name for identifier, name, *tail in enum_list}
 
 
-def swap_collection_items(collection, index_1: int, index_2: int):
+def swap_collection_items(collection: bpy.types.CollectionProperty, index_1: int, index_2: int):
+    """
+    swaps to collection items
+
+    Args:
+        collection (bpy.types.CollectionProperty): collection to execute on
+        index_1 (int): first index to swap with second
+        index_2 (int): second index to swap with first
+    """
     if index_1 == index_2:
         return
     if index_1 < index_2:
@@ -122,11 +216,21 @@ def swap_collection_items(collection, index_1: int, index_2: int):
     collection.move(index_2 + 1, index_1)
 
 
-def get_name_of_command(context, command: str) -> Optional[str]:
+def get_name_of_command(context: bpy.types.Context, command: str) -> Optional[str]:
+    """
+    get the name of a given command
+
+    Args:
+        context (bpy.types.Context): active blender context
+        command (str): Blender command to get name from
+
+    Returns:
+        Optional[str]: name or none if name not found
+    """
     if command.startswith("bpy.ops."):
         try:
             return eval("%s.get_rna_type().name" % command.split("(")[0])
-        except:
+        except(KeyError):
             return None
     elif command.startswith("bpy.context."):
         split = command.split(' = ')
@@ -157,7 +261,13 @@ def get_name_of_command(context, command: str) -> Optional[str]:
 
 def extract_properties(properties: str) -> list:
     """
-    Input Properties as "prop1, prop2, ..."
+    extracts properties from a given string in the format "prop1, prop2, ..."
+
+    Args:
+        properties (str): format "prop1, prop2, ..."
+
+    Returns:
+        list: list of properties
     """
     properties = properties.split(",")
     new_props = []
@@ -174,7 +284,18 @@ def extract_properties(properties: str) -> list:
     return new_props[1:]
 
 
-def update_command(command: str) -> Union[str, bool, None]:
+def update_command(command: str) -> Union[str, bool]:
+    """
+    update a command to the current Blender version,
+    by getting the command and only passe on the existing properties
+    if the command no longer exists False is returned
+
+    Args:
+        command (str): blender command to update
+
+    Returns:
+        Union[str, bool, None]: update string, return False if command doesn't exists anymore
+    """
     if command.startswith("bpy.ops."):
         command, values = command.split("(", 1)
         values = extract_properties(values[:-1])
@@ -182,8 +303,8 @@ def update_command(command: str) -> Union[str, bool, None]:
             values[i] = values[i].split("=")
         try:
             props = eval("%s.get_rna_type().properties[1:]" % command)
-        except:
-            return None
+        except(KeyError):
+            return False
         inputs = []
         for prop in props:
             for value in values:
@@ -196,13 +317,36 @@ def update_command(command: str) -> Union[str, bool, None]:
         return False
 
 
-def run_queued_macros(context_copy, action_type, action_id, start):
+def run_queued_macros(context_copy: dict, action_type: str, action_id: str, start: int):
+    """
+    runs macros from a given index of a specific action
+
+    Args:
+        context_copy (dict): copy of the active context (bpy.context.copy())
+        action_type (str): "global_actions" or "local_actions"
+        action_id (str): id of the action with the macros to execute
+        start (int): macros to start with in the macro collection
+    """
     AR = context_copy['preferences'].addons[__module__].preferences
     action = getattr(AR, action_type)[action_id]
     play(context_copy, action.macros[start:], action, action_type)
 
 
-def play(context_copy, macros, action, action_type: str):
+def play(context_copy: dict, macros: bpy.types.CollectionProperty, action: 'AR_action', action_type: str
+         ) -> Union[Exception, str]:
+    """
+    execute all given macros in the given context.
+    action, action_type are used to run the macros of the given action with delay to the execution
+
+    Args:
+        context_copy (dict): copy of the active context (bpy.context.copy())
+        macros (bpy.types.CollectionProperty): macros to execute
+        action (AR_action): action to track
+        action_type (str): action type of the given action
+
+    Returns:
+        _type_: _description_
+    """
     macros = [macro for macro in macros if macro.active]
 
     # non-realtime events, execute before macros get executed
@@ -211,12 +355,10 @@ def play(context_copy, macros, action, action_type: str):
         if split[0] == 'ar.event':
             data = json.loads(":".join(split[1:]))
             if data['Type'] == 'Render Init':
-                shared_data.render_init_macros.append(
-                    (action_type, action.id, i + 1))
+                shared_data.render_init_macros.append((action_type, action.id, i + 1))
                 return
             elif data['Type'] == 'Render Complet':
-                shared_data.render_complete_macros.append(
-                    (action_type, action.id, i + 1))
+                shared_data.render_complete_macros.append((action_type, action.id, i + 1))
                 return
 
     base_window = context_copy['window']
@@ -229,8 +371,16 @@ def play(context_copy, macros, action, action_type: str):
         if split[0] == 'ar.event':
             data = json.loads(":".join(split[1:]))
             if data['Type'] == 'Timer':
-                bpy.app.timers.register(functools.partial(
-                    run_queued_macros, context_copy, action_type, action.id, i + 1), first_interval=data['Time'])
+                bpy.app.timers.register(
+                    functools.partial(
+                        run_queued_macros,
+                        context_copy,
+                        action_type,
+                        action.id,
+                        i + 1
+                    ),
+                    first_interval=data['Time']
+                )
                 return
             elif data['Type'] == 'Loop':
                 end_index = i + 1
@@ -261,8 +411,7 @@ def play(context_copy, macros, action, action_type: str):
                         return err
                 else:
                     for k in numpy.arange(data["Startnumber"], data["Endnumber"], data["Stepnumber"]):
-                        err = play(context_copy, loop_macros,
-                                   action, action_type)
+                        err = play(context_copy, loop_macros, action, action_type)
                         if err:
                             return err
 
@@ -284,9 +433,8 @@ def play(context_copy, macros, action, action_type: str):
                 continue
         try:
             command = macro.command
-            if command.startswith("bpy.ops.ar.local_play") and set(
-                    extract_properties(command.split("(")[1][: -1])) == {
-                    "id=\"\"", "index=-1"}:
+            if (command.startswith("bpy.ops.ar.local_play")
+                    and set(extract_properties(command.split("(")[1][: -1])) == {"id=\"\"", "index=-1"}):
                 err = "Don't run Local Play with default properties, this can leads to a recursion"
                 logger.error(err)
                 action.alert = macro.alert = True
@@ -337,7 +485,15 @@ def play(context_copy, macros, action, action_type: str):
 
 
 @persistent
-def execute_render_init(dummy=None):
+def execute_render_init(dummy: bpy.types.Scene = None):
+    # https://docs.blender.org/api/current/bpy.app.handlers.html
+    """
+    execute macros, which are called after the event macro "Render Init"
+    use bpy.app.handlers and therefore uses a dummy variable for the scene object
+
+    Args:
+        dummy (bpy.types.Scene, optional): unused. Defaults to None.
+    """
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     for action_type, action_id, start in shared_data.render_init_macros:
@@ -347,6 +503,14 @@ def execute_render_init(dummy=None):
 
 @persistent
 def execute_render_complete(dummy=None):
+    # https://docs.blender.org/api/current/bpy.app.handlers.html
+    """
+    execute macros, which are called after the event macro "Render Complete"
+    use bpy.app.handlers and therefore uses a dummy variable for the scene object
+
+    Args:
+        dummy (bpy.types.Scene, optional): unused. Defaults to None.
+    """
     context = bpy.context
     AR = context.preferences.addons[__module__].preferences
     for action_type, action_id, start in shared_data.render_complete_macros:
@@ -354,7 +518,13 @@ def execute_render_complete(dummy=None):
         play(context.copy(), action.macros[start:], action, action_type)
 
 
-def get_font_path():
+def get_font_path() -> str:
+    """
+    get the font path of the active font in Blender
+
+    Returns:
+        str: path to the font
+    """
     if bpy.context.preferences.view.font_path_ui == '':
         dirc = "\\".join(sys.executable.split("\\")[:-3])
         return os.path.join(dirc, "datafiles", "fonts", "droidsans.ttf")
@@ -362,17 +532,40 @@ def get_font_path():
         return bpy.context.preferences.view.font_path_ui
 
 
-def split_and_keep(sep, text):
-    p = chr(ord(max(text))+1)
+def split_and_keep(sep: str, text: str) -> list[str]:
+    """
+    split's the given text with the separator but doesn't delete the separator from the text
+
+    Args:
+        sep (str): separator
+        text (str): text to split
+
+    Returns:
+        list[str]: list of splitted str
+    """
+    p = chr(ord(max(text)) + 1)  # creates str, which isn't contained inside the text to uses as split separator
     for s in sep:
-        text = text.replace(s, s+p)
+        text = text.replace(s, s + p)
     return text.split(p)
 
 
-def text_to_lines(text, font_text, limit, endcharacter=" ,"):
-    if text == "" or not font_text.use_dynamic_text:
+def text_to_lines(text: str, font: 'Font_analysis', limit: int, endcharacter: str = " ,") -> list[str]:
+    """
+    converts a one line text to multiple lines saved as a list
+    (needed because Blender doesn't have text boxes)
+
+    Args:
+        text (str): text to convert
+        font (Font_analysis): loaded font to work on
+        limit (int): maximum size of one line
+        endcharacter (str, optional): preferred characters to split the text apart. Defaults to " ,".
+
+    Returns:
+        list[str]: multiline text
+    """
+    if text == "" or not font.use_dynamic_text:
         return [text]
-    characters_width = font_text.get_width_of_text(text)
+    characters_width = font.get_width_of_text(text)
     possible_breaks = split_and_keep(endcharacter, text)
     lines = [""]
     start = 0
@@ -409,6 +602,15 @@ def text_to_lines(text, font_text, limit, endcharacter=" ,"):
     return lines
 
 
-def enum_items_to_enum_prop_list(items):
+def enum_items_to_enum_prop_list(items: bpy.types.EnumProperty.enum_items) -> list[tuple]:
+    """
+    converts enum items to an enum property list
+
+    Args:
+        items (bpy.types.EnumProperty.enum_items): enum items to convert
+
+    Returns:
+        list[tuple]: list with elements of format (identifier, name, description, icon, value)
+    """
     return [(item.identifier, item.name, item.description, item.icon, item.value) for item in items]
 # endregion

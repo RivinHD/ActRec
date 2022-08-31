@@ -417,7 +417,7 @@ class AR_OT_local_record(shared.Id_based, Operator):
 
                 elif bpy_type == 1:
                     if register:
-                        copy_dict = functions.create_operator_based_copy(context, parent, name, value)
+                        evaluation = functions.evaluate_operator(parent, name, value)
 
                     if len_reports > i + 1:
                         skip_op_redo = reports[i + 1][0] == 1
@@ -429,7 +429,7 @@ class AR_OT_local_record(shared.Id_based, Operator):
                         context = bpy.context
 
                     if register:
-                        data.append(functions.improve_operator_report(context, parent, name, value, copy_dict))
+                        data.append(functions.improve_operator_report(context, parent, name, value, evaluation))
                 i += 1
 
             while redo_steps > 0 and bpy.ops.ed.redo.poll():

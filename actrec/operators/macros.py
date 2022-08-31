@@ -138,7 +138,7 @@ class AR_OT_macro_add(shared.Id_based, Operator):
                     if not bpy.ops.ed.undo.poll():
                         break
                     if register:
-                        copy_dict = functions.create_operator_based_copy(context, parent, name, value)
+                        evaluation = functions.evaluate_operator(parent, name, value)
 
                     if undo:
                         bpy.ops.ed.undo()
@@ -146,7 +146,7 @@ class AR_OT_macro_add(shared.Id_based, Operator):
                         context = bpy.context
 
                     if register:
-                        ret = functions.improve_operator_report(context, parent, name, value, copy_dict)
+                        ret = functions.improve_operator_report(context, parent, name, value, evaluation)
                         if ret:
                             command = ret
                             break
@@ -375,7 +375,7 @@ class AR_OT_macro_move_down(Macro_based, Operator):
         return {"FINISHED"}
 
 
-class Text_analysis():
+class Font_analysis():
     # TODO move package installation to a separate function
     def __init__(self, font_path):
         self.path = font_path
@@ -496,7 +496,7 @@ class AR_OT_macro_edit(Macro_based, Operator):
         self['command'] = value
         if not self.use_last_command:
             self.lines.clear()
-            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font, self.width - 20):
                 new = self.lines.add()
                 new['text'] = line
 
@@ -523,7 +523,7 @@ class AR_OT_macro_edit(Macro_based, Operator):
         self['last_command'] = value
         if self.use_last_command:
             self.lines.clear()
-            for line in functions.text_to_lines(value, AR_OT_macro_edit.font_text, self.width - 20):
+            for line in functions.text_to_lines(value, AR_OT_macro_edit.font, self.width - 20):
                 new = self.lines.add()
                 new['text'] = line
 
@@ -558,7 +558,9 @@ class AR_OT_macro_edit(Macro_based, Operator):
     clear_operator: BoolProperty(
         name="Clear Operator Command",
         description="Delete the parameters of an operator command. Otherwise the complete command is cleared",
-        get=lambda x: False, set=set_clear_operator)
+        get=lambda x: False,
+        set=set_clear_operator
+    )
     use_last_command: BoolProperty(
         default=False, name="Copy Previous",
         description="Copy the data of the previous recorded Macro and place it in this Macro",
@@ -567,7 +569,7 @@ class AR_OT_macro_edit(Macro_based, Operator):
     )
     lines: CollectionProperty(type=properties.AR_macro_multiline)
     width: IntProperty(default=500, name="width", description="Window width of the Popup")
-    font_text = None
+    font = None
     time = 0
 
     @classmethod
@@ -583,8 +585,8 @@ class AR_OT_macro_edit(Macro_based, Operator):
         macro = action.macros[index]
 
         font_path = functions.get_font_path()
-        if AR_OT_macro_edit.font_text is None or AR_OT_macro_edit.font_text.path != font_path:
-            AR_OT_macro_edit.font_text = Text_analysis(font_path)
+        if AR_OT_macro_edit.font is None or AR_OT_macro_edit.font.path != font_path:
+            AR_OT_macro_edit.font = Font_analysis(font_path)
 
         t = time.time()
         # register double click if user clicks on same macro within 0.7 seconds
@@ -708,7 +710,7 @@ class AR_OT_copy_to_actrec(Operator):  # used in the right click menu of Blender
             # scans to the context attributes to get data for adding context commands
             for attr in dir(context):
                 if isinstance(getattr(bpy.context, attr), object_class):
-                    value = functions.convert_to_python(getattr(button_pointer, button_prop.identifier))
+                    value = functions.convert_value_to_python(getattr(button_pointer, button_prop.identifier))
                     if self.copy_single and bpy.ops.ui.copy_data_path_button.poll():
                         clipboard = context.window_manager.clipboard
                         bpy.ops.ui.copy_data_path_button(context.copy(), full_path=True)

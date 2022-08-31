@@ -223,7 +223,7 @@ class AR_OT_category_edit(shared.Id_based, AR_OT_category_interface, Operator):
         id = self.id = functions.get_category_id(AR, self.id, self.index)
         category = AR.categories.get(id, None)
         if category:
-            AR_OT_category_interface.category_visibility = functions.read_category_visbility(AR, id)
+            AR_OT_category_interface.category_visibility = functions.read_category_visibility(AR, id)
             return context.window_manager.invoke_props_dialog(self)
         return {'CANCELLED'}
 

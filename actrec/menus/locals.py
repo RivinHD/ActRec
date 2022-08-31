@@ -13,13 +13,13 @@ from .. import keymap
 __module__ = __package__.split(".")[0]
 
 # region Menus
-#TODO Descriptions
+
 
 class AR_MT_action_pie(Menu):
     bl_idname = "AR_MT_action_pie"
     bl_label = "ActRec Pie Menu"
 
-    def draw(self, context):
+    def draw(self, context: bpy.types.Context):
         AR = context.preferences.addons[__module__].preferences
         pie = self.layout.menu_pie()
         actions = AR.local_actions
@@ -27,23 +27,25 @@ class AR_MT_action_pie(Menu):
             if i >= 8:
                 break
             action = actions[i]
-            ops = pie.operator(
-                "ar.local_play", text=actions[i].label, icon_value=action.icon if action.icon else 101)
+            ops = pie.operator("ar.local_play", text=actions[i].label, icon_value=action.icon if action.icon else 101)
             ops.id = action.id
             ops.index = i
 
+# based on
+# https://docs.blender.org/api/current/bpy.types.Menu.html?highlight=menu_draw#extending-the-button-context-menu
 
-def menu_draw(self, context):
+
+def menu_draw(self, context: bpy.types.Context):
     layout = self.layout
     layout.separator()
     layout.operator("ar.copy_to_actrec")
     button_prop = getattr(context, "button_prop", None)
     if button_prop and hasattr(button_prop, 'is_array') and button_prop.is_array:
-        layout.operator(
-            "ar.copy_to_actrec", text="Copy to Action Recorder (Single)").copy_single = True
+        layout.operator("ar.copy_to_actrec", text="Copy to Action Recorder (Single)").copy_single = True
     button_operator = getattr(context, "button_operator", None)
     if button_operator and button_operator.bl_rna.identifier == "AR_OT_global_execute_action":
-        if any(kmi.idname == "ar.global_execute_action" and kmi.properties.id == button_operator.id for kmi in keymap.keymaps['default'].keymap_items):
+        if any(kmi.idname == "ar.global_execute_action" and kmi.properties.id == button_operator.id
+               for kmi in keymap.keymaps['default'].keymap_items):
             layout.operator("ar.remove_ar_shortcut").id = button_operator.id
         else:
             layout.operator("ar.add_ar_shortcut").id = button_operator.id
