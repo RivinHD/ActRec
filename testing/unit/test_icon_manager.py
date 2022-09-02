@@ -1,7 +1,7 @@
 import pytest
 from ActRec.actrec import icon_manager
 import os
-from .preference_helper import preferences
+from preference_helper import preferences
 
 """
 @pytest.mark.parametrize(
