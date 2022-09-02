@@ -20,7 +20,7 @@ def test_check_for_duplicates(check_list, name, output):
     assert shared.check_for_duplicates(check_list, name) == output
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def gppad_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
@@ -33,12 +33,12 @@ def gppad_data(request):
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
                             'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=[gppad_data])
+                         indirect=["gppad_data"])
 def test_property_to_python(gppad_data, exclude, output):
     assert shared.property_to_python(gppad_data, exclude) == output
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def adti_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
@@ -51,21 +51,21 @@ def adti_data(request):
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
                             'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=[adti_data]
+                         indirect=["adti_data"]
                          )
 def test_apply_data_to_item(adti_data, data):
     shared.apply_data_to_item(adti_data, data)
     assert helper.compare_with_dict(adti_data, data)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def adtoc_data(request):
     return [bpy.context.preferences.addons['cycles'].preferences.devices][request.param]
 
 
 @pytest.mark.parametrize("adtoc_data, data",
                          [(0, {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
-                         indirect=[adtoc_data]
+                         indirect=["adtoc_data"]
                          )
 def test_add_data_to_collection(adtoc_data, data):
     length = len(adtoc_data)
