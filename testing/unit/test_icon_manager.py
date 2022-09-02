@@ -25,7 +25,7 @@ def test_get_icons_names():
     assert 'NONE' not in icon_manager.get_icons_names()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def preview():
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new()
     yield icon_manager.preview_collections['ar_custom']
