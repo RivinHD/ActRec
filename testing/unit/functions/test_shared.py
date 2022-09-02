@@ -20,7 +20,7 @@ def test_check_for_duplicates(check_list, name, output):
     assert shared.check_for_duplicates(check_list, name) == output
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def gppad_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
@@ -38,7 +38,7 @@ def test_property_to_python(gppad_data, exclude, output):
     assert shared.property_to_python(gppad_data, exclude) == output
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def adti_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
@@ -58,7 +58,7 @@ def test_apply_data_to_item(adti_data, data):
     assert helper.compare_with_dict(adti_data, data)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def adtoc_data(request):
     return [bpy.context.preferences.addons['cycles'].preferences.devices][request.param]
 
