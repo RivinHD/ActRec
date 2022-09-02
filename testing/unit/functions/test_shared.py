@@ -22,11 +22,11 @@ def test_check_for_duplicates(check_list, name, output):
 
 @pytest.fixture
 def gppad_data(request):
-    return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]]
+    return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
 
-@pytest.mark.parametrize("input, exclude, output",  # TODO more test Data
-                         [(gppad_data[0], [],
+@pytest.mark.parametrize("gppad_data, exclude, output",  # TODO more test Data
+                         [(0, [],
                            {'type': 'PROPERTIES', 'show_locked_time': False, 'show_region_header': True,
                             'context': 'OBJECT', 'pin_id': None, 'use_pin_id': False,
                             'tab_search_results':
@@ -34,17 +34,17 @@ def gppad_data(request):
                              False, False, False, False, False, False),
                             'search_filter': '', 'outliner_sync': 'AUTO'})],
                          indirect=True)
-def test_property_to_python(input, exclude, output):
-    assert shared.property_to_python(input, exclude) == output
+def test_property_to_python(gppad_data, exclude, output):
+    assert shared.property_to_python(gppad_data, exclude) == output
 
 
 @pytest.fixture
 def adti_data(request):
-    return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]]
+    return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
 
 
-@pytest.mark.parametrize("input, data",
-                         [(adti_data[0],
+@pytest.mark.parametrize("adti_data, data",
+                         [(0,
                            {'type': 'PROPERTIES', 'show_locked_time': True, 'show_region_header': False,
                             'context': 'DATA', 'pin_id': None, 'use_pin_id': False,
                             'tab_search_results':
@@ -53,28 +53,28 @@ def adti_data(request):
                              'search_filter': '', 'outliner_sync': 'AUTO'})],
                          indirect=True
                          )
-def test_apply_data_to_item(input, data):
-    shared.apply_data_to_item(input, data)
-    assert helper.compare_with_dict(input, data)
+def test_apply_data_to_item(adti_data, data):
+    shared.apply_data_to_item(adti_data, data)
+    assert helper.compare_with_dict(adti_data, data)
 
 
 @pytest.fixture
 def adtoc_data(request):
-    return [bpy.context.preferences.addons['cycles'].preferences.devices]
+    return [bpy.context.preferences.addons['cycles'].preferences.devices][request.param]
 
 
-@pytest.mark.parametrize("collection, data",
-                         [(adtoc_data[0], {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
+@pytest.mark.parametrize("adtoc_data, data",
+                         [(0, {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
                          indirect=True
                          )
-def test_add_data_to_collection(collection, data):
-    length = len(collection)
+def test_add_data_to_collection(adtoc_data, data):
+    length = len(adtoc_data)
     name = data['name']
-    index = collection.find(name)
-    shared.add_data_to_collection(collection, data)
+    index = adtoc_data.find(name)
+    shared.add_data_to_collection(adtoc_data, data)
     assert (
-        length + 1 == len(collection)
+        length + 1 == len(adtoc_data)
         and index != -1
-        and helper.compare_with_dict(collection[name], data)
+        and helper.compare_with_dict(adtoc_data[name], data)
     )
-    collection.remove(index)
+    adtoc_data.remove(index)
