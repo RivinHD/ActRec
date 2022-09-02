@@ -25,13 +25,14 @@ def test_get_icons_names():
     assert 'NONE' not in icon_manager.get_icons_names()
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def preview():
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new()
     yield icon_manager.preview_collections['ar_custom']
     bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
 
 
+@pytest.mark.usefixtures('preview')
 @pytest.mark.parametrize(
     "file, name, only_new, success",
     [
