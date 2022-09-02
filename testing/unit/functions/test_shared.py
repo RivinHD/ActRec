@@ -21,7 +21,7 @@ def test_check_for_duplicates(check_list, name, output):
 
 
 @pytest.fixture
-def gppad_data():
+def gppad_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]]
 
 
@@ -32,12 +32,14 @@ def gppad_data():
                             'tab_search_results':
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
-                            'search_filter': '', 'outliner_sync': 'AUTO'})])
+                            'search_filter': '', 'outliner_sync': 'AUTO'})],
+                         indirect=True)
 def test_property_to_python(input, exclude, output):
     assert shared.property_to_python(input, exclude) == output
 
 
-def adti_data():
+@pytest.fixture
+def adti_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]]
 
 
@@ -48,8 +50,8 @@ def adti_data():
                             'tab_search_results':
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
-                             'search_filter': '', 'outliner_sync': 'AUTO'})]
-
+                             'search_filter': '', 'outliner_sync': 'AUTO'})],
+                         indirect=True
                          )
 def test_apply_data_to_item(input, data):
     shared.apply_data_to_item(input, data)
@@ -57,17 +59,18 @@ def test_apply_data_to_item(input, data):
 
 
 @pytest.fixture
-def adtoc_data():
+def adtoc_data(request):
     return [bpy.context.preferences.addons['cycles'].preferences.devices]
 
 
 @pytest.mark.parametrize("collection, data",
-                         [(adtoc_data[0], {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})]
+                         [(adtoc_data[0], {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
+                         indirect=True
                          )
 def test_add_data_to_collection(collection, data):
     length = len(collection)
     name = data['name']
-    index = collection.find(name) 
+    index = collection.find(name)
     shared.add_data_to_collection(collection, data)
     assert (
         length + 1 == len(collection)
