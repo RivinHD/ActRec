@@ -31,4 +31,4 @@ class preferences():
 
 
 def compare_with_dict(obj, compare_dict):
-    return all(getattr(obj, key) == value for key, value in compare_dict)
+    return all(getattr(obj, key) == value for key, value in compare_dict.items())
