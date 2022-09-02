@@ -3,9 +3,9 @@ name: test-addon
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
       max-parallel: 4
       fail-fast: false
       matrix:
-        blender-version: ["3.3", "3.2", "3.0", "2.93", "2.83", "2.82",]
+        blender-version: ["3.3", "3.2", "3.0", "2.93", "2.83", "2.82"]
         #os: [ubuntu-latest, windows-latest, macos-latest]
         os: [ubuntu-latest, windows-latest]
     env:
@@ -22,22 +22,20 @@ jobs:
       BLENDER_VERSION: ${{ matrix.blender-version }}
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-        
-    - name: Cache Blender release download
-      uses: actions/cache@v1
-      with:
-        path: ${{ env.BLENDER_CACHE }}
-        key: ${{ matrix.os }}-blender-${{ matrix.blender-version }}
-    
-    - name: Setup Environment
-      run: pip install -r testing\requirements.txt
+      - uses: actions/checkout@v1
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
 
-    - name: Test Blender ${{ matrix.blender-version }} x ${{ matrix.os}}
-      run: python testing\test_addon.py ActRec ${{ matrix.blender-version }} unit
+      - name: Cache Blender release download
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.BLENDER_CACHE }}
+          key: ${{ matrix.os }}-blender-${{ matrix.blender-version }}
 
-    
+      - name: Setup Environment
+        run: pip install -r testing\requirements.txt
+
+      - name: Test Blender ${{ matrix.blender-version }} x ${{ matrix.os}}
+        run: python testing\test_addon.py ActRec ${{ matrix.blender-version }} unit
