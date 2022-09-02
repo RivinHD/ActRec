@@ -11,9 +11,8 @@ import rna_keymap_ui
 # relative imports
 from . import properties, functions, config, update, keymap
 from .log import logger, log_sys
+from .functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 # region Preferences
 
@@ -125,8 +124,8 @@ class AR_preferences(AddonPreferences):
         Args:
             value (int): index to set
         """
-        AR = bpy.context.preferences.addons[__module__].preferences
-        if not AR.local_record_macros:
+        ActRec_pref = get_preferences(bpy.context)
+        if not ActRec_pref.local_record_macros:
             actions_length = len(self.local_actions)
             value = value if value < actions_length else actions_length - 1
             self['active_local_action_index'] = value if value >= 0 else actions_length - 1
@@ -156,7 +155,7 @@ class AR_preferences(AddonPreferences):
         """
         if self.hide_local_text:
             for text in bpy.data.texts:
-                if text.lines[0].body.strip().startswith("###AR###"):
+                if text.lines[0].body.strip().startswith("###ActRec_pref###"):
                     bpy.data.texts.remove(text)
         else:
             for action in self.local_actions:
@@ -253,26 +252,26 @@ class AR_preferences(AddonPreferences):
         Args:
             context (bpy.types.Context): active blender context
         """
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         layout = self.layout
         col = layout.column()
         row = col.row(align=True)
-        row.prop(AR, 'preference_tab', expand=True)
-        if AR.preference_tab == 'update':
+        row.prop(ActRec_pref, 'preference_tab', expand=True)
+        if ActRec_pref.preference_tab == 'update':
             col.operator('wm.url_open', text="Release Notes").url = config.release_notes_url
             row = col.row()
-            if AR.update:
-                update.draw_update_button(row, AR)
+            if ActRec_pref.update:
+                update.draw_update_button(row, ActRec_pref)
             else:
                 row.operator('ar.update_check', text="Check For Updates")
-                if AR.restart:
+                if ActRec_pref.restart:
                     row.operator('ar.show_restart_menu', text="Restart to Finish")
-            if AR.version != '':
-                if AR.update:
-                    col.label(text="A new Version is available (%s)" % AR.version)
+            if ActRec_pref.version != '':
+                if ActRec_pref.update:
+                    col.label(text="A new Version is available (%s)" % ActRec_pref.version)
                 else:
-                    col.label(text="You are using the latest Version (%s)" % AR.version)
-        elif AR.preference_tab == 'path':
+                    col.label(text="You are using the latest Version (%s)" % ActRec_pref.version)
+        elif ActRec_pref.preference_tab == 'path':
             col.label(text='Action Storage Folder')
             row = col.row()
             ops = row.operator(
@@ -320,14 +319,14 @@ class AR_preferences(AddonPreferences):
             box.label(text=self.icon_path)
             col.separator(factor=1.5)
             col.operator('ar.preferences_open_explorer', text="Open Log").path = log_sys.path
-        elif AR.preference_tab == 'keymap':
+        elif ActRec_pref.preference_tab == 'keymap':
             col2 = col.column()
             kc = bpy.context.window_manager.keyconfigs.user
             km = kc.keymaps['Screen']
             for item in keymap.keymaps['default'].keymap_items:
                 kmi = km.keymap_items[item.idname]
                 rna_keymap_ui.draw_kmi(kc.keymaps, kc, km, kmi, col2, 0)
-        elif AR.preference_tab == 'settings':
+        elif ActRec_pref.preference_tab == 'settings':
             row = col.row()
             row.prop(self, 'auto_update')
             row.prop(self, 'autosave')

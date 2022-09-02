@@ -1,13 +1,9 @@
 # region Imports
 # external modules
-import ensurepip
-import os
-import subprocess
 import importlib
 import json
 import time
 import numpy
-import sys
 
 # blender modules
 import bpy
@@ -18,9 +14,8 @@ from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionPrope
 from . import shared
 from .. import functions, properties, shared_data
 from ..log import logger
+from ..functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 # region Operators
 
@@ -44,18 +39,18 @@ class AR_OT_macro_add(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return not ActRec_pref.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
 
-        if not len(AR.local_actions):
+        if not len(ActRec_pref.local_actions):
             self.report({'ERROR'}, 'Add a local action first')
             return {'CANCELLED'}
 
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        action = ActRec_pref.local_actions[index]
         new_report = False
         command = None
 
@@ -77,7 +72,7 @@ class AR_OT_macro_add(shared.Id_based, Operator):
         # improve command by comparing to tracked_actions
         # tracked actions is written by the function track_scene in functions.macros
         # which keeps track of all executed Operator in detail but none information about changed Properties
-        if command and (AR.last_macro_command != command if new_report else True):
+        if command and (ActRec_pref.last_macro_command != command if new_report else True):
             if command.startswith("bpy.context."):
                 tracked_actions = []
                 if not self.command:
@@ -159,13 +154,13 @@ class AR_OT_macro_add(shared.Id_based, Operator):
             ui_type = ""
             if context.area:
                 ui_type = context.area.ui_type
-            functions.add_report_as_macro(context, AR, action, command, [], ui_type)
+            functions.add_report_as_macro(context, ActRec_pref, action, command, [], ui_type)
         else:
             if new_report:
                 self.report({'ERROR'}, "No Action could be added")
-            if AR.local_create_empty:
+            if ActRec_pref.local_create_empty:
                 bpy.ops.ar.macro_add_event("EXEC_DEFAULT", id=action.id, index=index, type="Empty")
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         bpy.context.area.tag_redraw()
         shared_data.tracked_actions.clear()
         self.command = ""
@@ -211,8 +206,8 @@ class AR_OT_macro_add_event(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions) and not ActRec_pref.local_record_macros
 
     def invoke(self, context, event):
         if context.object is not None:
@@ -220,9 +215,9 @@ class AR_OT_macro_add_event(shared.Id_based, Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        action = ActRec_pref.local_actions[index]
         if self.macro_index == -1:
             macro = action.macros.add()
         else:
@@ -254,8 +249,8 @@ class AR_OT_macro_add_event(shared.Id_based, Operator):
             elif self.type == 'Select Object':
                 data['Object'] = self.object
             macro.command = "ar.event: %s" % json.dumps(data)
-        functions.local_runtime_save(AR, context.scene)
-        if not AR.hide_local_text:
+        functions.local_runtime_save(ActRec_pref, context.scene)
+        if not ActRec_pref.hide_local_text:
             functions.local_action_to_text(action)
         context.area.tag_redraw()
         self.clear()
@@ -289,22 +284,22 @@ class AR_OT_macro_remove(Macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.local_actions)
-            and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore)
-            and not AR.local_record_macros
+            len(ActRec_pref.local_actions)
+            and (len(ActRec_pref.local_actions[ActRec_pref.active_local_action_index].macros) or ignore)
+            and not ActRec_pref.local_record_macros
         )
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        action_index = functions.get_local_action_index(AR, '', self.action_index)
-        action = AR.local_actions[action_index]
+        ActRec_pref = get_preferences(context)
+        action_index = functions.get_local_action_index(ActRec_pref, '', self.action_index)
+        action = ActRec_pref.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
         action.macros.remove(index)
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -317,18 +312,19 @@ class AR_OT_macro_move_up(Macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        if not len(AR.local_actions):
+        if not len(ActRec_pref.local_actions):
             return False
-        action = AR.local_actions[AR.active_local_action_index]
-        return (len(action.macros) >= 2 and action.active_macro_index - 1 >= 0 or ignore) and not AR.local_record_macros
+        action = ActRec_pref.local_actions[ActRec_pref.active_local_action_index]
+        return ((len(action.macros) >= 2 and action.active_macro_index - 1 >= 0 or ignore)
+                and not ActRec_pref.local_record_macros)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        action_index = functions.get_local_action_index(AR, '', self.action_index)
-        action = AR.local_actions[action_index]
+        ActRec_pref = get_preferences(context)
+        action_index = functions.get_local_action_index(ActRec_pref, '', self.action_index)
+        action = ActRec_pref.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
         self.clear()
         if index == -1 or index - 1 < 0:
@@ -337,7 +333,7 @@ class AR_OT_macro_move_up(Macro_based, Operator):
         else:
             action.macros.move(index, index - 1)
             action.active_macro_index = index - 1
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -349,19 +345,19 @@ class AR_OT_macro_move_down(Macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        if not len(AR.local_actions):
+        if not len(ActRec_pref.local_actions):
             return False
-        action = AR.local_actions[AR.active_local_action_index]
+        action = ActRec_pref.local_actions[ActRec_pref.active_local_action_index]
         return ((len(action.macros) >= 2 and action.active_macro_index + 1 < len(action.macros) or ignore)
-                and not AR.local_record_macros)
+                and not ActRec_pref.local_record_macros)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        action_index = functions.get_local_action_index(AR, '', self.action_index)
-        action = AR.local_actions[action_index]
+        ActRec_pref = get_preferences(context)
+        action_index = functions.get_local_action_index(ActRec_pref, '', self.action_index)
+        action = ActRec_pref.local_actions[action_index]
         index = functions.get_local_macro_index(action, self.id, self.index)
         self.clear()
         if index == -1 or index + 1 >= len(action.macros):
@@ -370,54 +366,23 @@ class AR_OT_macro_move_down(Macro_based, Operator):
         else:
             action.macros.move(index, index + 1)
             action.active_macro_index = index + 1
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
 
 class Font_analysis():
-    # TODO move package installation to a separate function
+
     def __init__(self, font_path):
         self.path = font_path
+        # TODO add asking panel for multiline support because an installation ist required
         # install the fonttools to blender modules if not installed
         if importlib.util.find_spec('fontTools') is None:
-            ensurepip.bootstrap()
-            os.environ.pop("PIP_REQ_TRACKER", None)
-            path = "%s\\test_actrec" % os.path.dirname(sys.executable)
-            try:
-                # FIXME Maybe use --user option to ignore permission problem
-                # creates and removes dir to check for writing permission to this path
-                os.mkdir(path)
-                os.rmdir(path)
-                output = subprocess.check_output(
-                    [sys.executable, '-m', 'pip', 'install', 'fonttools', '--no-color']
-                ).decode('utf-8').replace("\r", "")
+            success, output = functions.install_package('fontTools')
+            if success:
                 logger.info(output)
-            except PermissionError as err:
-                if sys.platform == "win32":
-                    logger.info("Need Admin Permissions to write to %s" % path)
-                    logger.info("Try again to install fontTools as admin")
-                    output = subprocess.check_output(
-                        [sys.executable, '-m', 'pip', 'uninstall', '-y', 'fonttools', '--no-color'],
-                        stderr=subprocess.STDOUT
-                    ).decode('utf-8').replace("\r", "")
-                    logger.info(output)
-                    output = subprocess.check_output(
-                        ['powershell.exe', '-Command',
-                         """& { Start-Process \'%s\' -Wait -ArgumentList \'-m\',
-                         \'pip\', \'install\', \'fonttools\'-Verb RunAs}""" % sys.executable],
-                        stderr=subprocess.STDOUT
-                    ).decode('unicode_escape').replace("\r", "")
-                    if output != '':
-                        logger.warning(output)
-                        self.use_dynamic_text = False
-                        return
-                else:
-                    logger.error(err)
-            except subprocess.CalledProcessError as err:
-                logger.warning(err.output)
-                self.use_dynamic_text = False
-                return
+            else:
+                logger.warning(output)
 
         if importlib.util.find_spec('fontTools') is None:
             logger.warning("For some reason fontTools couldn't be installed :(")
@@ -574,13 +539,13 @@ class AR_OT_macro_edit(Macro_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return not ActRec_pref.local_record_macros
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__module__].preferences
-        action_index = self.action_index = functions.get_local_action_index(AR, '', self.action_index)
-        action = AR.local_actions[action_index]
+        ActRec_pref = get_preferences(context)
+        action_index = self.action_index = functions.get_local_action_index(ActRec_pref, '', self.action_index)
+        action = ActRec_pref.local_actions[action_index]
         index = self.index = functions.get_local_macro_index(action, self.id, self.index)
         macro = action.macros[index]
 
@@ -634,8 +599,8 @@ class AR_OT_macro_edit(Macro_based, Operator):
 
             self.label = macro.label
             self.command = macro.command
-            self.last_label = AR.last_macro_label
-            self.last_command = AR.last_macro_command
+            self.last_label = ActRec_pref.last_macro_label
+            self.last_command = ActRec_pref.last_macro_command
             return context.window_manager.invoke_props_dialog(self, width=self.width)
         else:
             action.active_macro_index = index
@@ -645,8 +610,8 @@ class AR_OT_macro_edit(Macro_based, Operator):
         return {"FINISHED"}
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        action = AR.local_actions[self.action_index]
+        ActRec_pref = get_preferences(context)
+        action = ActRec_pref.local_actions[self.action_index]
         macro = action.macros[self.index]
         if self.use_last_command:
             macro.label = self.last_label
@@ -654,7 +619,7 @@ class AR_OT_macro_edit(Macro_based, Operator):
         else:
             macro.label = self.label
             macro.command = self.command
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         self.cancel(context)
         return {"FINISHED"}
@@ -692,9 +657,9 @@ class AR_OT_copy_to_actrec(Operator):  # used in the right click menu of Blender
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         return (
-            len(AR.local_actions)
+            len(ActRec_pref.local_actions)
             and (bpy.ops.ui.copy_python_command_button.poll()
                  or getattr(context, "button_pointer", None)
                  and getattr(context, "button_prop", None))

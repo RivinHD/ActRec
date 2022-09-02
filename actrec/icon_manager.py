@@ -11,10 +11,10 @@ from bpy_extras.io_utils import ImportHelper
 
 # relative imports
 from .log import logger
+from .functions.shared import get_preferences
 # endregion
 
 preview_collections = {}
-__module__ = __package__.split(".")[0]
 
 # region functions
 
@@ -40,16 +40,16 @@ def get_icons() -> list[str]:
     return bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.keys()[1:]
 
 
-def load_icons(AR: bpy.types.Preferences):
+def load_icons(ActRec_pref: bpy.types.Preferences):
     """
     loads all saved icons from the icon folder, which can be located by the user.
     the icon are saved as png and with their icon name
     supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
 
     Args:
-        AR (bpy.types.Preferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.Preferences): preferences of this addon
     """
-    directory = AR.icon_path
+    directory = ActRec_pref.icon_path
     for icon in os.listdir(directory):
         filepath = os.path.join(directory, icon)
         if os.path.exists(filepath) and os.path.isfile(filepath):
@@ -57,13 +57,13 @@ def load_icons(AR: bpy.types.Preferences):
                 icon.split(".")[:-1]), filepath, True)
 
 
-def load_icon(AR: bpy.types.Preferences, filepath: str, only_new: bool = False):
+def load_icon(ActRec_pref: bpy.types.Preferences, filepath: str, only_new: bool = False):
     """
     load image form filepath as custom addon icon and resize to 32x32 (Blender icon size)
     supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
 
     Args:
-        AR (bpy.types.Preferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.Preferences): preferences of this addon
         filepath (str): filepath to the image file
         only_new (bool, optional): if icon is already register by name, it won't be registered again. Defaults to False.
     """
@@ -72,7 +72,7 @@ def load_icon(AR: bpy.types.Preferences, filepath: str, only_new: bool = False):
     image.scale(32, 32)
     name = os.path.splitext(image.name)[0]  # name without file extension
     # image.name has format included
-    internal_path = os.path.join(AR.icon_path, image.name)
+    internal_path = os.path.join(ActRec_pref.icon_path, image.name)
     image.save_render(internal_path)  # save Blender image to inside the icon folder
     register_icon(preview_collections['ar_custom'],
                   "AR_%s" % name, internal_path, only_new)
@@ -141,12 +141,12 @@ class Icontable(Operator):
     )
 
     def draw(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         layout = self.layout
         box = layout.box()
         row = box.row()
         row.label(text="Selected Icon:")
-        row.label(text=" ", icon_value=AR.selected_icon)
+        row.label(text=" ", icon_value=ActRec_pref.selected_icon)
         row.prop(self, 'search', text='Search:')
         row.operator('ar.icon_selector',
                      text="Clear Icon").icon = self.default_icon_value
@@ -189,8 +189,8 @@ class AR_OT_icon_selector(Operator):
     icon: IntProperty(default=0)  # Icon: NONE
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.selected_icon = self.icon
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.selected_icon = self.icon
         return {"FINISHED"}
 
 
@@ -204,10 +204,10 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
     activate_pop_up: StringProperty(default="")
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         # supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
         if os.path.isfile(self.filepath) and self.filepath.lower().endswith(tuple(bpy.path.extensions_image)):
-            err = load_icon(AR, self.filepath)
+            err = load_icon(ActRec_pref, self.filepath)
             if err is not None:
                 self.report({'ERROR'}, err)
         else:
@@ -271,15 +271,15 @@ class AR_OT_delete_custom_icon(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         for ele in self.icons:
             if ele.selected or self.select_all:
                 icon_path = ele.icon_name[3:]
-                filenames = os.listdir(AR.icon_path)
+                filenames = os.listdir(ActRec_pref.icon_path)
                 names = [os.path.splitext(os.path.basename(path))[
                     0] for path in filenames]
                 if icon_path in names:
-                    os.remove(os.path.join(AR.icon_path,
+                    os.remove(os.path.join(ActRec_pref.icon_path,
                               filenames[names.index(icon_path)]))
                 unregister_icon(
                     preview_collections['ar_custom'], ele.icon_name)

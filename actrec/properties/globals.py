@@ -6,9 +6,8 @@ from bpy.props import BoolProperty, StringProperty, CollectionProperty
 
 # relative Imports
 from . import shared
+from ..functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 # region PropertyGroups
 
@@ -31,8 +30,8 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
         Args:
             value (bool): state of selection
         """
-        AR = bpy.context.preferences.addons[__module__].preferences
-        selected_ids = list(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(bpy.context)
+        selected_ids = list(ActRec_pref.get("global_actions.selected_ids", []))
         # implementation similar to a UIList (only one selection of all can be active),
         # with extra multi selection by pressing ctrl
         if len(selected_ids) > 1:
@@ -42,14 +41,14 @@ class AR_global_actions(shared.AR_action, PropertyGroup):
             ctrl_value = bpy.ops.ar.check_ctrl('INVOKE_DEFAULT')
             # {'CANCELLED'} == ctrl is not pressed
             if selected_ids and ctrl_value == {'CANCELLED'}:
-                AR["global_actions.selected_ids"] = []
+                ActRec_pref["global_actions.selected_ids"] = []
                 for selected_id in selected_ids:
-                    action = AR.global_actions.get(selected_id, None)
+                    action = ActRec_pref.global_actions.get(selected_id, None)
                     if action:
                         action.selected = False
                 selected_ids.clear()
             selected_ids.append(self.id)
-            AR["global_actions.selected_ids"] = selected_ids
+            ActRec_pref["global_actions.selected_ids"] = selected_ids
             self['selected'] = value
         elif not (self.id in selected_ids):
             self['selected'] = value

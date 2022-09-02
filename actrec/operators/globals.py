@@ -16,9 +16,9 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 # relative imports
 from .. import functions, properties, icon_manager, ui_functions, keymap
 from . import shared
+from ..functions.shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Operators
 
@@ -30,16 +30,16 @@ class AR_OT_gloabal_recategorize_action(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", []))
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        categories = AR.categories
-        ids = functions.get_global_action_ids(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
+        ids = functions.get_global_action_ids(ActRec_pref, self.id, self.index)
         self.clear()
         if all(category.selected for category in categories):
             return {"CANCELLED"}
@@ -51,13 +51,13 @@ class AR_OT_gloabal_recategorize_action(shared.Id_based, Operator):
             else:
                 for id in ids:
                     category.actions.remove(category.actions.find(id))
-        functions.global_runtime_save(AR)
+        functions.global_runtime_save(ActRec_pref)
         context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        categories = AR.categories
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
         layout = self.layout
         for category in categories:
             layout.prop(category, 'selected', text=category.label)
@@ -102,10 +102,10 @@ class AR_OT_global_import(Operator, ImportHelper):
         return macros
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
 
         # Try to load import settings and check if file is valid
-        if (not len(AR.import_settings)
+        if (not len(ActRec_pref.import_settings)
                 and bpy.ops.ar.global_import_settings(
                     'EXEC_DEFAULT',
                     filepath=self.filepath,
@@ -113,20 +113,20 @@ class AR_OT_global_import(Operator, ImportHelper):
             self.report({'ERROR'}, "Selected file is incompatible")
             return {'CANCELLED'}
 
-        if AR.import_extension == ".zip" or AR.import_extension == ".json":
+        if ActRec_pref.import_extension == ".zip" or ActRec_pref.import_extension == ".json":
 
             if self.mode == "overwrite":
-                for i in range(len(AR.categories)):
-                    ui_functions.unregister_category(AR, i)
-                AR.global_actions.clear()
-                AR.categories.clear()
+                for i in range(len(ActRec_pref.categories)):
+                    ui_functions.unregister_category(ActRec_pref, i)
+                ActRec_pref.global_actions.clear()
+                ActRec_pref.categories.clear()
 
-            if AR.import_extension == ".zip":
+            if ActRec_pref.import_extension == ".zip":
                 # Only used because old Version used .zip to export and directory and file structure
                 # Categories where saved as directories and Actions where saved as files in the specific directory
                 data = defaultdict(list)
                 zip_file = zipfile.ZipFile(self.filepath, mode='r')
-                for category in AR.import_settings:
+                for category in ActRec_pref.import_settings:
                     if category.use and any(action.use for action in category.actions):
                         actions = list(
                             filter(lambda x: x.use, category.actions))
@@ -144,30 +144,30 @@ class AR_OT_global_import(Operator, ImportHelper):
                             'actions': [{"id": action['id']} for action in category_actions]
                         })
                         data['actions'] += category_actions
-                functions.import_global_from_dict(AR, data)
-            elif AR.import_extension == ".json":
+                functions.import_global_from_dict(ActRec_pref, data)
+            elif ActRec_pref.import_extension == ".json":
                 with open(self.filepath, 'r', encoding='utf-8') as file:
                     data = json.loads(file.read())
-                category_ids = set(category.identifier for category in AR.import_settings)
+                category_ids = set(category.identifier for category in ActRec_pref.import_settings)
                 action_ids = []
-                for category in AR.import_settings:
+                for category in ActRec_pref.import_settings:
                     action_ids += [action.identifier for action in category.actions]
                 action_ids = set(action_ids)
 
                 data['categories'] = [category for category in data['categories'] if category['id'] not in category_ids]
                 data['actions'] = [action for action in data['actions'] if action['id'] not in action_ids]
-                functions.import_global_from_dict(AR, data)
+                functions.import_global_from_dict(ActRec_pref, data)
         else:
             self.report({'ERROR'}, "Select a .json or .zip file {%s}" % self.filepath)
-        AR = context.preferences.addons[__module__].preferences
-        AR.import_settings.clear()
-        functions.category_runtime_save(AR)
-        functions.global_runtime_save(AR, False)
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.import_settings.clear()
+        functions.category_runtime_save(ActRec_pref)
+        functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         layout = self.layout
         layout.operator(
             "ar.global_import_settings",
@@ -176,7 +176,7 @@ class AR_OT_global_import(Operator, ImportHelper):
         col = layout.column(align=True)
         row = col.row(align=True)
         row.prop(self, 'mode', expand=True)
-        for category in AR.import_settings:
+        for category in ActRec_pref.import_settings:
             box = col.box()
             sub_col = box.column()
             row = sub_col.row()
@@ -194,8 +194,8 @@ class AR_OT_global_import(Operator, ImportHelper):
                     row.label(text=action.label)
 
     def cancel(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.import_settings.clear()
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.import_settings.clear()
 
 
 class AR_OT_global_import_settings(Operator):
@@ -275,14 +275,14 @@ class AR_OT_global_import_settings(Operator):
         return categories
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.import_settings.clear()
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.import_settings.clear()
 
         if os.path.exists(self.filepath):
             if self.filepath.endswith(".zip"):
                 # Only used because old Version used .zip to export and directory and file structure
                 # Categories where saved as directories and Actions where saved as files in the specific directory
-                AR.import_extension = ".zip"
+                ActRec_pref.import_extension = ".zip"
                 categories_paths = self.import_sorted_zip(self.filepath)
                 if isinstance(categories_paths, str):
                     if not self.from_operator:
@@ -290,7 +290,7 @@ class AR_OT_global_import_settings(Operator):
                             {'ERROR'}, "The selected file is not compatible (%s)" % categories_paths)
                     return {'CANCELLED'}
                 for key, item in sorted(categories_paths.items(), key=lambda x: int(x[0].split('~')[0])):
-                    new_category = AR.import_settings.add()
+                    new_category = ActRec_pref.import_settings.add()
                     new_category.identifier = key
                     new_category.label = key.split('~')[1]
                     for file in item:
@@ -299,12 +299,12 @@ class AR_OT_global_import_settings(Operator):
                         new_action.label = file.split("/")[-1].split('~')[1]
                 return {"FINISHED"}
             elif self.filepath.endswith(".json"):
-                AR.import_extension = ".json"
+                ActRec_pref.import_extension = ".json"
                 with open(self.filepath, 'r') as file:
                     data = json.loads(file.read())
                 actions = {action.id: action for action in data['actions']}
                 for category in data['categories']:
-                    new_category = AR.import_settings.add()
+                    new_category = ActRec_pref.import_settings.add()
                     new_category.identifier = category['id']
                     new_category.label = category['label']
                     for id in category['actions']:
@@ -367,18 +367,18 @@ class AR_OT_global_export(Operator, ExportHelper):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions)
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions)
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         # Make copy of categories and actions ot export_categories and export_actions
-        AR = context.preferences.addons[__module__].preferences
-        for category in AR.categories:
+        ActRec_pref = get_preferences(context)
+        for category in ActRec_pref.categories:
             new_category = self.export_categories.add()
             new_category.id = category.id
             new_category.label = category.label
             for id_action in category.actions:
-                action = AR.global_actions.get(id_action.id, None)
+                action = ActRec_pref.global_actions.get(id_action.id, None)
                 if action is None:
                     category.actions.remove(category.actions.find(id_action.id))
                     continue
@@ -388,7 +388,7 @@ class AR_OT_global_export(Operator, ExportHelper):
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         if not os.path.exists(os.path.dirname(self.filepath)):
             self.report({'ERROR', "Directory doesn't exist"})
             return {'CANCELLED'}
@@ -404,15 +404,16 @@ class AR_OT_global_export(Operator, ExportHelper):
             export_action_ids += set(
                 action.id for action in category.actions if action.use
             )
-        for category in AR.categories:
+        for category in ActRec_pref.categories:
             if category.id in export_category_ids:
                 data['categories'] = functions.property_to_python(
-                    AR.categories, exclude=["name", "selected", "actions.name", "areas.name", "areas.modes.name"]
+                    ActRec_pref.categories,
+                    exclude=["name", "selected", "actions.name", "areas.name", "areas.modes.name"]
                 )
-        for action in AR.global_actions:
+        for action in ActRec_pref.global_actions:
             if action.id in export_action_ids:
                 data['actions'] = functions.property_to_python(
-                    AR.global_actions,
+                    ActRec_pref.global_actions,
                     exclude=["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"]
                 )
         with open(self.filepath, 'w', encoding='utf-8') as file:
@@ -450,7 +451,7 @@ class AR_OT_global_save(Operator):
     bl_description = "Save all Global Actions to the Storage"
 
     def execute(self, context: bpy.types.Context):
-        functions.save(context.preferences.addons[__module__].preferences)
+        functions.save(get_preferences(context))
         return {"FINISHED"}
 
 
@@ -460,10 +461,10 @@ class AR_OT_global_load(Operator):
     bl_description = "Load all Actions from the Storage"
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        functions.load(AR)
-        functions.category_runtime_save(AR, False)
-        functions.global_runtime_save(AR, False)
+        ActRec_pref = get_preferences(context)
+        functions.load(ActRec_pref)
+        functions.category_runtime_save(ActRec_pref, False)
+        functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -475,36 +476,36 @@ class AR_OT_global_to_local(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", []))
 
-    def global_to_local(self, AR: bpy.types.AddonPreferences, action: 'AR_global_actions'):
+    def global_to_local(self, ActRec_pref: bpy.types.AddonPreferences, action: 'AR_global_actions'):
         """
         copy the given global action to a local action
 
         Args:
-            AR (bpy.types.AddonPreferences): Blender preferences of this addon
+            ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
             action (AR_global_actions): action to copy
         """
-        id = uuid.uuid1().hex if action.id in set(x.id for x in AR.local_actions) else action.id
+        id = uuid.uuid1().hex if action.id in set(x.id for x in ActRec_pref.local_actions) else action.id
         data = functions.property_to_python(
             action,
             exclude=["name", "alert", "macros.name", "macros.alert", "macros.is_available"]
         )
         data["id"] = id
-        functions.add_data_to_collection(AR.local_actions, data)
-        AR.active_local_action_index = len(AR.local_actions)
+        functions.add_data_to_collection(ActRec_pref.local_actions, data)
+        ActRec_pref.active_local_action_index = len(ActRec_pref.local_actions)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        for id in functions.get_global_action_ids(AR, self.id, self.index):
-            self.global_to_local(AR, AR.global_actions[id])
-            if AR.global_to_local_mode == 'move':
-                AR.global_actions.remove(AR.global_actions.find(id))
-                for category in AR.categories:
+        ActRec_pref = get_preferences(context)
+        for id in functions.get_global_action_ids(ActRec_pref, self.id, self.index):
+            self.global_to_local(ActRec_pref, ActRec_pref.global_actions[id])
+            if ActRec_pref.global_to_local_mode == 'move':
+                ActRec_pref.global_actions.remove(ActRec_pref.global_actions.find(id))
+                for category in ActRec_pref.categories:
                     category.actions.remove(category.actions.find(id))
-        functions.category_runtime_save(AR)
-        functions.global_runtime_save(AR, False)
+        functions.category_runtime_save(ActRec_pref)
+        functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -517,17 +518,17 @@ class AR_OT_global_remove(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", []))
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        for id in functions.get_global_action_ids(AR, self.id, self.index):
-            AR.global_actions.remove(AR.global_actions.find(id))
-            for category in AR.categories:
+        ActRec_pref = get_preferences(context)
+        for id in functions.get_global_action_ids(ActRec_pref, self.id, self.index):
+            ActRec_pref.global_actions.remove(ActRec_pref.global_actions.find(id))
+            for category in ActRec_pref.categories:
                 category.actions.remove(category.actions.find(id))
-        functions.category_runtime_save(AR)
-        functions.global_runtime_save(AR, False)
+        functions.category_runtime_save(ActRec_pref)
+        functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -543,18 +544,18 @@ class AR_OT_global_move_up(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", []))
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        ids = set(functions.get_global_action_ids(AR, self.id, self.index))
-        for category in AR.categories:
+        ActRec_pref = get_preferences(context)
+        ids = set(functions.get_global_action_ids(ActRec_pref, self.id, self.index))
+        for category in ActRec_pref.categories:
             for id_action in category.actions:
                 if id_action.id in ids:
                     index = category.actions.find(id_action.id)
                     category.actions.move(index, index - 1)
-        functions.category_runtime_save(AR)
+        functions.category_runtime_save(ActRec_pref)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -567,18 +568,18 @@ class AR_OT_global_move_down(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", []))
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", []))
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        ids = set(functions.get_global_action_ids(AR, self.id, self.index))
-        for category in AR.categories:
+        ActRec_pref = get_preferences(context)
+        ids = set(functions.get_global_action_ids(ActRec_pref, self.id, self.index))
+        for category in ActRec_pref.categories:
             for id_action in reversed(list(category.actions)):
                 if id_action.id in ids:
                     index = category.actions.find(id_action.id)
                     category.actions.move(index, index + 1)
-        functions.category_runtime_save(AR)
+        functions.category_runtime_save(ActRec_pref)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -593,22 +594,22 @@ class AR_OT_global_rename(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.global_actions) and len(AR.get("global_actions.selected_ids", [])) == 1
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.global_actions) and len(ActRec_pref.get("global_actions.selected_ids", [])) == 1
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        ids = functions.get_global_action_ids(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        ids = functions.get_global_action_ids(ActRec_pref, self.id, self.index)
         self.clear()
         label = self.label
         self.label = ""
 
         if len(ids) == 1:
             id = ids[0]
-            action = AR.global_actions.get(id, None)
+            action = ActRec_pref.global_actions.get(id, None)
             if action:
-                AR.global_actions[id].label = label
-                functions.global_runtime_save(AR)
+                ActRec_pref.global_actions[id].label = label
+                functions.global_runtime_save(ActRec_pref)
                 context.area.tag_redraw()
                 return {"FINISHED"}
         return {'CANCELLED'}
@@ -621,12 +622,12 @@ class AR_OT_global_execute_action(shared.Id_based, Operator):
     bl_options = {'UNDO', 'INTERNAL'}
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        id = functions.get_global_action_id(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        id = functions.get_global_action_id(ActRec_pref, self.id, self.index)
         self.clear()
         if id is None:
             return {'CANCELLED'}
-        action = AR.global_actions[id]
+        action = ActRec_pref.global_actions[id]
         err = functions.play(context.copy(), action.macros, action, 'global_actions')
         if err:
             self.report({'ERROR'}, str(err))
@@ -637,23 +638,23 @@ class AR_OT_global_icon(icon_manager.Icontable, shared.Id_based, Operator):
     bl_idname = "ar.global_icon"
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        AR = context.preferences.addons[__module__].preferences
-        id = functions.get_global_action_id(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        id = functions.get_global_action_id(ActRec_pref, self.id, self.index)
         if id is None:
             self.clear()
             return {'CANCELLED'}
         self.id = id
         if not self.reuse:
-            AR.selected_icon = AR.global_actions[id].icon
+            ActRec_pref.selected_icon = ActRec_pref.global_actions[id].icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.global_actions[self.id].icon = AR.selected_icon
-        AR.selected_icon = 0  # Icon: NONE
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.global_actions[self.id].icon = ActRec_pref.selected_icon
+        ActRec_pref.selected_icon = 0  # Icon: NONE
         self.reuse = False
-        functions.global_runtime_save(AR)
+        functions.global_runtime_save(ActRec_pref)
         bpy.context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -679,10 +680,10 @@ class AR_OT_add_ar_shortcut(Operator):
         return context.window_manager.invoke_props_popup(self, event)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         if functions.is_action_keymap_empty(functions.get_action_keymap(self.id)):
             return {"CANCELLED"}
-        functions.global_runtime_save(AR)
+        functions.global_runtime_save(ActRec_pref)
         return {"FINISHED"}
 
     def cancel(self, context: bpy.types.Context):

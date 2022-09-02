@@ -13,9 +13,9 @@ from bpy.props import StringProperty, IntProperty, EnumProperty, CollectionPrope
 from .. import functions, properties, icon_manager, shared_data
 from ..log import logger
 from . import shared
+from ..functions.shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Operators
 
@@ -27,50 +27,56 @@ class AR_OT_local_to_global(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions) and not ActRec_pref.local_record_macros
 
-    def local_to_global(self, AR: bpy.types.Preferences, category: 'AR_category', action: 'AR_global_actions') -> None:
+    def local_to_global(
+        self,
+        ActRec_pref: bpy.types.Preferences,
+        category: 'AR_category',
+        action: 'AR_global_actions'
+    ) -> None:
         """
         copy the given local action to a global action
 
         Args:
-            AR (bpy.types.Preferences): Blender preferences of this addon
+            ActRec_pref (bpy.types.Preferences): preferences of this addon
             category (AR_category): category to copy the action to
             action (AR_global_actions): action to copy
         """
-        id = uuid.uuid1().hex if action.id in [x.id for x in AR.global_actions] else action.id
+        id = uuid.uuid1().hex if action.id in [x.id for x in ActRec_pref.global_actions] else action.id
         data = functions.property_to_python(
             action,
             exclude=["name", "alert", "macros.name", "macros.alert", "macros.is_available"]
         )
         data["id"] = id
         data["selected"] = True
-        functions.add_data_to_collection(AR.global_actions, data)
+        functions.add_data_to_collection(ActRec_pref.global_actions, data)
         new_action = category.actions.add()
         new_action.id = id
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        categories = AR.categories
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
 
         if not len(categories):
             return {'CANCELLED'}
 
         for category in categories:
             if category.selected:
-                self.local_to_global(AR, category, AR.local_actions[AR.active_local_action_index])
+                self.local_to_global(ActRec_pref, category, ActRec_pref.local_actions
+                                     [ActRec_pref.active_local_action_index])
                 break
-        if AR.local_to_global_mode == 'move':
-            AR.local_actions.remove(AR.active_local_action_index)
-        functions.category_runtime_save(AR)
-        functions.global_runtime_save(AR, False)
+        if ActRec_pref.local_to_global_mode == 'move':
+            ActRec_pref.local_actions.remove(ActRec_pref.active_local_action_index)
+        functions.category_runtime_save(ActRec_pref)
+        functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         return {"FINISHED"}
 
     def draw(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        categories = AR.categories
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
         layout = self.layout
         if len(categories):
             for category in categories:
@@ -96,16 +102,16 @@ class AR_OT_local_add(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return not ActRec_pref.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        new = AR.local_actions.add()
+        ActRec_pref = get_preferences(context)
+        new = ActRec_pref.local_actions.add()
         new.id  # create new id, uses internal getter
-        new.label = functions.check_for_duplicates(map(lambda x: x.label, AR.local_actions), self.name)
-        AR.active_local_action_index = -1  # set to last element, uses internal setter
-        functions.local_runtime_save(AR, context.scene)
+        new.label = functions.check_for_duplicates(map(lambda x: x.label, ActRec_pref.local_actions), self.name)
+        ActRec_pref.active_local_action_index = -1  # set to last element, uses internal setter
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -117,19 +123,19 @@ class AR_OT_local_remove(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions) and not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions) and not ActRec_pref.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
         self.clear()
         if index == -1:
             self.report({'ERROR'}, "Selected Action couldn't be deleted")
             return {"CANCELLED"}
         else:
-            AR.local_actions.remove(index)
-        functions.local_runtime_save(AR, context.scene)
+            ActRec_pref.local_actions.remove(index)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -143,25 +149,25 @@ class AR_OT_local_move_up(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.local_actions) >= 2
-            and (ignore or AR.active_local_action_index - 1 >= 0)
-            and not AR.local_record_macros
+            len(ActRec_pref.local_actions) >= 2
+            and (ignore or ActRec_pref.active_local_action_index - 1 >= 0)
+            and not ActRec_pref.local_record_macros
         )
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
         self.clear()
         if index == -1 or index - 1 < 0:
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
         else:
-            AR.local_actions.move(index, index - 1)
-        functions.local_runtime_save(AR, context.scene)
+            ActRec_pref.local_actions.move(index, index - 1)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -179,25 +185,25 @@ class AR_OT_local_move_down(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.local_actions) >= 2
-            and (ignore or AR.active_local_action_index + 1 < len(AR.local_actions))
-            and not AR.local_record_macros
+            len(ActRec_pref.local_actions) >= 2
+            and (ignore or ActRec_pref.active_local_action_index + 1 < len(ActRec_pref.local_actions))
+            and not ActRec_pref.local_record_macros
         )
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
         self.clear()
-        if index == -1 or index + 1 >= len(AR.local_actions):
+        if index == -1 or index + 1 >= len(ActRec_pref.local_actions):
             self.report({'ERROR'}, "Selected Action couldn't be moved")
             return {"CANCELLED"}
         else:
-            AR.local_actions.move(index, index + 1)
-        functions.local_runtime_save(AR, context.scene)
+            ActRec_pref.local_actions.move(index, index + 1)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         return {"FINISHED"}
 
@@ -219,20 +225,20 @@ class AR_OT_local_load(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros and not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return not ActRec_pref.local_record_macros and not ActRec_pref.local_record_macros
 
     def invoke(self, context, event):
         texts = self.texts
         texts.clear()
         for text in bpy.data.texts:
-            if text.lines[0].body.strip().startswith("###AR###"):
+            if text.lines[0].body.strip().startswith("###ActRec_pref###"):
                 txt = texts.add()
                 txt.name = text.name
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         logger.info("Load Local Actions")
         if self.source == 'scene':
             data = json.loads(context.scene.ar.local)
@@ -260,8 +266,8 @@ class AR_OT_local_load(Operator):
                             macro[key.strip()] = eval(value.strip())
                         macros.append(macro)
                     data.append({'label': text.name, 'id': header['id'], 'macros': macros, 'icon': header['icon']})
-        functions.load_local_action(AR, data)
-        functions.local_runtime_save(AR, context.scene)
+        functions.load_local_action(ActRec_pref, data)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         self.cancel(context)
         return {"FINISHED"}
@@ -288,13 +294,13 @@ class AR_OT_local_selection_up(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions)
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        if AR.active_local_action_index - 1 >= 0:
-            AR.active_local_action_index = AR.active_local_action_index - 1
+        ActRec_pref = get_preferences(context)
+        if ActRec_pref.active_local_action_index - 1 >= 0:
+            ActRec_pref.active_local_action_index = ActRec_pref.active_local_action_index - 1
             context.area.tag_redraw()
         return{'FINISHED'}
 
@@ -305,13 +311,13 @@ class AR_OT_local_selection_down(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions)
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        if AR.active_local_action_index + 1 < len(AR.local_actions):
-            AR.active_local_action_index = AR.active_local_action_index + 1
+        ActRec_pref = get_preferences(context)
+        if ActRec_pref.active_local_action_index + 1 < len(ActRec_pref.local_actions):
+            ActRec_pref.active_local_action_index = ActRec_pref.active_local_action_index + 1
             context.area.tag_redraw()
         return{'FINISHED'}
 
@@ -326,19 +332,19 @@ class AR_OT_local_play(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.local_actions)
-            and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore)
-            and not AR.local_record_macros
+            len(ActRec_pref.local_actions)
+            and (len(ActRec_pref.local_actions[ActRec_pref.active_local_action_index].macros) or ignore)
+            and not ActRec_pref.local_record_macros
         )
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        action = ActRec_pref.local_actions[index]
         err = functions.play(context.copy(), action.macros, action, 'local_actions')
         if err:
             self.report({'ERROR'}, str(err))
@@ -355,15 +361,15 @@ class AR_OT_local_record(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return len(AR.local_actions)
+        ActRec_pref = get_preferences(context)
+        return len(ActRec_pref.local_actions)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.local_record_macros = not AR.local_record_macros
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        if AR.local_record_macros:  # start recording
-            action = AR.local_actions[index]
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.local_record_macros = not ActRec_pref.local_record_macros
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        if ActRec_pref.local_record_macros:  # start recording
+            action = ActRec_pref.local_actions[index]
             self.id = action.id
             self.index = index
             self.record_start_index = functions.get_report_text(context).count('\n')
@@ -437,12 +443,12 @@ class AR_OT_local_record(shared.Id_based, Operator):
             context = bpy.context
 
             error_reports = []
-            action = AR.local_actions[index]
+            action = ActRec_pref.local_actions[index]
             for report in data:
-                functions.add_report_as_macro(context, AR, action, report, error_reports)
+                functions.add_report_as_macro(context, ActRec_pref, action, report, error_reports)
             if error_reports:
                 self.report({'ERROR'}, "Not all reports could be added added:\n%s" % "\n".join(error_reports))
-            functions.local_runtime_save(AR, bpy.context.scene)
+            functions.local_runtime_save(ActRec_pref, bpy.context.scene)
             functions.local_action_to_text(action)
             context.area.tag_redraw()
             self.clear()
@@ -450,8 +456,8 @@ class AR_OT_local_record(shared.Id_based, Operator):
 
     @classmethod
     def description(cls, context, properties):
-        AR = context.preferences.addons[__module__].preferences
-        if AR.local_record_macros:
+        ActRec_pref = get_preferences(context)
+        if ActRec_pref.local_record_macros:
             return "Stops Recording the Macros"
         return "Starts Recording the Macros"
 
@@ -461,26 +467,26 @@ class AR_OT_local_icon(icon_manager.Icontable, shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return not AR.local_record_macros
+        ActRec_pref = get_preferences(context)
+        return not ActRec_pref.local_record_macros
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        AR.local_actions[self.id].icon = AR.selected_icon
-        AR.selected_icon = 0  # Icon: NONE
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.local_actions[self.id].icon = ActRec_pref.selected_icon
+        ActRec_pref.selected_icon = 0  # Icon: NONE
         self.reuse = False
-        functions.local_runtime_save(AR, context.scene)
+        functions.local_runtime_save(ActRec_pref, context.scene)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        action = AR.local_actions[index]
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        action = ActRec_pref.local_actions[index]
         self.id = action.id
         if not self.reuse:
-            AR.selected_icon = action.icon
+            ActRec_pref.selected_icon = action.icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
 
@@ -494,20 +500,20 @@ class AR_OT_local_clear(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.local_actions)
-            and (len(AR.local_actions[AR.active_local_action_index].macros) or ignore)
-            and not AR.local_record_macros
+            len(ActRec_pref.local_actions)
+            and (len(ActRec_pref.local_actions[ActRec_pref.active_local_action_index].macros) or ignore)
+            and not ActRec_pref.local_record_macros
         )
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        index = functions.get_local_action_index(AR, self.id, self.index)
-        AR.local_actions[index].macros.clear()
-        functions.local_runtime_save(AR, context.scene)
+        ActRec_pref = get_preferences(context)
+        index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
+        ActRec_pref.local_actions[index].macros.clear()
+        functions.local_runtime_save(ActRec_pref, context.scene)
         bpy.context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}

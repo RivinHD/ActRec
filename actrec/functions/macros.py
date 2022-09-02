@@ -12,9 +12,9 @@ from bpy.app.handlers import persistent
 from . import shared
 from .. import shared_data
 from ..log import logger
+from .shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Functions
 
@@ -98,12 +98,12 @@ def track_scene(dummy: bpy.types.Scene = None):
         dummy (bpy.types.Scene, optional): unused. Defaults to None.
     """
     context = bpy.context
-    AR = context.preferences.addons[__module__].preferences
+    ActRec_pref = get_preferences(context)
     operators = context.window_manager.operators
     length = len(operators)
     if length:
-        if length > AR.operators_list_length:
-            AR.operators_list_length = length
+        if length > ActRec_pref.operators_list_length:
+            ActRec_pref.operators_list_length = length
             op = operators[-1]
             shared_data.tracked_actions.append(
                 ['REGISTER' in op.bl_options, 'UNDO' in op.bl_options, op.bl_idname, operator_to_dict(op)]
@@ -132,7 +132,7 @@ def track_scene(dummy: bpy.types.Scene = None):
                 else:
                     shared_data.tracked_actions.append([True, True, "CONTEXT", 1])
     else:
-        AR.operators_list_length = 0
+        ActRec_pref.operators_list_length = 0
 
 
 def get_report_text(context: bpy.types.Context) -> str:
@@ -349,7 +349,7 @@ def merge_report_tracked(reports: list, tracked_actions: list) -> list[tuple]:
 
 def add_report_as_macro(
         context: bpy.types.Context,
-        AR: bpy.types.AddonPreferences,
+        ActRec_pref: bpy.types.AddonPreferences,
         action: 'AR_local_action',
         report: str,
         error_reports: list,
@@ -359,7 +359,7 @@ def add_report_as_macro(
 
     Args:
         context (bpy.types.Context): active blender context
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         action (AR_local_action): action to add macro to
         report (str): report to add as macro
         error_reports (list): error_report to add report if it doesn't match the pattern
@@ -369,8 +369,8 @@ def add_report_as_macro(
         macro = action.macros.add()
         label = shared.get_name_of_command(context, report)
         macro.id
-        macro.label = AR.last_macro_label = label if label else report
-        macro.command = AR.last_macro_command = report
+        macro.label = ActRec_pref.last_macro_label = label if label else report
+        macro.command = ActRec_pref.last_macro_command = report
         macro.ui_type = ui_type
         action.active_macro_index = -1
     else:

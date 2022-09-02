@@ -45,6 +45,6 @@
     ]
 }
 
-// AR (bpy.types.Preferences): Blender preferences of this addon
+// ActRec_pref (bpy.types.Preferences): preferences of this addon
 // context (bpy.types.Context): active blender context
 // default Blender property getter

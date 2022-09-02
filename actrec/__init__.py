@@ -10,17 +10,16 @@ from bpy.props import PointerProperty
 # relative imports
 # unused import needed to give direct access to the modules
 from . import functions, menus, operators, panels, properties, ui_functions, uilist
-from . import config, icon_manager, keymap, log, preferences, shared_data, update
+from . import config, icon_manager, keymap, log, preferences, update
+from .functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 
 @persistent
 def on_load(dummy=None):
     log.logger.info("Start: Load ActRec Data")
     context = bpy.context
-    AR = context.preferences.addons[__module__].preferences
+    ActRec_pref = get_preferences(context)
     # load local actions
     if bpy.data.filepath == "":
         context.scene.ar.local = "{}"
@@ -43,16 +42,16 @@ def on_load(dummy=None):
             context.scene.ar.local = json.dumps(data)
         except json.JSONDecodeError as err:
             log.logger.info("old scene-data couldn't be parsed (%s)" % err)
-    functions.load_local_action(AR, json.loads(context.scene.ar.local))
+    functions.load_local_action(ActRec_pref, json.loads(context.scene.ar.local))
     # update paths
-    AR.storage_path
-    AR.icon_path
-    functions.load(AR)
-    icon_manager.load_icons(AR)
+    ActRec_pref.storage_path
+    ActRec_pref.icon_path
+    functions.load(ActRec_pref)
+    icon_manager.load_icons(ActRec_pref)
 
-    functions.local_runtime_save(AR, None, False)
-    functions.global_runtime_save(AR, False)
-    functions.category_runtime_save(AR, False)
+    functions.local_runtime_save(ActRec_pref, None, False)
+    functions.global_runtime_save(ActRec_pref, False)
+    functions.category_runtime_save(ActRec_pref, False)
     log.logger.info("Finished: Load ActRec Data")
 
 # region Registration

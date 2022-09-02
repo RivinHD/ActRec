@@ -8,6 +8,8 @@ import os
 import sys
 import numpy
 import functools
+import ensurepip
+import subprocess
 
 # blender modules
 import bpy
@@ -327,8 +329,8 @@ def run_queued_macros(context_copy: dict, action_type: str, action_id: str, star
         action_id (str): id of the action with the macros to execute
         start (int): macros to start with in the macro collection
     """
-    AR = context_copy['preferences'].addons[__module__].preferences
-    action = getattr(AR, action_type)[action_id]
+    ActRec_pref = context_copy['preferences'].addons[__module__].preferences
+    action = getattr(ActRec_pref, action_type)[action_id]
     play(context_copy, action.macros[start:], action, action_type)
 
 
@@ -495,9 +497,9 @@ def execute_render_init(dummy: bpy.types.Scene = None):
         dummy (bpy.types.Scene, optional): unused. Defaults to None.
     """
     context = bpy.context
-    AR = context.preferences.addons[__module__].preferences
+    ActRec_pref = get_preferences(context)
     for action_type, action_id, start in shared_data.render_init_macros:
-        action = getattr(AR, action_type)[action_id]
+        action = getattr(ActRec_pref, action_type)[action_id]
         play(context.copy(), action.macros[start:], action, action_type)
 
 
@@ -512,9 +514,9 @@ def execute_render_complete(dummy=None):
         dummy (bpy.types.Scene, optional): unused. Defaults to None.
     """
     context = bpy.context
-    AR = context.preferences.addons[__module__].preferences
+    ActRec_pref = get_preferences(context)
     for action_type, action_id, start in shared_data.render_complete_macros:
-        action = getattr(AR, action_type)[action_id]
+        action = getattr(ActRec_pref, action_type)[action_id]
         play(context.copy(), action.macros[start:], action, action_type)
 
 
@@ -602,15 +604,72 @@ def text_to_lines(text: str, font: 'Font_analysis', limit: int, endcharacter: st
     return lines
 
 
-def enum_items_to_enum_prop_list(items: bpy.types.EnumProperty.enum_items) -> list[tuple]:
+def enum_items_to_enum_prop_list(items: bpy.types.CollectionProperty) -> list[tuple]:
     """
     converts enum items to an enum property list
 
     Args:
-        items (bpy.types.EnumProperty.enum_items): enum items to convert
+        items (enum_items): enum items to convert
 
     Returns:
         list[tuple]: list with elements of format (identifier, name, description, icon, value)
     """
     return [(item.identifier, item.name, item.description, item.icon, item.value) for item in items]
+
+
+def install_package(package_name: str) -> tuple[bool, str]:
+    """
+    install a package and ask for user permission if needed
+
+    Args:
+        package_name (str): name of the package
+
+    Returns:
+        tuple[bool, str]: (success, installation output)
+    """
+    ensurepip.bootstrap()
+    os.environ.pop("PIP_REQ_TRACKER", None)
+    path = "%s\\test_easy_package_installation" % os.path.dirname(sys.executable)
+    try:
+        # creates and removes dir to check for writing permission to this path
+        os.mkdir(path)
+        os.rmdir(path)
+        output = subprocess.check_output(
+            [sys.executable, '-m', 'pip', 'install', package_name, '--no-color']
+        ).decode('utf-8').replace("\r", "")
+        return (True, output)
+    except PermissionError as err:
+        if sys.platform == "win32":
+            logger.info("Need Admin Permissions to write to %s" % path)
+            logger.info("Try again to install fontTools as admin")
+            output = subprocess.check_output(
+                [sys.executable, '-m', 'pip', 'uninstall', '-y', package_name, '--no-color'],
+                stderr=subprocess.STDOUT
+            ).decode('utf-8').replace("\r", "")
+            logger.info(output)
+            output = subprocess.check_output(
+                ['powershell.exe', '-Command',
+                    """& { Start-Process \'%s\' -Wait -ArgumentList \'-m\',
+                    \'pip\', \'install\', \'%s\'-Verb RunAs}""" % (sys.executable, package_name)],
+                stderr=subprocess.STDOUT
+            ).decode('unicode_escape').replace("\r", "")
+            if output != '':
+                return (False, output)
+        else:
+            return (False, err)
+    except subprocess.CalledProcessError as err:
+        return (False, err.output)
+
+
+def get_preferences(context: bpy.types.Context) -> bpy.types.AddonPreferences:
+    """
+    get addon preferences of this addon, which are stored in Blender
+
+    Args:
+        context (bpy.types.Context): active blender context
+
+    Returns:
+        bpy.types.AddonPreferences: preferences of this addon
+    """
+    return context.preferences.addons[__module__].preferences
 # endregion

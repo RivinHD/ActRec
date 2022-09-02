@@ -9,9 +9,8 @@ from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolPrope
 
 # relative imports
 from .. import functions
+from ..functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 # region PropertyGroups
 
@@ -108,10 +107,10 @@ class AR_macro(Id_based, Alert_system, PropertyGroup):
         """
         if self.is_available:
             context = bpy.context
-            AR = context.preferences.addons[__module__].preferences
-            if not AR.local_record_macros:
+            ActRec_pref = get_preferences(context)
+            if not ActRec_pref.local_record_macros:
                 if self.get('active', True) != value:
-                    functions.local_runtime_save(AR, context.scene)
+                    functions.local_runtime_save(ActRec_pref, context.scene)
                 self['active'] = value
 
     def get_command(self) -> str:

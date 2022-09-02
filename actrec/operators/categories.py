@@ -10,9 +10,9 @@ from bpy.props import StringProperty, EnumProperty, IntProperty
 # relative imports
 from .. import functions, ui_functions
 from . import shared
+from ..functions.shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Operators
 
@@ -128,16 +128,16 @@ class AR_OT_category_interface(Operator):
 
     category_visibility = []
 
-    def apply_visibility(self, AR: bpy.types.AddonPreferences, category_visibility: list, id: str):
+    def apply_visibility(self, ActRec_pref: bpy.types.AddonPreferences, category_visibility: list, id: str):
         """
         applies visibility for the selected category
 
         Args:
-            AR (bpy.types.AddonPreferences): Blender preferences of this addon
+            ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
             category_visibility (list): list of pattern (area, mode) where the category should be visible
             id (str): id of the category to select
         """
-        category = AR.categories[id]
+        category = ActRec_pref.categories[id]
         visibility = defaultdict(list)
         for area, mode in category_visibility:
             visibility[area].append(mode)
@@ -190,13 +190,13 @@ class AR_OT_category_add(AR_OT_category_interface, Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        new = AR.categories.add()
-        new.label = functions.check_for_duplicates([c.label for c in AR.categories], self.label)
-        self.apply_visibility(AR, AR_OT_category_interface.category_visibility, new.id)
-        ui_functions.register_category(AR, len(AR.categories) - 1)
+        ActRec_pref = get_preferences(context)
+        new = ActRec_pref.categories.add()
+        new.label = functions.check_for_duplicates([c.label for c in ActRec_pref.categories], self.label)
+        self.apply_visibility(ActRec_pref, AR_OT_category_interface.category_visibility, new.id)
+        ui_functions.register_category(ActRec_pref, len(ActRec_pref.categories) - 1)
         context.area.tag_redraw()
-        functions.category_runtime_save(AR)
+        functions.category_runtime_save(ActRec_pref)
         return {"FINISHED"}
 
 
@@ -210,30 +210,35 @@ class AR_OT_category_edit(shared.Id_based, AR_OT_category_interface, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.categories)
-            and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
+            len(ActRec_pref.categories)
+            and (ignore
+                 or ui_functions.category_visible(
+                     ActRec_pref,
+                     context,
+                     ActRec_pref.categories[ActRec_pref.selected_category]
+                 ))
         )
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        AR = context.preferences.addons[__module__].preferences
-        id = self.id = functions.get_category_id(AR, self.id, self.index)
-        category = AR.categories.get(id, None)
+        ActRec_pref = get_preferences(context)
+        id = self.id = functions.get_category_id(ActRec_pref, self.id, self.index)
+        category = ActRec_pref.categories.get(id, None)
         if category:
-            AR_OT_category_interface.category_visibility = functions.read_category_visibility(AR, id)
+            AR_OT_category_interface.category_visibility = functions.read_category_visibility(ActRec_pref, id)
             return context.window_manager.invoke_props_dialog(self)
         return {'CANCELLED'}
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        category = AR.categories[self.id]
+        ActRec_pref = get_preferences(context)
+        category = ActRec_pref.categories[self.id]
         category.areas.clear()
         self.apply_visibility(
-            AR, AR_OT_category_interface.category_visibility, self.id)
-        functions.category_runtime_save(AR)
+            ActRec_pref, AR_OT_category_interface.category_visibility, self.id)
+        functions.category_runtime_save(ActRec_pref)
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
@@ -275,33 +280,38 @@ class AR_OT_category_delete(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.categories)
-            and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
+            len(ActRec_pref.categories)
+            and (ignore
+                 or ui_functions.category_visible(
+                     ActRec_pref,
+                     context,
+                     ActRec_pref.categories[ActRec_pref.selected_category]
+                 ))
         )
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        categories = AR.categories
-        id = functions.get_category_id(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
+        id = functions.get_category_id(ActRec_pref, self.id, self.index)
         self.clear()
         category = categories.get(id, None)
         if category:
             category = categories[id]
             for id_action in category.actions:
-                AR.global_actions.remove(AR.global_actions.find(id_action.id))
-            ui_functions.unregister_category(AR, len(categories) - 1)
+                ActRec_pref.global_actions.remove(ActRec_pref.global_actions.find(id_action.id))
+            ui_functions.unregister_category(ActRec_pref, len(categories) - 1)
             categories.remove(categories.find(id))
             if len(categories):
                 categories[0].selected = True
             context.area.tag_redraw()
-            functions.category_runtime_save(AR)
+            functions.category_runtime_save(ActRec_pref)
         return {"FINISHED"}
 
     def draw(self, context: bpy.types.Context):
@@ -319,31 +329,31 @@ class AR_OT_category_move_up(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
-        return len(AR.categories) and (ignore or ui_functions.category_visible(
-            AR, context, AR.categories[AR.selected_category]))
+        return len(ActRec_pref.categories) and (ignore or ui_functions.category_visible(
+            ActRec_pref, context, ActRec_pref.categories[ActRec_pref.selected_category]))
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        id = functions.get_category_id(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        id = functions.get_category_id(ActRec_pref, self.id, self.index)
         self.clear()
-        categories = AR.categories
+        categories = ActRec_pref.categories
         i = categories.find(id)
         y = i - 1
-        if i >= 0 and y >= 0 and ui_functions.category_visible(AR, context, categories[i]):
+        if i >= 0 and y >= 0 and ui_functions.category_visible(ActRec_pref, context, categories[i]):
             swap_category = categories[y]
             # get next visible category
-            while not ui_functions.category_visible(AR, context, swap_category):
+            while not ui_functions.category_visible(ActRec_pref, context, swap_category):
                 y -= 1
                 if y < 0:
                     return {"CANCELLED"}
                 swap_category = categories[y]
             functions.swap_collection_items(categories, i, y)
-            AR.categories[y].selected = True
+            ActRec_pref.categories[y].selected = True
             context.area.tag_redraw()
-            functions.category_runtime_save(AR)
+            functions.category_runtime_save(ActRec_pref)
             return {"FINISHED"}
         return {'CANCELLED'}
 
@@ -357,33 +367,38 @@ class AR_OT_category_move_down(shared.Id_based, Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         ignore = cls.ignore_selection
         cls.ignore_selection = False
         return (
-            len(AR.categories)
-            and (ignore or ui_functions.category_visible(AR, context, AR.categories[AR.selected_category]))
+            len(ActRec_pref.categories)
+            and (ignore
+                 or ui_functions.category_visible(
+                     ActRec_pref,
+                     context,
+                     ActRec_pref.categories[ActRec_pref.selected_category]
+                 ))
         )
 
     def execute(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
-        id = functions.get_category_id(AR, self.id, self.index)
+        ActRec_pref = get_preferences(context)
+        id = functions.get_category_id(ActRec_pref, self.id, self.index)
         self.clear()
-        categories = AR.categories
+        categories = ActRec_pref.categories
         i = categories.find(id)
         y = i + 1
-        if i >= 0 and y < len(categories) and ui_functions.category_visible(AR, context, categories[i]):
+        if i >= 0 and y < len(categories) and ui_functions.category_visible(ActRec_pref, context, categories[i]):
             swap_category = categories[y]
             # get next visible category
-            while not ui_functions.category_visible(AR, context, swap_category):
+            while not ui_functions.category_visible(ActRec_pref, context, swap_category):
                 y += 1
                 if y >= len(categories):
                     return {"CANCELLED"}
                 swap_category = categories[y]
             functions.swap_collection_items(categories, i, y)
-            AR.categories[y].selected = True
+            ActRec_pref.categories[y].selected = True
             context.area.tag_redraw()
-            functions.category_runtime_save(AR)
+            functions.category_runtime_save(ActRec_pref)
             return {"FINISHED"}
         return {'CANCELLED'}
 # endregion

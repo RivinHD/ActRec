@@ -12,26 +12,26 @@ from bpy.app.handlers import persistent
 from ..log import logger
 from .. import ui_functions, shared_data, keymap
 from . import shared
+from .shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Functions
 
 
-def global_runtime_save(AR: bpy.types.AddonPreferences, use_autosave: bool = True):
+def global_runtime_save(ActRec_pref: bpy.types.AddonPreferences, use_autosave: bool = True):
     """
     save global actions to the local temp (dict) while Blender is running
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         use_autosave (bool, optional):
             include autosave to storage file (depend on AddonPreference autosave).
             Defaults to True.
     """
-    shared_data.global_temp = shared.property_to_python(AR.global_actions)
-    if use_autosave and AR.autosave:
-        save(AR)
+    shared_data.global_temp = shared.property_to_python(ActRec_pref.global_actions)
+    if use_autosave and ActRec_pref.autosave:
+        save(ActRec_pref)
 
 
 @persistent
@@ -42,124 +42,124 @@ def global_runtime_load(dummy: bpy.types.Scene = None):
     Args:
         dummy (bpy.types.Scene, optional): unused. Defaults to None.
     """
-    AR = bpy.context.preferences.addons[__module__].preferences
-    AR.global_actions.clear()
+    ActRec_pref = get_preferences(bpy.context)
+    ActRec_pref.global_actions.clear()
     # needed otherwise all global actions get selected
-    AR["global_actions.selected_ids"] = []
+    ActRec_pref["global_actions.selected_ids"] = []
     # Writes data from global_temp (JSON format) to global_actions (Blender Property)
     for action in shared_data.global_temp:
-        shared.add_data_to_collection(AR.global_actions, action)
+        shared.add_data_to_collection(ActRec_pref.global_actions, action)
 
 
-def save(AR: bpy.types.AddonPreferences):
+def save(ActRec_pref: bpy.types.AddonPreferences):
     """
     save the global actions and categories to the storage file
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
     """
     data = {}
     data['categories'] = shared.property_to_python(
-        AR.categories,
+        ActRec_pref.categories,
         exclude=["name", "selected", "actions.name", "areas.name", "areas.modes.name"]
     )
     data['actions'] = shared.property_to_python(
-        AR.global_actions,
+        ActRec_pref.global_actions,
         exclude=["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"]
     )
-    with open(AR.storage_path, 'w', encoding='utf-8') as storage_file:
+    with open(ActRec_pref.storage_path, 'w', encoding='utf-8') as storage_file:
         json.dump(data, storage_file, ensure_ascii=False, indent=2)
     logger.info('saved global actions')
 
 
-def load(AR: bpy.types.AddonPreferences) -> bool:
+def load(ActRec_pref: bpy.types.AddonPreferences) -> bool:
     """
     load the global actions and categories from the storage file
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
 
     Returns:
         bool: success
     """
-    if os.path.exists(AR.storage_path):
-        with open(AR.storage_path, 'r', encoding='utf-8') as storage_file:
+    if os.path.exists(ActRec_pref.storage_path):
+        with open(ActRec_pref.storage_path, 'r', encoding='utf-8') as storage_file:
             text = storage_file.read()
             if not text:
                 text = "{}"
             data = json.loads(text)
         logger.info('load global actions')
         # cleanup
-        for i in range(len(AR.categories)):
-            ui_functions.unregister_category(AR, i)
-        AR.categories.clear()
-        AR.global_actions.clear()
+        for i in range(len(ActRec_pref.categories)):
+            ui_functions.unregister_category(ActRec_pref, i)
+        ActRec_pref.categories.clear()
+        ActRec_pref.global_actions.clear()
         # load data
         if data:
-            import_global_from_dict(AR, data)
+            import_global_from_dict(ActRec_pref, data)
             return True
     return False
 
 
-def import_global_from_dict(AR: bpy.types.AddonPreferences, data: dict):
+def import_global_from_dict(ActRec_pref: bpy.types.AddonPreferences, data: dict):
     """
     import the global actions and categories from a dict
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         data (dict): dict to use
     """
     value = data.get('categories', None)
     if value:
-        shared.apply_data_to_item(AR.categories, value)
+        shared.apply_data_to_item(ActRec_pref.categories, value)
     value = data.get('actions', None)
     if value:
-        shared.apply_data_to_item(AR.global_actions, value)
+        shared.apply_data_to_item(ActRec_pref.global_actions, value)
 
-    for i in range(len(AR.categories)):
-        ui_functions.register_category(AR, i)
-    if len(AR.categories):
-        AR.categories[0].selected = True
-    if len(AR.global_actions):
-        AR.global_actions[0].selected = True
+    for i in range(len(ActRec_pref.categories)):
+        ui_functions.register_category(ActRec_pref, i)
+    if len(ActRec_pref.categories):
+        ActRec_pref.categories[0].selected = True
+    if len(ActRec_pref.global_actions):
+        ActRec_pref.global_actions[0].selected = True
 
 
-def get_global_action_id(AR: bpy.types.AddonPreferences, id: str, index: int) -> Union[str, None]:
+def get_global_action_id(ActRec_pref: bpy.types.AddonPreferences, id: str, index: int) -> Union[str, None]:
     """
     get global action id based on id (check for existence) or index
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         id (str): id to check
         index (int): index of action
 
     Returns:
         Union[str, None]: str: action id; None: fail
     """
-    if AR.global_actions.find(id) == -1:
-        if index >= 0 and len(AR.global_actions) > index:
-            return AR.global_actions[index].id
+    if ActRec_pref.global_actions.find(id) == -1:
+        if index >= 0 and len(ActRec_pref.global_actions) > index:
+            return ActRec_pref.global_actions[index].id
         else:
             return None
     else:
         return id
 
 
-def get_global_action_ids(AR: bpy.types.AddonPreferences, id: str, index: int) -> list:
+def get_global_action_ids(ActRec_pref: bpy.types.AddonPreferences, id: str, index: int) -> list:
     """
     get global action is inside a list or selected global actions if not found
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         id (str): id to check
         index (int): index of action
 
     Returns:
         list: list with ids of actions
     """
-    id = get_global_action_id(AR, id, index)
+    id = get_global_action_id(ActRec_pref, id, index)
     if id is None:
-        return AR.get("global_actions.selected_ids", [])
+        return ActRec_pref.get("global_actions.selected_ids", [])
     return [id]
 
 

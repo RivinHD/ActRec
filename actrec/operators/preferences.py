@@ -12,9 +12,9 @@ from bpy_extras.io_utils import ExportHelper
 
 # relative imports
 from ..log import logger
+from ..functions.shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Operator
 
@@ -33,14 +33,14 @@ class AR_OT_preferences_directory_selector(Operator, ExportHelper):
     path_extension: StringProperty()
 
     def execute(self, context):
-        AR = bpy.context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(bpy.context)
         user_path = self.properties.filepath
         if(not os.path.isdir(user_path)):
             msg = "Please select a directory not a file\n" + user_path
             self.report({'ERROR'}, msg)
             return {'CANCELLED'}
-        AR = context.preferences.addons[__module__].preferences
-        setattr(AR, self.preference_name, os.path.join(user_path, self.path_extension))
+        ActRec_pref = get_preferences(context)
+        setattr(ActRec_pref, self.preference_name, os.path.join(user_path, self.path_extension))
         return {'FINISHED'}
 
 
@@ -54,8 +54,8 @@ class AR_OT_preferences_recover_directory(Operator):
     path_extension: StringProperty()
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
-        setattr(AR, self.preference_name, os.path.join(AR.addon_directory, self.path_extension))
+        ActRec_pref = get_preferences(context)
+        setattr(ActRec_pref, self.preference_name, os.path.join(ActRec_pref.addon_directory, self.path_extension))
         return {'FINISHED'}
 
 

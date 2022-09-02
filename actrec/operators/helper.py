@@ -4,7 +4,6 @@ import bpy
 from bpy.types import Operator
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # Why Helper Operator?
 # Helper Operator are used to mimic Operator that are executed on an object or need specific user interaction to work

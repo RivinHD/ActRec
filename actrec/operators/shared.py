@@ -5,7 +5,6 @@ from bpy.types import Operator
 from bpy.props import StringProperty, IntProperty
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Operators
 

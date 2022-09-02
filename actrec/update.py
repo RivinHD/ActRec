@@ -20,7 +20,9 @@ from bpy.app.handlers import persistent
 # relative imports
 from . import config
 from .log import logger
+from .functions.shared import get_preferences
 # endregion
+
 
 __module__ = __package__.split(".")[0]
 
@@ -47,8 +49,8 @@ def on_start(dummy: bpy.types.Scene = None):
         dummy (bpy.types.Scene, optional):
         needed because blender handler inputs the scene as argument for a handler function. Defaults to None.
     """
-    AR = bpy.context.preferences.addons[__module__].preferences
-    if AR.auto_update and Update_manager.version_file_thread is None:
+    ActRec_pref = get_preferences(bpy.context)
+    if ActRec_pref.auto_update and Update_manager.version_file_thread is None:
         t = threading.Thread(target=no_stream_download_version_file, args=[__module__], daemon=True)
         t.start()
         Update_manager.version_file_thread = t
@@ -94,13 +96,13 @@ def check_for_update(version_file: Optional[dict]) -> tuple[bool, Union[str, tup
 
 
 def update(
-        AR: bpy.types.AddonPreferences, path: str, update_respond: Optional[requests.Response],
+        ActRec_pref: bpy.types.AddonPreferences, path: str, update_respond: Optional[requests.Response],
         download_chunks: dict, download_length: int) -> Optional[bool]:
     """
     runs the update process and shows the download process with a progress bar if possible
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         path (str): path to the file to update
         update_respond (Optional[requests.Response]): open response to file,
         needed if file is to large to download in one function call (chunk size 1024)
@@ -136,7 +138,7 @@ def update(
         else:
             Update_manager.update_respond = requests.get(
                 config.repo_source_url % path, stream=True)
-        AR.update_progress = 100 * (progress / (length * download_length) + (
+        ActRec_pref.update_progress = 100 * (progress / (length * download_length) + (
             download_length - len(Update_manager.download_list)) / download_length)
         if finished_downloaded:
             Update_manager.download_list.pop(0)
@@ -146,32 +148,32 @@ def update(
         return None
 
 
-def install_update(AR: bpy.types.AddonPreferences, download_chunks: dict, version_file: dict):
+def install_update(ActRec_pref: bpy.types.AddonPreferences, download_chunks: dict, version_file: dict):
     """
     installs all downloaded files successively and removes old files if needed
     + cleans up all unused data
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         download_chunks (dict): contains all downloaded files and their data
         version_file (dict): contains data about the addon version, the version of each file and the open request
     """
     for path in download_chunks:
-        absolute_path = os.path.join(AR.addon_directory, path)
+        absolute_path = os.path.join(ActRec_pref.addon_directory, path)
         absolute_directory = os.path.dirname(absolute_path)
         if not os.path.exists(absolute_directory):
             os.makedirs(absolute_directory)
         with open(absolute_path, 'w', encoding='utf-8') as ar_file:
             ar_file.write(download_chunks[path]["chunks"].decode('utf-8'))
     for path in version_file['remove']:
-        remove_path = os.path.join(AR.addon_directory, path)
+        remove_path = os.path.join(ActRec_pref.addon_directory, path)
         if os.path.exists(remove_path):
             for root, dirs, files in os.walk(remove_path, topdown=False):
                 for name in files:
                     os.remove(os.path.join(root, name))
                 for name in dirs:
                     os.rmdir(os.path.join(root, name))
-    version = tuple(AR.version.split("."))
+    version = tuple(ActRec_pref.version.split("."))
     download_chunks.clear()
     version_file.clear()
     logger.info("Updated Action Recorder to Version: %s" % str(version))
@@ -231,27 +233,27 @@ def get_version_file(res: requests.Response) -> Union[bool, dict, None]:
 
 
 def apply_version_file_result(
-        AR: bpy.types.AddonPreferences, version_file: dict, update: tuple[bool, Union[tuple, str]]):
+        ActRec_pref: bpy.types.AddonPreferences, version_file: dict, update: tuple[bool, Union[tuple, str]]):
     """
     updates the version in the addon preferences if needed and closes the open request from version file
 
     Args:
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         version_file (dict): contains data about the addon version, the version of each file and the open request
         update (tuple[bool, Union[tuple, str]]):
         [0] update is available;
         [1] version of the addon in str or tuple format
     """
-    AR.update = update[0]
+    ActRec_pref.update = update[0]
     if not update[0]:
         res = version_file.get('respond')
         if res:
             res.close()
         version_file.clear()
     if isinstance(update[1], str):
-        AR.version = update[1]
+        ActRec_pref.version = update[1]
     else:
-        AR.version = ".".join(map(str, update[1]))
+        ActRec_pref.version = ".".join(map(str, update[1]))
 
 
 def get_download_list(version_file: dict) -> Optional[list]:
@@ -291,8 +293,8 @@ def no_stream_download_version_file(module_name: str):
         Update_manager.version_file = json.loads(res.content)
         version_file = Update_manager.version_file
         update = check_for_update(version_file)
-        AR = bpy.context.preferences.addons[module_name].preferences
-        apply_version_file_result(AR, version_file, update)
+        ActRec_pref = bpy.context.preferences.addons[module_name].preferences
+        apply_version_file_result(ActRec_pref, version_file, update)
     except Exception as err:
         logger.warning("no Connection (%s)" % err)
 # endregion functions
@@ -300,18 +302,18 @@ def no_stream_download_version_file(module_name: str):
 # region UI functions
 
 
-def draw_update_button(layout: bpy.types.UILayout, AR: bpy.types.AddonPreferences):
+def draw_update_button(layout: bpy.types.UILayout, ActRec_pref: bpy.types.AddonPreferences):
     """
     draws the update button and show a progressbar when files get downloaded
 
     Args:
         layout (bpy.types.UILayout): context where to draw the button
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
     """
-    if AR.update_progress >= 0:
+    if ActRec_pref.update_progress >= 0:
         row = layout.row()
         row.enabled = False
-        row.prop(AR, 'update_progress', text="Progress", slider=True)
+        row.prop(ActRec_pref, 'update_progress', text="Progress", slider=True)
     else:
         layout.operator('ar.update', text='Update')
 # endregion
@@ -347,8 +349,8 @@ class AR_OT_update_check(Operator):
         if version_file.get('respond'):
             return {'RUNNING_MODAL'}
         update = check_for_update(version_file)
-        AR = context.preferences.addons[__module__].preferences
-        apply_version_file_result(AR, version_file, update)
+        ActRec_pref = get_preferences(context)
+        apply_version_file_result(ActRec_pref, version_file, update)
         context.window_manager.event_timer_remove(self.timer)
         return {"FINISHED"}
 
@@ -368,8 +370,8 @@ class AR_OT_update(Operator):
 
     @classmethod
     def poll(cls, context):
-        AR = context.preferences.addons[__module__].preferences
-        return AR.update
+        ActRec_pref = get_preferences(context)
+        return ActRec_pref.update
 
     def invoke(self, context, event):
         Update_manager.download_list = get_download_list(
@@ -384,9 +386,9 @@ class AR_OT_update(Operator):
         if not len(Update_manager.download_list):
             return self.execute(context)
 
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         path = Update_manager.download_list[0]
-        res = update(AR, path, Update_manager.update_respond,
+        res = update(ActRec_pref, path, Update_manager.update_respond,
                      Update_manager.update_data_chunks, Update_manager.download_length)
 
         if res is None:
@@ -399,12 +401,12 @@ class AR_OT_update(Operator):
     def execute(self, context):
         if not(Update_manager.version_file and Update_manager.update_data_chunks):
             return {'CANCELLED'}
-        AR = context.preferences.addons[__module__].preferences
-        AR.update = False
-        AR.restart = True
-        install_update(AR, Update_manager.update_data_chunks,
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.update = False
+        ActRec_pref.restart = True
+        install_update(ActRec_pref, Update_manager.update_data_chunks,
                        Update_manager.version_file)
-        AR.update_progress = -1
+        ActRec_pref.update_progress = -1
         self.cancel(context)
         bpy.ops.ar.show_restart_menu('INVOKE_DEFAULT')
         context.area.tag_redraw()
@@ -439,7 +441,7 @@ class AR_OT_restart(Operator, ExportHelper):
             return self.execute(context)
 
     def execute(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         path = bpy.data.filepath
         if self.save:
             if not path:
@@ -447,7 +449,7 @@ class AR_OT_restart(Operator, ExportHelper):
                 if not path:
                     return ExportHelper.invoke(self, context, None)
             bpy.ops.wm.save_mainfile(filepath=path)
-        AR.restart = False
+        ActRec_pref.restart = False
         if os.path.exists(path):
             args = [*sys.argv, path]
         else:
@@ -485,9 +487,9 @@ class AR_OT_show_restart_menu(Operator):
         bpy.ops.ar.show_restart_menu("INVOKE_DEFAULT")
 
     def draw(self, context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         layout = self.layout
-        if AR.restart:
+        if ActRec_pref.restart:
             layout.label(
                 text="You need to restart Blender to complete the Update")
         layout.prop(self, 'restart_options', expand=True)

@@ -7,16 +7,16 @@ import bpy
 # region UI functions
 
 
-def draw_global_action(layout: bpy.types.UILayout, AR: bpy.types.AddonPreferences, id: str):
+def draw_global_action(layout: bpy.types.UILayout, ActRec_pref: bpy.types.AddonPreferences, id: str):
     """
     draws row of global action button.
 
     Args:
         layout (bpy.types.UILayout): UI context of Blender
-        AR (bpy.types.AddonPreferences): Blender preferences of this addon
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
         id (str): UUID of the action, use action.id the get the UUID
     """
-    action = AR.global_actions[id]
+    action = ActRec_pref.global_actions[id]
     row = layout.row(align=True)
     row.alert = action.alert
     row.prop(action, 'selected', toggle=1,

@@ -6,9 +6,8 @@ from bpy.props import BoolProperty, StringProperty, CollectionProperty
 
 # relative imports
 from . import shared
+from ..functions.shared import get_preferences
 # endregion
-
-__module__ = __package__.split(".")[0]
 
 # region PropertyGroups
 
@@ -68,13 +67,13 @@ class AR_category(shared.Id_based, PropertyGroup):
         Args:
             value (bool): state of category
         """
-        AR = bpy.context.preferences.addons[__module__].preferences
-        selected_id = AR.get("categories.selected_id", "")
+        ActRec_pref = get_preferences(bpy.context)
+        selected_id = ActRec_pref.get("categories.selected_id", "")
         # implementation similar to a UIList (only one selection of all can be active)
         if value:
-            AR["categories.selected_id"] = self.id
+            ActRec_pref["categories.selected_id"] = self.id
             self['selected'] = value
-            category = AR.categories.get(selected_id, None)
+            category = ActRec_pref.categories.get(selected_id, None)
             if category:
                 category.selected = False
         elif selected_id != self.id:

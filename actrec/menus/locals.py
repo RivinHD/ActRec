@@ -8,9 +8,9 @@ from bpy.types import Menu
 
 # relative imports
 from .. import keymap
+from ..functions.shared import get_preferences
 # endregion
 
-__module__ = __package__.split(".")[0]
 
 # region Menus
 
@@ -20,9 +20,9 @@ class AR_MT_action_pie(Menu):
     bl_label = "ActRec Pie Menu"
 
     def draw(self, context: bpy.types.Context):
-        AR = context.preferences.addons[__module__].preferences
+        ActRec_pref = get_preferences(context)
         pie = self.layout.menu_pie()
-        actions = AR.local_actions
+        actions = ActRec_pref.local_actions
         for i in range(len(actions)):
             if i >= 8:
                 break
