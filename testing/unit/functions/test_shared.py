@@ -59,7 +59,7 @@ def test_add_data_to_collection(collection, data):
     name = data['name']
     index = collection.find(name)
     shared.add_data_to_collection(collection, data)
-    print(collection[1].name)
+    print(collection[0].name)
     assert (
         length + 1 == len(collection)
         and index != -1
