@@ -1,10 +1,4 @@
-import bpy
-from ActRec.actrec.functions.shared import get_preferences
-from ActRec.actrec import preferences
-from ActRec.actrec import properties
-
-
-class pref():
+class preferences():
     addon_directory: str
     preference_tab: str
     icon_path: str
@@ -34,18 +28,3 @@ class pref():
     categories: list
     selected_category: str
     show_all_categories: bool
-
-
-def get_pref():
-    print(bpy.context.preferences.addons.keys())
-    try_register(properties.register)
-    try_register(preferences.register)
-    print(bpy.context.preferences.addons.keys())
-    return get_preferences(bpy.context)
-
-
-def try_register(func):
-    try:
-        func()
-    except(Exception) as err:
-        print(err)

@@ -74,7 +74,7 @@ def get_pointer_property_as_dict(property: bpy.types.PointerProperty, exclude: l
         else:
             main_exclude.append(prop[0])
     main_exclude = set(main_exclude)
-    for attr in property.bl_rna.properties[1:]:
+    for attr in property.bl_rna.properties[1:]:  # exclude rna_type
         identifier = attr.identifier
         if identifier not in main_exclude:
             data[identifier] = property_to_python(
