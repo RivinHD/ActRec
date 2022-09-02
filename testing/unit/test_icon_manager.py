@@ -28,11 +28,10 @@ def test_get_icons_names():
 @pytest.fixture(scope='session')
 def preview():
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new()
-    yield icon_manager.preview_collections['ar_custom']
+    yield
     bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
 
 
-@pytest.mark.usefixtures('preview')
 @pytest.mark.parametrize(
     "file, name, only_new, success",
     [
@@ -50,9 +49,8 @@ def test_load_icon(file, name, only_new, success):
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
     pref = helper.preferences()  # AddonPreferences can not be created
     pref.icon_path = os.path.dirname(__file__)
-    preview  # load preview
     icon_manager.load_icon(pref, path, only_new)
-    assert (name in list(preview)) == success
+    assert (name in list(icon_manager.preview_collections['ar_custom'])) == success
 
 
 if __name__ == "__main__":
