@@ -50,7 +50,7 @@ def adti_data(request):
                             'tab_search_results':
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
-                             'search_filter': '', 'outliner_sync': 'AUTO'})],
+                            'search_filter': '', 'outliner_sync': 'AUTO'})],
                          indirect=True
                          )
 def test_apply_data_to_item(adti_data, data):
