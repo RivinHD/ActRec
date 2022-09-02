@@ -25,6 +25,13 @@ def test_get_icons_names():
     assert 'NONE' not in icon_manager.get_icons_names()
 
 
+@pytest.fixture()
+def preview():
+    icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new() 
+    yield icon_manager.preview_collections['ar_custom']
+    bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
+    
+
 @pytest.mark.parametrize(
     "file, name, only_new, success",
     [
@@ -38,14 +45,12 @@ def test_get_icons_names():
 def test_load_icon(file, name, only_new, success):
     # include register_icon testing
     # don't know why preview couldn't be registered, therefore manual
-    icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new() 
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
     pref = helper.preferences()  # AddonPreferences can not be created
     pref.icon_path = os.path.dirname(__file__)
     icon_manager.load_icon(pref, path, only_new)
-    assert (name in list(icon_manager.preview_collections['ar_custom'])) == success
-    bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
+    assert (name in list(preview)) == success
 
 
 if __name__ == "__main__":
