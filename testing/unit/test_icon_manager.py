@@ -2,6 +2,7 @@ import pytest
 from ActRec.actrec import icon_manager
 import os
 from preference_helper import preferences
+import bpy
 
 """
 @pytest.mark.parametrize(
@@ -37,7 +38,8 @@ def test_get_icons_names():
 )
 def test_load_icon(file, name, only_new, success):
     # include register_icon testing
-    icon_manager.register()
+    # don't know why preview couldn't be registered, therefore manual
+    icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new() 
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
     pref = preferences()  # bpy.context is not reliable
