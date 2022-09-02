@@ -30,8 +30,9 @@ def test_check_for_duplicates(check_list, name, output):
                             'search_filter': '', 'outliner_sync': 'AUTO'})]
                          )
 def test_property_to_python(property_str, exclude, output):
-    property = eval(property_str)
-    assert shared.property_to_python(property, exclude) == output
+    #property = eval(property_str)
+    assert shared.property_to_python(
+        bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0], exclude) == output
 
 
 @pytest.mark.parametrize("property_str, data",
