@@ -55,8 +55,8 @@ class TEST_OT_test_pref(bpy.types.Operator):
 
 
 def register():
-    bpy.utils.register_class(get_Pref)
+    bpy.utils.register_class(TEST_OT_test_pref)
 
 
 def unregister():
-    bpy.utils.unregister_class(get_Pref)
+    bpy.utils.unregister_class(TEST_OT_test_pref)
