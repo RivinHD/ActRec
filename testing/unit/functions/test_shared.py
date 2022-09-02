@@ -33,7 +33,7 @@ def gppad_data(request):
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
                             'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=True)
+                         indirect=[gppad_data])
 def test_property_to_python(gppad_data, exclude, output):
     assert shared.property_to_python(gppad_data, exclude) == output
 
@@ -41,7 +41,6 @@ def test_property_to_python(gppad_data, exclude, output):
 @pytest.fixture
 def adti_data(request):
     return [bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]][request.param]
-
 
 @pytest.mark.parametrize("adti_data, data",
                          [(0,
@@ -51,7 +50,7 @@ def adti_data(request):
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
                             'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=True
+                         indirect=[adti_data]
                          )
 def test_apply_data_to_item(adti_data, data):
     shared.apply_data_to_item(adti_data, data)
@@ -65,7 +64,7 @@ def adtoc_data(request):
 
 @pytest.mark.parametrize("adtoc_data, data",
                          [(0, {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
-                         indirect=True
+                         indirect=[adtoc_data]
                          )
 def test_add_data_to_collection(adtoc_data, data):
     length = len(adtoc_data)
