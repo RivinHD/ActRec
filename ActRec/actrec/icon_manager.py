@@ -53,8 +53,10 @@ def load_icons(ActRec_pref: bpy.types.Preferences):
     for icon in os.listdir(directory):
         filepath = os.path.join(directory, icon)
         if os.path.exists(filepath) and os.path.isfile(filepath):
-            register_icon(preview_collections['ar_custom'], "AR_%s" % ".".join(
-                icon.split(".")[:-1]), filepath, True)
+            register_icon(
+                preview_collections['ar_custom'],
+                "AR_%s" % ".".join(icon.split(".")[:-1]), filepath, True
+            )
 
 
 def load_icon(ActRec_pref: bpy.types.Preferences, filepath: str, only_new: bool = False):
@@ -74,8 +76,7 @@ def load_icon(ActRec_pref: bpy.types.Preferences, filepath: str, only_new: bool 
     # image.name has format included
     internal_path = os.path.join(ActRec_pref.icon_path, image.name)
     image.save_render(internal_path)  # save Blender image to inside the icon folder
-    register_icon(preview_collections['ar_custom'],
-                  "AR_%s" % name, internal_path, only_new)
+    register_icon(preview_collections['ar_custom'], "AR_%s" % name, internal_path, only_new)
     bpy.data.images.remove(image)
 
 
@@ -248,8 +249,7 @@ class AR_OT_delete_custom_icon(Operator):
 
         icon_id: IntProperty()
         icon_name: StringProperty()
-        selected: BoolProperty(default=False, name='Select',
-                               get=get_selected, set=set_selected)
+        selected: BoolProperty(default=False, name='Select', get=get_selected, set=set_selected)
     icons: CollectionProperty(type=AR_icon)
     select_all: BoolProperty(
         name="All Icons", description="Select all Icons", get=get_select_all, set=set_select_all)
