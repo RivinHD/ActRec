@@ -42,6 +42,9 @@
         "--max-line-length",
         "120",
         "--experimental"
+    ],
+    "github-actions.workflows.pinned.workflows": [
+        ".github/workflows/unit_test_addon.yml"
     ]
 }
 

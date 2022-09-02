@@ -1,6 +1,6 @@
 import pytest
-from ...ActRec.actrec import icon_manager
-from ...ActRec.actrec.functions.shared import get_preferences
+from ActRec.actrec import icon_manager
+from ActRec.actrec.functions.shared import get_preferences
 import bpy
 import os
 
