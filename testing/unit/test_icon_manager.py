@@ -37,6 +37,7 @@ def test_get_icons_names():
 )
 def test_load_icon(file, name, only_new, success):
     # include register_icon testing
+    icon_manager.register()
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
     pref = preferences()  # bpy.context is not reliable
