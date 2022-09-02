@@ -38,4 +38,4 @@ jobs:
         run: pip install -r testing/requirements.txt
 
       - name: Test Blender ${{ matrix.blender-version }} x ${{ matrix.os}}
-        run: python testing\test_addon.py ActRec ${{ matrix.blender-version }} unit
+        run: python testing/test_addon.py ActRec ${{ matrix.blender-version }} unit
