@@ -1,3 +1,7 @@
+import bpy
+from ActRec.actrec.functions.shared import get_preferences
+
+
 class preferences():
     addon_directory: str
     preference_tab: str
@@ -28,3 +32,31 @@ class preferences():
     categories: list
     selected_category: str
     show_all_categories: bool
+
+
+def get_pref():
+    register()
+    bpy.ops.test.test_pref("INVOKE_DEFAULT")
+    pref = TEST_OT_test_pref.pref[0]
+    unregister()
+    return pref
+
+
+class TEST_OT_test_pref(bpy.types.Operator):
+    bl_idname = "test.test_pref"
+    bl_label = "Test PRef"
+    bl_options = {'INTERNAL'}
+
+    pref = ["pref"]
+
+    def execute(self, context):
+        TEST_OT_test_pref.pref[0] = get_preferences(context)
+        return {"FINISHED"}
+
+
+def register():
+    bpy.utils.register_class(get_Pref)
+
+
+def unregister():
+    bpy.utils.unregister_class(get_Pref)

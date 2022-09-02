@@ -208,9 +208,7 @@ class AR_OT_add_custom_icon(Operator, ImportHelper):
         ActRec_pref = get_preferences(context)
         # supported blender image formats https://docs.blender.org/manual/en/latest/files/media/image_formats.html
         if os.path.isfile(self.filepath) and self.filepath.lower().endswith(tuple(bpy.path.extensions_image)):
-            err = load_icon(ActRec_pref, self.filepath)
-            if err is not None:
-                self.report({'ERROR'}, err)
+            load_icon(ActRec_pref, self.filepath)
         else:
             self.report(
                 {'ERROR'}, 'The selected File is not an Image or an Image Format supported by Blender')

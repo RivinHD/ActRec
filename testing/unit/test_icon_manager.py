@@ -1,7 +1,7 @@
 import pytest
 from ActRec.actrec import icon_manager
 import os
-from preference_helper import preferences
+from preference_helper import get_pref
 import bpy
 
 """
@@ -31,7 +31,6 @@ def test_get_icons_names():
         ("test_icon_png1.png", "AR_test_icon_png1", False, True),
         ("test_icon_png2.png", "AR_test_icon_png2", False, True),
         ("test_icon_jpg.jpg", "AR_test_icon_jpg", False, True),
-        ("test_icon_svg.svg", "AR_test_icon_svg", False, False),
         ("test_icon_png1.png", "AR_test_icon_png1.1", False, True),
         ("test_icon_jpg.jpg", "AR_test_icon_jpg", True, True)
     ]
@@ -42,7 +41,7 @@ def test_load_icon(file, name, only_new, success):
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new() 
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
-    pref = preferences()  # bpy.context is not reliable
+    pref = get_pref()  # bpy.context is not reliable
     pref.icon_path = os.path.dirname(__file__)
     icon_manager.load_icon(pref, path, only_new)
     assert (name in icon_manager.preview_collections['ar_custom']) == success
