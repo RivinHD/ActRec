@@ -1,7 +1,7 @@
 import pytest
 from ActRec.actrec import icon_manager
 import os
-from preference_helper import preferences
+import helper
 import bpy
 
 """
@@ -41,7 +41,7 @@ def test_load_icon(file, name, only_new, success):
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new() 
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
-    pref = preferences()  # AddonPreferences can not be created
+    pref = helper.preferences()  # AddonPreferences can not be created
     pref.icon_path = os.path.dirname(__file__)
     icon_manager.load_icon(pref, path, only_new)
     assert (name in icon_manager.preview_collections['ar_custom']) == success
