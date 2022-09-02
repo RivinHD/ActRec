@@ -40,6 +40,7 @@ def get_pref():
     print(bpy.context.preferences.addons.keys())
     try_register(properties.register)
     try_register(preferences.register)
+    print(bpy.context.preferences.addons.keys())
     return get_preferences(bpy.context)
 
 
