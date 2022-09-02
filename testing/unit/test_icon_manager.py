@@ -1,9 +1,7 @@
 import pytest
 from ActRec.actrec import icon_manager
-from ActRec.actrec.functions.shared import get_preferences
-from ActRec.actrec.preferences import AR_preferences
-import bpy
 import os
+from .preference_helper import preferences
 
 """
 @pytest.mark.parametrize(
@@ -41,7 +39,7 @@ def test_load_icon(file, name, only_new, success):
     # include register_icon testing
     dirpath = "test_src_data\\icon_manager"
     path = os.path.join(os.path.dirname(__file__), dirpath, file)
-    pref = AR_preferences()  # bpy.context is not reliable
+    pref = preferences()  # bpy.context is not reliable
     pref.icon_path = os.path.dirname(__file__)
     icon_manager.load_icon(pref, path, only_new)
     assert (name in icon_manager.preview_collections['ar_custom']) == success
