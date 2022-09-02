@@ -16,28 +16,6 @@ from .shared import get_preferences
 # region functions
 
 
-def read_category_visibility(ActRec_pref: bpy.types.AddonPreferences, id: str) -> Optional[list]:
-    """
-    get all areas and modes where the category with the given id is visible
-
-    Args:
-        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
-        id (str): id of the category
-
-    Returns:
-        Optional[list]: dict on success, None on fail
-    """
-    visibility = []
-    category = ActRec_pref.categories.get(id, None)
-    if category:
-        for area in category.areas:
-            for mode in area.modes:
-                visibility.append((area.type, mode.type))
-            if len(area.modes) == 0:
-                visibility.append((area.type, 'all'))
-        return visibility
-
-
 def category_runtime_save(ActRec_pref: bpy.types.AddonPreferences, use_autosave: bool = True):
     """
      save categories to the local temp (dict) while Blender is running
@@ -87,4 +65,26 @@ def get_category_id(ActRec_pref: bpy.types.AddonPreferences, id: str, index: int
             return ActRec_pref.selected_category
     else:
         return id
+
+
+def read_category_visibility(ActRec_pref: bpy.types.AddonPreferences, id: str) -> Optional[list]:
+    """
+    get all areas and modes where the category with the given id is visible
+
+    Args:
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
+        id (str): id of the category
+
+    Returns:
+        Optional[list]: dict on success, None on fail
+    """
+    visibility = []
+    category = ActRec_pref.categories.get(id, None)
+    if category:
+        for area in category.areas:
+            for mode in area.modes:
+                visibility.append((area.type, mode.type))
+            if len(area.modes) == 0:
+                visibility.append((area.type, 'all'))
+        return visibility
 # endregion

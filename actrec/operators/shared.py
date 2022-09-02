@@ -14,13 +14,13 @@ class AR_OT_check_ctrl(Operator):
     bl_label = "Check Ctrl"
     bl_options = {'INTERNAL'}
 
-    def execute(self, context):
-        return {"FINISHED"}
-
     def invoke(self, context, event):
         if event.ctrl:
             return {"FINISHED"}
         return {"CANCELLED"}
+
+    def execute(self, context):
+        return {"FINISHED"}
 
 
 class Id_based(Operator):

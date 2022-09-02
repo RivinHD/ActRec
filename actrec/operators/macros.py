@@ -124,23 +124,11 @@ class AR_OT_macro_add(shared.Id_based, Operator):
                     bl_options = getattr(getattr(bpy.ops, ops_type), ops_name).bl_options
                     reports = [(1, "REGISTER" in bl_options, "UNDO" in bl_options, ops_type, ops_name, ops_values)]
 
-                # tries to recover more data of changed properties
-                # by creating a copy of former data and try to match and complete it with the active data
-                # not needed till now for operator but might be in the future
-                # now catch operators that won't work by simple call, because they need a specific selection
-                # this operators will be replaced by self written Operators with similar behavior
+                # catch operators that won't work with simple calls, because they need a specific selection
+                # these operators will be replaced by self written Operators with similar behavior
                 for bpy_type, register, undo, parent, name, value in reports:
-                    if not bpy.ops.ed.undo.poll():
-                        break
                     if register:
                         evaluation = functions.evaluate_operator(parent, name, value)
-
-                    if undo:
-                        bpy.ops.ed.undo()
-                        undo_count += 1
-                        context = bpy.context
-
-                    if register:
                         ret = functions.improve_operator_report(context, parent, name, value, evaluation)
                         if ret:
                             command = ret
@@ -214,6 +202,26 @@ class AR_OT_macro_add_event(shared.Id_based, Operator):
             self.object = context.object.name
         return context.window_manager.invoke_props_dialog(self)
 
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'type')
+        if self.type == 'Timer':
+            box = layout.box()
+            box.prop(self, 'time')
+        elif self.type == 'Loop':
+            box = layout.box()
+            box.prop(self, 'statement_type', text="Type")
+            box.separator()
+            if self.statement_type == 'python':
+                box.prop(self, 'python_statement')
+            else:
+                box.prop(self, 'start')
+                box.prop(self, 'end')
+                box.prop(self, 'step')
+        elif self.type == 'Select Object':
+            box = layout.box()
+            box.prop_search(self, 'object', context.view_layer, 'objects')
+
     def execute(self, context):
         ActRec_pref = get_preferences(context)
         index = functions.get_local_action_index(ActRec_pref, self.id, self.index)
@@ -255,26 +263,6 @@ class AR_OT_macro_add_event(shared.Id_based, Operator):
         context.area.tag_redraw()
         self.clear()
         return {"FINISHED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'type')
-        if self.type == 'Timer':
-            box = layout.box()
-            box.prop(self, 'time')
-        elif self.type == 'Loop':
-            box = layout.box()
-            box.prop(self, 'statement_type', text="Type")
-            box.separator()
-            if self.statement_type == 'python':
-                box.prop(self, 'python_statement')
-            else:
-                box.prop(self, 'start')
-                box.prop(self, 'end')
-                box.prop(self, 'step')
-        elif self.type == 'Select Object':
-            box = layout.box()
-            box.prop_search(self, 'object', context.view_layer, 'objects')
 
 
 class AR_OT_macro_remove(Macro_based, Operator):
@@ -609,21 +597,6 @@ class AR_OT_macro_edit(Macro_based, Operator):
         self.clear()
         return {"FINISHED"}
 
-    def execute(self, context):
-        ActRec_pref = get_preferences(context)
-        action = ActRec_pref.local_actions[self.action_index]
-        macro = action.macros[self.index]
-        if self.use_last_command:
-            macro.label = self.last_label
-            macro.command = self.last_command
-        else:
-            macro.label = self.label
-            macro.command = self.command
-        functions.local_runtime_save(ActRec_pref, context.scene)
-        context.area.tag_redraw()
-        self.cancel(context)
-        return {"FINISHED"}
-
     def draw(self, context):
         layout = self.layout
 
@@ -641,6 +614,21 @@ class AR_OT_macro_edit(Macro_based, Operator):
         row = layout.row().split(factor=0.65)
         row.prop(self, 'clear_operator', toggle=True)
         row.prop(self, 'use_last_command', toggle=True)
+
+    def execute(self, context):
+        ActRec_pref = get_preferences(context)
+        action = ActRec_pref.local_actions[self.action_index]
+        macro = action.macros[self.index]
+        if self.use_last_command:
+            macro.label = self.last_label
+            macro.command = self.last_command
+        else:
+            macro.label = self.label
+            macro.command = self.command
+        functions.local_runtime_save(ActRec_pref, context.scene)
+        context.area.tag_redraw()
+        self.cancel(context)
+        return {"FINISHED"}
 
     def cancel(self, context):
         self.edit = False

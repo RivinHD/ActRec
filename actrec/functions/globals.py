@@ -181,19 +181,6 @@ def add_empty_action_keymap(id: str) -> bpy.types.KeyMapItem:
     return kmi
 
 
-def is_action_keymap_empty(kmi: bpy.types.KeyMapItem) -> bool:
-    """
-    checks is the given keymapitem is empty
-
-    Args:
-        kmi (bpy.types.KeyMapItem): keymapitem to check
-
-    Returns:
-        bool: is empty
-    """
-    return kmi.type == "NONE"
-
-
 def get_action_keymap(id: str) -> Union[bpy.types.KeyMapItem, None]:
     """
     get the keymap of the action with the given id
@@ -209,6 +196,19 @@ def get_action_keymap(id: str) -> Union[bpy.types.KeyMapItem, None]:
         if kmi.idname == "ar.global_execute_action" and kmi.properties.id == id:
             return kmi
     return None
+
+
+def is_action_keymap_empty(kmi: bpy.types.KeyMapItem) -> bool:
+    """
+    checks is the given keymapitem is empty
+
+    Args:
+        kmi (bpy.types.KeyMapItem): keymapitem to check
+
+    Returns:
+        bool: is empty
+    """
+    return kmi.type == "NONE"
 
 
 def remove_action_keymap(id: str):

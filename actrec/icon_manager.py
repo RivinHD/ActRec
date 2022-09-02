@@ -30,7 +30,7 @@ def get_icons_values() -> list[int]:
             bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items.values()[1:]]
 
 
-def get_icons() -> list[str]:
+def get_icons_names() -> list[str]:
     """
     get all default icon of Blender as name except the icon 'NONE' (value: 0)
 
@@ -154,7 +154,7 @@ class Icontable(Operator):
         grid_flow = box.grid_flow(row_major=True, columns=35,
                                   even_columns=True, even_rows=True, align=True)
         icon_values = get_icons_values()
-        for i, icon_name in enumerate(get_icons()):
+        for i, icon_name in enumerate(get_icons_names()):
             human_name = icon_name.lower().replace("_", " ")
             if self.search == '' or self.search.lower() in human_name:
                 grid_flow.operator('ar.icon_selector', text="",

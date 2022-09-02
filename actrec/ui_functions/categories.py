@@ -25,28 +25,6 @@ space_mode_attribute = {
 # region Panel
 
 
-def register_category(ActRec_pref: bpy.types.AddonPreferences, index: int):
-    """
-    register a category based on the index in all spaces (panels.ui_space_types)
-
-    Args:
-        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
-        index (int): index of category to register
-    """
-    register_unregister_category(index)
-
-
-def unregister_category(ActRec_pref: bpy.types.AddonPreferences, index: int):
-    """
-    unregister a category based on the index in all spaces (panels.ui_space_types)
-
-    Args:
-        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
-        index (int): index of category to unregister
-    """
-    register_unregister_category(index, register=False)
-
-
 def category_visible(ActRec_pref: bpy.types.AddonPreferences,
                      context: bpy.types.Context,
                      category: 'AR_category') -> bool:
@@ -92,6 +70,28 @@ def get_visible_categories(ActRec_pref: bpy.types.AddonPreferences, context: bpy
         list[AR_category]: list of all visible categories
     """
     return [category for category in ActRec_pref.categories if category_visible(ActRec_pref, context, category)]
+
+
+def register_category(ActRec_pref: bpy.types.AddonPreferences, index: int):
+    """
+    register a category based on the index in all spaces (panels.ui_space_types)
+
+    Args:
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
+        index (int): index of category to register
+    """
+    register_unregister_category(index)
+
+
+def unregister_category(ActRec_pref: bpy.types.AddonPreferences, index: int):
+    """
+    unregister a category based on the index in all spaces (panels.ui_space_types)
+
+    Args:
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
+        index (int): index of category to unregister
+    """
+    register_unregister_category(index, register=False)
 
 
 def register_unregister_category(index: int, space_types: list[str] = panels.ui_space_types, register: bool = True):

@@ -479,16 +479,17 @@ def create_object_copy(context: bpy.types.Context, source_path: list, attribute:
     return data
 
 
-def check_object_report(obj: 'blender_object', copy_dict: dict, source_path: list, attribute: str, value
-                        ) -> Union[tuple, None]:
+def compare_object_report(obj: 'blender_object', copy_dict: dict, source_path: list, attribute: str, value
+                          ) -> Union[tuple, None]:
     """
-    check the copy dict values against the given obj
+    compare the copy dict values against the given obj
 
     Args:
-        obj (blender_object): object to check against
+        obj (blender_object): object to compare against
         copy_dict (dict): copy of an blender object
-        source_path (list): path to trace for deeper check, path from the context (excluded) to the attribute (excluded)
-        attribute (str): attribute to check
+        source_path (list): path to trace for deeper compare, 
+            path from the context (excluded) to the attribute (excluded)
+        attribute (str): attribute to compare
         value (any): value the return with
 
     Returns:
@@ -501,7 +502,7 @@ def check_object_report(obj: 'blender_object', copy_dict: dict, source_path: lis
     for key in copy_dict:
         if hasattr(obj, key):
             if isinstance(copy_dict[key], dict):
-                res = check_object_report(getattr(obj, key), copy_dict[key], [*source_path, key], attribute, value)
+                res = compare_object_report(getattr(obj, key), copy_dict[key], [*source_path, key], attribute, value)
                 if res:
                     return res
     return
@@ -527,7 +528,7 @@ def improve_context_report(context: bpy.types.Context, copy_dict: dict, source_p
         object_class = id_object.__class__
         res = [".".join(source_path), attribute, value]
     else:
-        res = check_object_report(id_object, copy_dict, source_path, attribute, value)
+        res = compare_object_report(id_object, copy_dict, source_path, attribute, value)
         if res:
             object_class, *res = res
         else:

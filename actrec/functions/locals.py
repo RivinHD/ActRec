@@ -55,27 +55,6 @@ def save_local_to_scene(ActRec_pref: bpy.types.AddonPreferences, scene: bpy.type
     scene.ar.local = json.dumps(shared.property_to_python(ActRec_pref.local_actions))
 
 
-def get_local_action_index(ActRec_pref: bpy.types.AddonPreferences, id: str, index: int) -> int:
-    """
-    get local action index based on the given id or index (checks if index is in range)
-
-    Args:
-        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
-        id (str): id to get index from
-        index (int): index for fallback
-
-    Returns:
-        int: valid index of a local actions or active local action index on fallback
-    """
-    action = ActRec_pref.local_actions.find(id)
-    if action == -1:
-        if index >= 0 and len(ActRec_pref.local_actions) > index:  # fallback to input index
-            action = index
-        else:
-            action = ActRec_pref.active_local_action_index  # fallback to selection
-    return action
-
-
 def load_local_action(ActRec_pref: bpy.types.AddonPreferences, data: list):
     """
     load the given data to the local actions
@@ -114,4 +93,27 @@ def local_action_to_text(action: 'AR_local_actions', text_name: str = None):
             )
         )
     )
+
+
+def get_local_action_index(ActRec_pref: bpy.types.AddonPreferences, id: str, index: int) -> int:
+    """
+    get local action index based on the given id or index (checks if index is in range)
+
+    Args:
+        ActRec_pref (bpy.types.AddonPreferences): preferences of this addon
+        id (str): id to get index from
+        index (int): index for fallback
+
+    Returns:
+        int: valid index of a local actions or active local action index on fallback
+    """
+    action = ActRec_pref.local_actions.find(id)
+    if action == -1:
+        if index >= 0 and len(ActRec_pref.local_actions) > index:  # fallback to input index
+            action = index
+        else:
+            action = ActRec_pref.active_local_action_index  # fallback to selection
+    return action
+
+
 # endregion

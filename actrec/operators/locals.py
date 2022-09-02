@@ -30,12 +30,28 @@ class AR_OT_local_to_global(Operator):
         ActRec_pref = get_preferences(context)
         return len(ActRec_pref.local_actions) and not ActRec_pref.local_record_macros
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        ActRec_pref = get_preferences(context)
+        categories = ActRec_pref.categories
+        layout = self.layout
+        if len(categories):
+            for category in categories:
+                layout.prop(category, 'selected', text=category.label)
+        else:
+            box = layout.box()
+            col = box.column()
+            col.scale_y = 0.9
+            col.label(text='Please add a category first', icon='INFO')
+            col.label(text='To do that, go to the advanced menu', icon='BLANK1')
+
     def local_to_global(
-        self,
-        ActRec_pref: bpy.types.Preferences,
-        category: 'AR_category',
-        action: 'AR_global_actions'
-    ) -> None:
+            self,
+            ActRec_pref: bpy.types.Preferences,
+            category: 'AR_category',
+            action: 'AR_global_actions') -> None:
         """
         copy the given local action to a global action
 
@@ -73,23 +89,6 @@ class AR_OT_local_to_global(Operator):
         functions.global_runtime_save(ActRec_pref, False)
         context.area.tag_redraw()
         return {"FINISHED"}
-
-    def draw(self, context):
-        ActRec_pref = get_preferences(context)
-        categories = ActRec_pref.categories
-        layout = self.layout
-        if len(categories):
-            for category in categories:
-                layout.prop(category, 'selected', text=category.label)
-        else:
-            box = layout.box()
-            col = box.column()
-            col.scale_y = 0.9
-            col.label(text='Please add a category first', icon='INFO')
-            col.label(text='To do that, go to the advanced menu', icon='BLANK1')
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
 
 
 class AR_OT_local_add(Operator):
@@ -237,6 +236,18 @@ class AR_OT_local_load(Operator):
                 txt.name = text.name
         return context.window_manager.invoke_props_dialog(self)
 
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'source', expand=True)
+        if self.source == 'text':
+            box = layout.box()
+            texts = [txt.name for txt in bpy.data.texts]
+            for text in self.texts:
+                if text.name in texts:
+                    row = box.row()
+                    row.label(text=text.name)
+                    row.prop(text, 'apply', text='')
+
     def execute(self, context):
         ActRec_pref = get_preferences(context)
         logger.info("Load Local Actions")
@@ -271,18 +282,6 @@ class AR_OT_local_load(Operator):
         context.area.tag_redraw()
         self.cancel(context)
         return {"FINISHED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'source', expand=True)
-        if self.source == 'text':
-            box = layout.box()
-            texts = [txt.name for txt in bpy.data.texts]
-            for text in self.texts:
-                if text.name in texts:
-                    row = box.row()
-                    row.label(text=text.name)
-                    row.prop(text, 'apply', text='')
 
     def cancel(self, context):
         self.texts.clear()
@@ -358,6 +357,13 @@ class AR_OT_local_record(shared.Id_based, Operator):
 
     ignore_selection = False
     record_start_index: IntProperty()
+
+    @classmethod
+    def description(cls, context, properties):
+        ActRec_pref = get_preferences(context)
+        if ActRec_pref.local_record_macros:
+            return "Stops Recording the Macros"
+        return "Starts Recording the Macros"
 
     @classmethod
     def poll(cls, context):
@@ -454,13 +460,6 @@ class AR_OT_local_record(shared.Id_based, Operator):
             self.clear()
         return {"FINISHED"}
 
-    @classmethod
-    def description(cls, context, properties):
-        ActRec_pref = get_preferences(context)
-        if ActRec_pref.local_record_macros:
-            return "Stops Recording the Macros"
-        return "Starts Recording the Macros"
-
 
 class AR_OT_local_icon(icon_manager.Icontable, shared.Id_based, Operator):
     bl_idname = "ar.local_icon"
@@ -469,16 +468,6 @@ class AR_OT_local_icon(icon_manager.Icontable, shared.Id_based, Operator):
     def poll(cls, context):
         ActRec_pref = get_preferences(context)
         return not ActRec_pref.local_record_macros
-
-    def execute(self, context):
-        ActRec_pref = get_preferences(context)
-        ActRec_pref.local_actions[self.id].icon = ActRec_pref.selected_icon
-        ActRec_pref.selected_icon = 0  # Icon: NONE
-        self.reuse = False
-        functions.local_runtime_save(ActRec_pref, context.scene)
-        context.area.tag_redraw()
-        self.clear()
-        return {"FINISHED"}
 
     def invoke(self, context, event):
         ActRec_pref = get_preferences(context)
@@ -489,6 +478,16 @@ class AR_OT_local_icon(icon_manager.Icontable, shared.Id_based, Operator):
             ActRec_pref.selected_icon = action.icon
         self.search = ''
         return context.window_manager.invoke_props_dialog(self, width=1000)
+
+    def execute(self, context):
+        ActRec_pref = get_preferences(context)
+        ActRec_pref.local_actions[self.id].icon = ActRec_pref.selected_icon
+        ActRec_pref.selected_icon = 0  # Icon: NONE
+        self.reuse = False
+        functions.local_runtime_save(ActRec_pref, context.scene)
+        context.area.tag_redraw()
+        self.clear()
+        return {"FINISHED"}
 
 
 class AR_OT_local_clear(shared.Id_based, Operator):

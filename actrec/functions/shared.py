@@ -48,7 +48,7 @@ def check_for_duplicates(check_list: list, name: str, num: int = 1) -> str:
     return name
 
 
-def get_pointer_as_dict(property: bpy.types.PointerProperty, exclude: list, depth: int) -> dict:
+def get_pointer_property_as_dict(property: bpy.types.PointerProperty, exclude: list, depth: int) -> dict:
     """
     converts a Blender PointerProperty to a python dict
     (used internal for property_to_python, pls use property_to_python to convert any Ble)
@@ -120,7 +120,7 @@ def property_to_python(property: bpy.types.Property, exclude: list = [], depth: 
         elif class_name == 'bpy_prop_collection':
             # CollectionProperty
             if hasattr(property, "bl_rna"):
-                data = get_pointer_as_dict(property, exclude, depth)
+                data = get_pointer_property_as_dict(property, exclude, depth)
                 data["items"] = [property_to_python(item, exclude, depth) for item in property]
                 return data
             else:
@@ -130,7 +130,7 @@ def property_to_python(property: bpy.types.Property, exclude: list = [], depth: 
             return [property_to_python(item, exclude, depth) for item in property]
         else:
             # PointerProperty
-            return get_pointer_as_dict(property, exclude, depth)
+            return get_pointer_property_as_dict(property, exclude, depth)
     return property
 
 
@@ -187,20 +187,6 @@ def insert_to_collection(collection: bpy.types.CollectionProperty, index: int, d
     collection.move(len(collection) - 1, index)
 
 
-def enum_list_id_to_name_dict(enum_list: list) -> dict:
-    """
-    converts an enum list, used in EnumProperties,
-    to a dict with the identifier as key and the corresponding name as value
-
-    Args:
-        enum_list (list): enum list to convert
-
-    Returns:
-        dict: created identifier to name dict
-    """
-    return {identifier: name for identifier, name, *tail in enum_list}
-
-
 def swap_collection_items(collection: bpy.types.CollectionProperty, index_1: int, index_2: int):
     """
     swaps to collection items
@@ -216,6 +202,33 @@ def swap_collection_items(collection: bpy.types.CollectionProperty, index_1: int
         index_1, index_2 = index_2, index_1
     collection.move(index_1, index_2)
     collection.move(index_2 + 1, index_1)
+
+
+def enum_list_id_to_name_dict(enum_list: list) -> dict:
+    """
+    converts an enum list, used in EnumProperties,
+    to a dict with the identifier as key and the corresponding name as value
+
+    Args:
+        enum_list (list): enum list to convert
+
+    Returns:
+        dict: created identifier to name dict
+    """
+    return {identifier: name for identifier, name, *tail in enum_list}
+
+
+def enum_items_to_enum_prop_list(items: bpy.types.CollectionProperty) -> list[tuple]:
+    """
+    converts enum items to an enum property list
+
+    Args:
+        items (enum_items): enum items to convert
+
+    Returns:
+        list[tuple]: list with elements of format (identifier, name, description, icon, value)
+    """
+    return [(item.identifier, item.name, item.description, item.icon, item.value) for item in items]
 
 
 def get_name_of_command(context: bpy.types.Context, command: str) -> Optional[str]:
@@ -602,19 +615,6 @@ def text_to_lines(text: str, font: 'Font_analysis', limit: int, endcharacter: st
     if(lines[0] == ""):
         lines.pop(0)
     return lines
-
-
-def enum_items_to_enum_prop_list(items: bpy.types.CollectionProperty) -> list[tuple]:
-    """
-    converts enum items to an enum property list
-
-    Args:
-        items (enum_items): enum items to convert
-
-    Returns:
-        list[tuple]: list with elements of format (identifier, name, description, icon, value)
-    """
-    return [(item.identifier, item.name, item.description, item.icon, item.value) for item in items]
 
 
 def install_package(package_name: str) -> tuple[bool, str]:
