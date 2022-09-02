@@ -26,16 +26,15 @@ def test_get_icons_names():
 
 
 @pytest.mark.parametrize(
-    ("file, name, only_new, success",
-        [
-            ("test_icon_png1.png", "AR_test_icon_png1", False, True),
-            ("test_icon_png2.png", "AR_test_icon_png2", False, True),
-            ("test_icon_jpg.jpg", "AR_test_icon_jpg", False, True),
-            ("test_icon_svg.svg", "AR_test_icon_svg", False, False),
-            ("test_icon_png1.png", "AR_test_icon_png1.1", False, True),
-            ("test_icon_jpg.jpg", "AR_test_icon_jpg", True, True)
-        ]
-     )
+    "file, name, only_new, success",
+    [
+        ("test_icon_png1.png", "AR_test_icon_png1", False, True),
+        ("test_icon_png2.png", "AR_test_icon_png2", False, True),
+        ("test_icon_jpg.jpg", "AR_test_icon_jpg", False, True),
+        ("test_icon_svg.svg", "AR_test_icon_svg", False, False),
+        ("test_icon_png1.png", "AR_test_icon_png1.1", False, True),
+        ("test_icon_jpg.jpg", "AR_test_icon_jpg", True, True)
+    ]
 )
 def test_load_icon(file, name, only_new, success):
     # include register_icon testing
