@@ -27,8 +27,8 @@ def test_check_for_duplicates(check_list, name, output):
                             'tab_search_results':
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
-                            'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=["gppad_data"])
+                            'search_filter': '', 'outliner_sync': 'AUTO'})]
+                         )
 def test_property_to_python(property, exclude, output):
     assert shared.property_to_python(property, exclude) == output
 
@@ -40,8 +40,7 @@ def test_property_to_python(property, exclude, output):
                             'tab_search_results':
                             (False, False, False, False, False, False, False, False, False, False, False, False, False,
                              False, False, False, False, False, False),
-                            'search_filter': '', 'outliner_sync': 'AUTO'})],
-                         indirect=["adti_data"]
+                            'search_filter': '', 'outliner_sync': 'AUTO'})]
                          )
 def test_apply_data_to_item(property, data):
     shared.apply_data_to_item(property, data)
@@ -50,8 +49,8 @@ def test_apply_data_to_item(property, data):
 
 @pytest.mark.parametrize("collection, data",
                          [(bpy.context.preferences.addons['cycles'].preferences.devices,
-                           {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})],
-                         indirect=["adtoc_data"])
+                           {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})]
+                         )
 def test_add_data_to_collection(collection, data):
     length = len(collection)
     name = data['name']
