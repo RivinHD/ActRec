@@ -57,9 +57,8 @@ def test_apply_data_to_item(property, data):
 def test_add_data_to_collection(collection, data):
     length = len(collection)
     name = data['name']
-    index = collection.find(name)
     shared.add_data_to_collection(collection, data)
-    print(collection[0].name)
+    index = collection.find(name)
     assert (
         length + 1 == len(collection)
         and index != -1
