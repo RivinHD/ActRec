@@ -27,12 +27,13 @@ def test_get_icons_names():
 
 @pytest.fixture(scope='session')
 def preview():
-    print("#"*50)
+    print("#" * 50)
     icon_manager.preview_collections['ar_custom'] = bpy.utils.previews.new()
     yield
     bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
 
 
+@pytest.mark.usefixtures(preview)
 @pytest.mark.parametrize(
     "file, name, only_new, success",
     [
