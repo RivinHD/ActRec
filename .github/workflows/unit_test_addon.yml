@@ -35,7 +35,7 @@ jobs:
           key: ${{ matrix.os }}-blender-${{ matrix.blender-version }}
 
       - name: Setup Environment
-        run: pip install -r testing\requirements.txt
+        run: pip install -r testing/requirements.txt
 
       - name: Test Blender ${{ matrix.blender-version }} x ${{ matrix.os}}
         run: python testing\test_addon.py ActRec ${{ matrix.blender-version }} unit
