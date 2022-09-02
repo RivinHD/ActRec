@@ -31,7 +31,7 @@ def test_get_icons_names():
         ("test_icon_png1.png", "AR_test_icon_png1", False, True),
         ("test_icon_png2.png", "AR_test_icon_png2", False, True),
         ("test_icon_jpg.jpg", "AR_test_icon_jpg", False, True),
-        ("test_icon_png1.png", "AR_test_icon_png1.1", False, True),
+        ("test_icon_png1.png", "AR_test_icon_png1.001", False, True),
         ("test_icon_jpg.jpg", "AR_test_icon_jpg", True, True)
     ]
 )
@@ -45,6 +45,7 @@ def test_load_icon(file, name, only_new, success):
     pref.icon_path = os.path.dirname(__file__)
     icon_manager.load_icon(pref, path, only_new)
     assert (name in icon_manager.preview_collections['ar_custom']) == success
+    bpy.utils.previews.remove(icon_manager.preview_collections['ar_custom'])
 
 
 if __name__ == "__main__":

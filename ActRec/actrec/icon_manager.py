@@ -12,6 +12,7 @@ from bpy_extras.io_utils import ImportHelper
 # relative imports
 from .log import logger
 from .functions.shared import get_preferences
+import .functions
 # endregion
 
 preview_collections = {}
@@ -93,18 +94,10 @@ def register_icon(preview_collection: bpy.utils.previews.ImagePreviewCollection,
         filepath (str): filepath to the image file
         only_new (bool): if icon is already register by name, it won't be registered again.
     """
-    try:
-        if only_new and not(name in preview_collection) or not only_new:
-            preview_collection.load(name, filepath, 'IMAGE', force_reload=True)
-            logger.info("Custom Icon <%s> registered" % name)
-    except Exception as err:
-        logger.info(err)
-        split = name.split('.')
-        if len(split) > 1 and split[-1].isnumeric():
-            name = "%s%s" % (".".join(split[:-1]), str(int(split[-1]) + 1))
-        else:
-            name = "%s.1" % name
-        register_icon(preview_collection, name, filepath)
+    if only_new and not(name in preview_collection) or not only_new:
+        name =functions.check_for_duplicates(preview_collection, name)   
+        preview_collection.load(name, filepath, 'IMAGE', force_reload=True)
+        logger.info("Custom Icon <%s> registered" % name)
 
 
 def unregister_icon(preview_collection: bpy.utils.previews.ImagePreviewCollection, name: str):
