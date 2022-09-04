@@ -54,28 +54,32 @@ def to_python_data(request):
                      "label": "Subdivision Set",
                      "command": "bpy.ops.object.subdivision_set(level=1, relative=False)",
                      "active": True,
-                     "icon": 0
+                     "icon": 0,
+                     "ui_type": ""
                  },
                  {
                      "id": "c7a40355164611ecb9cd70c94ef23b30",
                      "label": "Shade Smooth",
                      "command": "bpy.ops.object.shade_smooth()",
                      "active": True,
-                     "icon": 0
+                     "icon": 0,
+                     "ui_type": ""
                  },
                  {
                      "id": "c7a42aa4164611ecba6570c94ef23b30",
                      "label": "Auto Smooth = True",
                      "command": "bpy.context.object.data.use_auto_smooth = True",
                      "active": True,
-                     "icon": 0
+                     "icon": 0,
+                     "ui_type": ""
                  },
                  {
                      "id": "c7a6be1e164611ec8ede70c94ef23b30",
                      "label": "Auto Smooth Angle = 3.14159",
                      "command": "bpy.context.object.data.auto_smooth_angle = 3.14159",
                      "active": True,
-                     "icon": 0
+                     "icon": 0,
+                     "ui_type": ""
                  }
              ],
              "icon": 127
