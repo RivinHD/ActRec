@@ -23,7 +23,7 @@ def get_pref_data(param):
         prop = getattr(prop, att_sp[0])
         if len(att_sp) == 2:
             print(att_sp[1][:-1])
-            prop = prop.get(att_sp[1][:-1])  # remove ]
+            prop = prop[att_sp[1][:-1]]  # remove ]
     return prop
 
 
