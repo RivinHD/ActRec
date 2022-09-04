@@ -33,13 +33,17 @@ def to_python_data(request):
     [
         ('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]', [],
          {
+            "name": "c7a3dcba164611ecaaec70c94ef23b30",
             "id": "c7a3dcba164611ecaaec70c94ef23b30",
             "label": "Delete",
             "command": "bpy.ops.object.delete(use_global=False)",
             "active": True,
-            "icon": 0
+            "icon": 0,
+            "is_available": True,
+            "ui_type: ": ""
         }),
-        ('global_actions["c7a40353164611ecbaad70c94ef23b30"]', [],
+        ('global_actions["c7a40353164611ecbaad70c94ef23b30"]',
+         ["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"],
          {
              "id": "c7a40353164611ecbaad70c94ef23b30",
              "label": "Subd Smooth",
@@ -74,7 +78,7 @@ def to_python_data(request):
                  }
              ],
              "icon": 127
-        })]
+         })]
 )
 def test_property_to_python(to_python_data, exclude, output):
     assert shared.property_to_python(to_python_data, exclude) == output
