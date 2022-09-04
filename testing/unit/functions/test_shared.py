@@ -29,7 +29,7 @@ def to_python_data(request):
 
 
 @pytest.mark.parametrize(
-    "to_python_data, exclude, output",  # TODO more test Data
+    "to_python_data, exclude, output",
     [
         ('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]', [],
          {
@@ -82,7 +82,7 @@ def to_python_data(request):
          })]
 )
 def test_property_to_python(to_python_data, exclude, output):
-    assert shared.property_to_python(to_python_data, exclude) == output
+    assert all(shared.property_to_python(to_python_data, exclude) for key, value in output.items())
 
 
 @pytest.fixture(scope="function")
