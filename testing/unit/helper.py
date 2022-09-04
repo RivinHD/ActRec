@@ -22,8 +22,7 @@ def get_pref_data(param):
         att_sp = param.split("[")
         prop = getattr(prop, att_sp[0])
         if len(att_sp) == 2:
-            print(att_sp, prop.keys())
-            prop = prop[att_sp[1][:-1]]  # remove ]
+            prop = prop[att_sp[1][:-1].replace('"', "")]  # remove ]
     return prop
 
 
