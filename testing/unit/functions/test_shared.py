@@ -83,7 +83,8 @@ def to_python_data(request):
 )
 def test_property_to_python(to_python_data, exclude, output):
     data = shared.property_to_python(to_python_data, exclude)
-    assert all(data[key] == value for key, value in output.items())
+    print(data)
+    assert data == output
 
 
 @pytest.fixture(scope="function")
