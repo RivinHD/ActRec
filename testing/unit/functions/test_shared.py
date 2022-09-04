@@ -41,6 +41,7 @@ def test_property_to_python(property_str, exclude, output):
 def apply_data(request):
     helper.get_pref_data(request.param.split(".")[0].split("[")[0]).clear()
     helper.load_global_actions_test_data(shared.get_preferences(bpy.context))
+    print(shared.get_preferences(bpy.context).global_actions.keys())
     return helper.get_pref_data(request.param)
 
 
