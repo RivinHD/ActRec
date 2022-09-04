@@ -313,5 +313,9 @@ def test_insert_to_collection(clear_load_global, index, data):
 )
 def test_swap_collection_items(clear_load_global, index1, index2, output1, output2):
     shared.swap_collection_items(clear_load_global, index1, index2)
+    if index1 >= len(clear_load_global):
+        index1 = len(clear_load_global) - 1
+    if index2 >= len(clear_load_global):
+        index2 = len(clear_load_global) - 1
     assert helper.compare_with_dict(clear_load_global[index1], output1)
     assert helper.compare_with_dict(clear_load_global[index2], output2)
