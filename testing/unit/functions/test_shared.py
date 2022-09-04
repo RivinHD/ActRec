@@ -79,15 +79,15 @@ def to_python_data(request):
                  }
              ],
              "icon": 127
-         })]
+         })],
+    indirect=["to_python_data"]
 )
 def test_property_to_python(to_python_data, exclude, output):
     data = shared.property_to_python(to_python_data, exclude)
-    print(data)
     assert data == output
 
 
-@pytest.fixture(scope="function")
+@ pytest.fixture(scope="function")
 def apply_data(request):
     pref = shared.get_preferences(bpy.context)
     pref.global_actions.clear()
@@ -97,7 +97,7 @@ def apply_data(request):
     return helper.get_pref_data(request.param)
 
 
-@pytest.mark.parametrize(
+@ pytest.mark.parametrize(
     "apply_data, data",
     [('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]',
       {"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Something",
@@ -115,10 +115,10 @@ def test_apply_data_to_item(apply_data, data):
     assert helper.compare_with_dict(apply_data, data)
 
 
-@pytest.mark.parametrize("collection, data",
-                         [(bpy.context.preferences.addons['cycles'].preferences.devices,
+@ pytest.mark.parametrize("collection, data",
+                          [(bpy.context.preferences.addons['cycles'].preferences.devices,
                            {'name': "test", 'id': "TT", 'use': False, 'type': "OPTIX"})]
-                         )
+                          )
 def test_add_data_to_collection(collection, data):
     length = len(collection)
     name = data['name']
