@@ -11,6 +11,7 @@ def compare_with_dict(obj, compare_dict):
         else:
             check = getattr(obj, key) == value
         if not check:
+            print(key, value)
             return check
     return True
 
