@@ -4,9 +4,9 @@ from ActRec.actrec.functions.shared import get_preferences
 
 def compare_with_dict(obj, compare_dict):
     for key, value in compare_dict.items():
-        if isinstance(dict):
+        if isinstance(value, dict):
             check = compare_with_dict(getattr(obj, key), value)
-        elif isinstance(list):
+        elif isinstance(value, list):
             check = all(compare_with_dict(getattr(obj, key)[i], x) for i, x in enumerate(value))
         else:
             check = getattr(obj, key) == value
