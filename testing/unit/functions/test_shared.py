@@ -39,8 +39,10 @@ def test_property_to_python(property_str, exclude, output):
 
 @pytest.fixture(scope="function")
 def apply_data(request):
-    helper.get_pref_data(request.param.split(".")[0].split("[")[0]).clear()
-    helper.load_global_actions_test_data(shared.get_preferences(bpy.context))
+    pref = shared.get_preferences(bpy.context)
+    pref.global_actions.clear()
+    helper.load_global_actions_test_data()
+    print(pref.global_actions["c7a3dcba164611ecaaec70c94ef23b30"].macros.keys())
     return helper.get_pref_data(request.param)
 
 
