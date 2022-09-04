@@ -40,20 +40,21 @@ def test_property_to_python(property_str, exclude, output):
 @pytest.fixture(scope="function")
 def apply_data(request):
     helper.get_pref_data(request.param.split(".")[0].split("[")[0]).clear()
+    helper.load_global_actions_test_data(shared.get_preferences(bpy.context))
     return helper.get_pref_data(request.param)
 
 
 @pytest.mark.parametrize(
     "apply_data, data",
     [('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]',
-      {"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Delete",
-       "command": "bpy.ops.object.delete(use_global=False)", "active": True, "icon": 0, "ui_type": ""}),
+      {"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Something",
+       "command": "bpy.ops.object.delete(use_global=False)", "active": False, "icon": 15, "ui_type": ""}),
      ('global_actions["c7a1f271164611eca91770c94ef23b30"]',
-      {"id": "c7a1f271164611eca91770c94ef23b30", "label": "Delete",
+      {"id": "c7a1f271164611eca91770c94ef23b30", "label": "Something",
        "macros":
        [{"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Delete",
-         "command": "bpy.ops.object.delete(use_global=False)", "active": True, "icon": 0, "ui_type": ""}],
-       "icon": 3})],
+         "command": "bpy.ops.object.delete(use_global=False)", "active": False, "icon": 26, "ui_type": ""}],
+       "icon": 7})],
     indirect=["apply_data"]
 )
 def test_apply_data_to_item(apply_data, data):

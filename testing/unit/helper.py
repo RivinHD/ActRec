@@ -1,6 +1,7 @@
 import bpy
 from ActRec.actrec.functions.shared import get_preferences
 
+
 def compare_with_dict(obj, compare_dict):
     for key, value in compare_dict.items():
         if isinstance(dict):
@@ -25,14 +26,7 @@ def get_pref_data(param):
     return prop
 
 
-is_load_global_actions_test_data = False
-
-
 def load_global_actions_test_data(pref):
-    global is_load_global_actions_test_data
-    if is_load_global_actions_test_data:
-        return
-    is_load_global_actions_test_data = True
     action = pref.global_actions.add()
     action.id = "c7a1f271164611eca91770c94ef23b30"
     action.label = "Delete"
