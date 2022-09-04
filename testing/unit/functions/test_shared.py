@@ -42,7 +42,8 @@ def apply_data(request):
     pref = shared.get_preferences(bpy.context)
     pref.global_actions.clear()
     helper.load_global_actions_test_data(pref)
-    print(pref.global_actions["c7a1f271164611eca91770c94ef23b30"].macros.keys())
+    if request.param == 'global_actions["c7a1f271164611eca91770c94ef23b30"]':
+        pref.global_actions["c7a1f271164611eca91770c94ef23b30"].macros.clear()
     return helper.get_pref_data(request.param)
 
 
