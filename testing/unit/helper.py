@@ -13,9 +13,9 @@ def compare_with_dict(obj, compare_dict):
             return check
 
 
-def get_pref_data(request):
+def get_pref_data(param):
     pref = get_preferences(bpy.context)
-    params = request.param.split(".")
+    params = param.split(".")
     prop = pref
     for param in params:
         att_sp = param.split("[")
