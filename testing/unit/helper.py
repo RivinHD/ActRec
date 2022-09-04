@@ -1,3 +1,6 @@
+import bpy
+from ActRec.actrec.functions.shared import get_preferences
+
 def compare_with_dict(obj, compare_dict):
     for key, value in compare_dict.items():
         if isinstance(dict):
@@ -8,6 +11,18 @@ def compare_with_dict(obj, compare_dict):
             check = getattr(obj, key) == value
         if not check:
             return check
+
+
+def get_pref_data(request):
+    pref = get_preferences(bpy.context)
+    params = request.param.split(".")
+    prop = pref
+    for param in params:
+        att_sp = param.split("[")
+        prop = getattr(prop, att_sp[0])
+        if len(att_sp) == 2:
+            prop = prop.get(att_sp[1][:-1])  # remove ]
+    return prop
 
 
 is_load_global_actions_test_data = False

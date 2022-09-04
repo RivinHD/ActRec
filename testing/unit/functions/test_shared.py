@@ -20,19 +20,6 @@ def test_check_for_duplicates(check_list, name, output):
     assert shared.check_for_duplicates(check_list, name) == output
 
 
-@pytest.fixture
-def pref_data(request):
-    pref = shared.get_preferences(bpy.context)
-    params = request.param.split(".")
-    prop = pref
-    for param in params:
-        att_sp = param.split("[")
-        prop = getattr(prop, att_sp[0])
-        if len(att_sp) == 2:
-            prop = prop.get(att_sp[1][:-1])  # remove ]
-    return prop
-
-
 # FIXME use own defined preferences properties to test with, hopefully no access violation by using them
 """ # access violation
 @pytest.mark.parametrize("property_str, exclude, output",  # TODO more test Data
@@ -52,8 +39,8 @@ def test_property_to_python(property_str, exclude, output):
 
 @pytest.fixture
 def apply_data(request):
-    pref_data(request.param.split(".")[0].split("[")[0]).clear()
-    return pref_data(request)
+    helper.pref_data(request.param.split(".")[0].split("[")[0]).clear()
+    return helper.pref_data(request)
 
 
 @pytest.mark.parametrize(
