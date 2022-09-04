@@ -40,7 +40,8 @@ def to_python_data(request):
             "active": True,
             "icon": 0,
             "is_available": True,
-            "ui_type: ": ""
+            "ui_type: ": "",
+            "alert": False
         }),
         ('global_actions["c7a40353164611ecbaad70c94ef23b30"]',
          ["name", "selected", "alert", "macros.name", "macros.is_available", "macros.alert"],
