@@ -39,7 +39,7 @@ def to_python_data(request):
             "active": True,
             "icon": 0
         }),
-        ('global_actions["c7a40353164611ecbaad70c94ef23b30"]',
+        ('global_actions["c7a40353164611ecbaad70c94ef23b30"]', [],
          {
              "id": "c7a40353164611ecbaad70c94ef23b30",
              "label": "Subd Smooth",
@@ -74,7 +74,7 @@ def to_python_data(request):
                  }
              ],
              "icon": 127
-         })]
+        })]
 )
 def test_property_to_python(to_python_data, exclude, output):
     assert shared.property_to_python(to_python_data, exclude) == output
