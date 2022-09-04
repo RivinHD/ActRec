@@ -12,6 +12,7 @@ def compare_with_dict(obj, compare_dict):
             check = getattr(obj, key) == value
         if not check:
             return check
+    return True
 
 
 def get_pref_data(param):
