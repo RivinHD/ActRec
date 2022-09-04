@@ -177,25 +177,34 @@ def add_data_to_collection(collection: bpy.types.CollectionProperty, data: dict)
 def insert_to_collection(collection: bpy.types.CollectionProperty, index: int, data: dict):
     """
     inset a new element inside a collection and apply the given data to it
+    if the index is out of bounds the element is insert at the end of the collection
 
     Args:
         collection (bpy.types.CollectionProperty): collection to apply to
         index (int): index where to insert
         data (dict): data to apply
     """
+
     add_data_to_collection(collection, data)
-    collection.move(len(collection) - 1, index)
+    if index < len(collection):
+        collection.move(len(collection) - 1, index)
 
 
 def swap_collection_items(collection: bpy.types.CollectionProperty, index_1: int, index_2: int):
     """
     swaps to collection items
+    if the index is set to the last element of the collection
 
     Args:
         collection (bpy.types.CollectionProperty): collection to execute on
         index_1 (int): first index to swap with second
         index_2 (int): second index to swap with first
     """
+    collection_length = len(collection)
+    if index_1 >= collection_length:
+        index_1 = collection_length - 1
+    if index_2 >= collection_length:
+        index_2 = collection_length - 1
     if index_1 == index_2:
         return
     if index_1 < index_2:

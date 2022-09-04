@@ -21,7 +21,7 @@ def test_check_for_duplicates(check_list, name, output):
 
 
 @pytest.fixture(scope="function")
-def to_python_data(request):
+def clear_load_global(request):
     pref = shared.get_preferences(bpy.context)
     pref.global_actions.clear()
     helper.load_global_actions_test_data(pref)
@@ -29,7 +29,7 @@ def to_python_data(request):
 
 
 @pytest.mark.parametrize(
-    "to_python_data, exclude, output",
+    "clear_load_global, exclude, output",
     [
         ('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]', [],
          {
@@ -84,10 +84,10 @@ def to_python_data(request):
              ],
              "icon": 127
          })],
-    indirect=["to_python_data"]
+    indirect=["clear_load_global"]
 )
-def test_property_to_python(to_python_data, exclude, output):
-    data = shared.property_to_python(to_python_data, exclude)
+def test_property_to_python(clear_load_global, exclude, output):
+    data = shared.property_to_python(clear_load_global, exclude)
     assert data == output
 
 
@@ -128,9 +128,190 @@ def test_add_data_to_collection(collection, data):
     name = data['name']
     shared.add_data_to_collection(collection, data)
     index = collection.find(name)
-    assert (
-        length + 1 == len(collection)
-        and index != -1
-        and helper.compare_with_dict(collection[name], data)
-    )
+    assert length + 1 == len(collection)
+    assert index != -1
+    assert helper.compare_with_dict(collection[name], data)
     collection.remove(index)
+
+
+@pytest.mark.parametrize(
+    "clear_load_global, index, data",
+    [
+        ('global_actions["c7a1f271164611eca91770c94ef23b30"].macros', 0,
+         {
+             "id": "c7a759ec164611ecb07c70c94ef23b30",
+             "label": "Toggle Edit Mode",
+             "command": "bpy.ops.object.editmode_toggle()",
+             "active": True,
+             "icon": 0,
+             "ui_type": ""
+         }
+         ),
+        ("global_actions", 1,
+         {
+             "id": "c7a759ee164611ecb84c70c94ef23b30",
+             "label": "Merge",
+             "macros": [
+                 {
+                     "id": "c7a759ef164611eca84970c94ef23b30",
+                     "label": "Resize",
+                     "command": "bpy.ops.transform.resize(value=(0, 0, 0))",
+                     "active": True,
+                     "icon": 0,
+                     "ui_type": ""
+                 },
+                 {
+                     "id": "c7a759f0164611ec84fd70c94ef23b30",
+                     "label": "Merge by Distance",
+                     "command": "bpy.ops.mesh.remove_doubles()",
+                     "active": True,
+                     "icon": 0,
+                     "ui_type": ""
+                 }
+             ],
+             "icon": 608
+         })
+    ],
+    indirect=["clear_load_global"]
+)
+def test_insert_to_collection(clear_load_global, index, data):
+    shared.insert_to_collection(clear_load_global, index, data)
+    if index >= len(clear_load_global):
+        index = len(clear_load_global) - 1
+    assert helper.compare_with_dict(clear_load_global[index], data)
+
+
+@pytest.mark.parametrize(
+    "clear_load_global, index1, index2, output1, output2",
+    [("global_actions", 0, 0,
+      {
+          "id": "c7a1f271164611eca91770c94ef23b30",
+          "label": "Delete",
+          "macros": [
+              {
+                  "id": "c7a3dcba164611ecaaec70c94ef23b30",
+                  "label": "Delete",
+                  "command": "bpy.ops.object.delete(use_global=False)",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 3
+      },
+      {
+          "id": "c7a1f271164611eca91770c94ef23b30",
+          "label": "Delete",
+          "macros": [
+              {
+                  "id": "c7a3dcba164611ecaaec70c94ef23b30",
+                  "label": "Delete",
+                  "command": "bpy.ops.object.delete(use_global=False)",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 3
+      }),
+     ("global_actions", 0, 2,
+      {
+          "id": "c7a6be1f164611ec9a5570c94ef23b30",
+          "label": "Align_X",
+          "macros": [
+              {
+                  "id": "c7a6e499164611ec927970c94ef23b30",
+                  "label": "Only Locations = True",
+                  "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              },
+              {
+                  "id": "c7a6e49a164611ec9f1370c94ef23b30",
+                  "label": "Resize",
+                  "command": "bpy.ops.transform.resize(value=(1, 0, 1))",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              },
+              {
+                  "id": "c7a6e49b164611ecadb070c94ef23b30",
+                  "label": "Only Locations = False",
+                  "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 0
+      },
+      {
+          "id": "c7a1f271164611eca91770c94ef23b30",
+          "label": "Delete",
+          "macros": [
+              {
+                  "id": "c7a3dcba164611ecaaec70c94ef23b30",
+                  "label": "Delete",
+                  "command": "bpy.ops.object.delete(use_global=False)",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 3
+      }),
+     ("global_actions", 0, 5,
+      {
+          "id": "c7a6be1f164611ec9a5570c94ef23b30",
+          "label": "Align_X",
+          "macros": [
+              {
+                  "id": "c7a6e499164611ec927970c94ef23b30",
+                  "label": "Only Locations = True",
+                  "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              },
+              {
+                  "id": "c7a6e49a164611ec9f1370c94ef23b30",
+                  "label": "Resize",
+                  "command": "bpy.ops.transform.resize(value=(1, 0, 1))",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              },
+              {
+                  "id": "c7a6e49b164611ecadb070c94ef23b30",
+                  "label": "Only Locations = False",
+                  "command": "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 0
+      },
+      {
+          "id": "c7a1f271164611eca91770c94ef23b30",
+          "label": "Delete",
+          "macros": [
+              {
+                  "id": "c7a3dcba164611ecaaec70c94ef23b30",
+                  "label": "Delete",
+                  "command": "bpy.ops.object.delete(use_global=False)",
+                  "active": True,
+                  "icon": 0,
+                  "ui_type": ""
+              }
+          ],
+          "icon": 3
+      })
+     ],
+    indirect=["clear_load_global"]
+)
+def test_swap_collection_items(clear_load_global, index1, index2, output1, output2):
+    shared.swap_collection_items(clear_load_global, index1, index2)
+    assert helper.compare_with_dict(clear_load_global[index1], output1)
+    assert helper.compare_with_dict(clear_load_global[index2], output2)
