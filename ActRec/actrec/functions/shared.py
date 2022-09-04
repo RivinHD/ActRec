@@ -138,7 +138,7 @@ def apply_data_to_item(property: bpy.types.Property, data, key=""):
     """
     apply given python data to a property,
     used to convert python data (from property_to_python) to Blender Property.
-    - list to CollectionsProperty or ArrayProperty
+    - list to CollectionsProperty or ArrayProperty (add new elements to the collection)
     - dict to PointerProperty
     - single data (like int, string, etc.) with a given key
 

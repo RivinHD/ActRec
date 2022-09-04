@@ -20,21 +20,64 @@ def test_check_for_duplicates(check_list, name, output):
     assert shared.check_for_duplicates(check_list, name) == output
 
 
-# FIXME use own defined preferences properties to test with, hopefully no access violation by using them
-""" # access violation
-@pytest.mark.parametrize("property_str, exclude, output",  # TODO more test Data
-                         [("bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]", [],
-                           {'type': 'PROPERTIES', 'show_locked_time': False, 'show_region_header': True,
-                            'context': 'OBJECT', 'pin_id': None, 'use_pin_id': False,
-                            'tab_search_results':
-                            (False, False, False, False, False, False, False, False, False, False, False, False, False,
-                             False, False, False, False, False, False),
-                            'search_filter': '', 'outliner_sync': 'AUTO'})]
-                         )
-def test_property_to_python(property_str, exclude, output):
-    property = eval(property_str)
-    assert shared.property_to_python(property, exclude) == output
-"""
+@pytest.fixture(scope="function")
+def to_python_data(request):
+    pref = shared.get_preferences(bpy.context)
+    pref.global_actions.clear()
+    helper.load_global_actions_test_data(pref)
+    return helper.get_pref_data(request.param)
+
+
+@pytest.mark.parametrize(
+    "to_python_data, exclude, output",  # TODO more test Data
+    [
+        ('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]', [],
+         {
+            "id": "c7a3dcba164611ecaaec70c94ef23b30",
+            "label": "Delete",
+            "command": "bpy.ops.object.delete(use_global=False)",
+            "active": True,
+            "icon": 0
+        }),
+        ('global_actions["c7a40353164611ecbaad70c94ef23b30"]',
+         {
+             "id": "c7a40353164611ecbaad70c94ef23b30",
+             "label": "Subd Smooth",
+             "macros": [
+                 {
+                     "id": "c7a40354164611ecb05c70c94ef23b30",
+                     "label": "Subdivision Set",
+                     "command": "bpy.ops.object.subdivision_set(level=1, relative=False)",
+                     "active": True,
+                     "icon": 0
+                 },
+                 {
+                     "id": "c7a40355164611ecb9cd70c94ef23b30",
+                     "label": "Shade Smooth",
+                     "command": "bpy.ops.object.shade_smooth()",
+                     "active": True,
+                     "icon": 0
+                 },
+                 {
+                     "id": "c7a42aa4164611ecba6570c94ef23b30",
+                     "label": "Auto Smooth = True",
+                     "command": "bpy.context.object.data.use_auto_smooth = True",
+                     "active": True,
+                     "icon": 0
+                 },
+                 {
+                     "id": "c7a6be1e164611ec8ede70c94ef23b30",
+                     "label": "Auto Smooth Angle = 3.14159",
+                     "command": "bpy.context.object.data.auto_smooth_angle = 3.14159",
+                     "active": True,
+                     "icon": 0
+                 }
+             ],
+             "icon": 127
+         })]
+)
+def test_property_to_python(to_python_data, exclude, output):
+    assert shared.property_to_python(to_python_data, exclude) == output
 
 
 @pytest.fixture(scope="function")
