@@ -37,10 +37,10 @@ def test_property_to_python(property_str, exclude, output):
 """
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def apply_data(request):
-    helper.get_pref_data(request.split(".")[0].split("[")[0]).clear()
-    return helper.get_pref_data(request)
+    helper.get_pref_data(request.param.split(".")[0].split("[")[0]).clear()
+    return helper.get_pref_data(request.param)
 
 
 @pytest.mark.parametrize(
