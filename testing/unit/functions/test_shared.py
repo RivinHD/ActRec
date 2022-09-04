@@ -20,6 +20,20 @@ def test_check_for_duplicates(check_list, name, output):
     assert shared.check_for_duplicates(check_list, name) == output
 
 
+@pytest.fixture
+def pref_data(request):
+    pref = shared.get_preferences(bpy.context)
+    params = request.param.split(".")
+    prop = pref
+    for param in params:
+        att_sp = param.split("[")
+        prop = getattr(prop, att_sp[0])
+        if len(att_sp) == 2:
+            prop = prop.get(att_sp[1][:-1])  # remove ]
+    return prop
+
+
+# FIXME use own defined preferences properties to test with, hopefully no access violation by using them
 """ # access violation
 @pytest.mark.parametrize("property_str, exclude, output",  # TODO more test Data
                          [("bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0]", [],
@@ -35,19 +49,29 @@ def test_property_to_python(property_str, exclude, output):
     assert shared.property_to_python(property, exclude) == output
 """
 
-""" # access violation
-@pytest.mark.parametrize("property, data",
-                         [(bpy.data.workspaces['Layout'].screens['Layout'].areas[0].spaces[0],
-                           {'type': 'PROPERTIES', 'show_locked_time': True, 'show_region_header': False,
-                            'context': 'DATA', 'pin_id': None, 'use_pin_id': False,
-                            'tab_search_results':
-                            (False, False, False, False, False, False, False, False, False, False, False, False, False,
-                             False, False, False, False, False, False),
-                            'search_filter': '', 'outliner_sync': 'AUTO'})]
-                         )
-def test_apply_data_to_item(property, data):
-    shared.apply_data_to_item(property, data)
-    assert helper.compare_with_dict(property, data)"""
+
+@pytest.fixture
+def apply_data(request):
+    pref_data(request.param.split(".")[0].split("[")[0]).clear()
+    return pref_data(request)
+
+
+@pytest.mark.parametrize(
+    "apply_data, data",
+    [('global_actions["c7a1f271164611eca91770c94ef23b30"].macros["c7a3dcba164611ecaaec70c94ef23b30"]',
+      {"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Delete",
+       "command": "bpy.ops.object.delete(use_global=False)", "active": True, "icon": 0, "ui_type": ""}),
+     ('global_actions["c7a1f271164611eca91770c94ef23b30"]',
+      {"id": "c7a1f271164611eca91770c94ef23b30", "label": "Delete",
+       "macros":
+       [{"id": "c7a3dcba164611ecaaec70c94ef23b30", "label": "Delete",
+         "command": "bpy.ops.object.delete(use_global=False)", "active": True, "icon": 0, "ui_type": ""}],
+       "icon": 3})],
+    indirect=["apply_data"]
+)
+def test_apply_data_to_item(apply_data, data):
+    shared.apply_data_to_item(apply_data, data)
+    assert helper.compare_with_dict(apply_data, data)
 
 
 @pytest.mark.parametrize("collection, data",

@@ -1,34 +1,65 @@
-class preferences():
-    addon_directory: str
-    preference_tab: str
-    icon_path: str
-    selected_icon: int
-    update: bool
-    restart: bool
-    version: str
-    auto_update: bool
-    update_progress: int
-    local_actions: list
-    active_local_action_index: int
-    local_to_global_mode: str
-    local_record_macros: bool
-    hide_local_text: bool
-    local_create_empty: bool
-    last_macro_label: str
-    last_macro_command: str
-    operators_list_length: int
-    global_actions: list
-    global_to_local_mode: str
-    autosave: bool
-    global_rename: str
-    global_hide_menu: bool
-    import_settings: list
-    import_extension: str
-    storage_path: str
-    categories: list
-    selected_category: str
-    show_all_categories: bool
-
-
 def compare_with_dict(obj, compare_dict):
-    return all(getattr(obj, key) == value for key, value in compare_dict.items())
+    for key, value in compare_dict.items():
+        if isinstance(dict):
+            check = compare_with_dict(getattr(obj, key), value)
+        elif isinstance(list):
+            check = all(compare_with_dict(getattr(obj, key)[i], x) for i, x in enumerate(value))
+        else:
+            check = getattr(obj, key) == value
+        if not check:
+            return check
+
+
+is_load_global_actions_test_data = False
+
+
+def load_global_actions_test_data(pref):
+    global is_load_global_actions_test_data
+    if is_load_global_actions_test_data:
+        return
+    is_load_global_actions_test_data = True
+    action = pref.global_actions.add()
+    action.id = "c7a1f271164611eca91770c94ef23b30"
+    action.label = "Delete"
+    macro = action.macros.add()
+    macro.id = "c7a3dcba164611ecaaec70c94ef23b30"
+    macro.label = "Delete"
+    macro.command = "bpy.ops.object.delete(use_global=False)"
+    action.icon = 3
+
+    action = pref.global_actions.add()
+    action.id = "c7a40353164611ecbaad70c94ef23b30"
+    action.label = "Subd Smooth"
+    macro = action.macros.add()
+    macro.id = "c7a40354164611ecb05c70c94ef23b30"
+    macro.label = "Subdivision Set"
+    macro.command = "bpy.ops.object.subdivision_set(level=1, relative=False)"
+    macro = action.macros.add()
+    macro.id = "c7a40355164611ecb9cd70c94ef23b30"
+    macro.label = "Shade Smooth"
+    macro.command = "bpy.ops.object.shade_smooth()"
+    macro = action.macros.add()
+    macro.id = "c7a42aa4164611ecba6570c94ef23b30"
+    macro.label = "Auto Smooth = True"
+    macro.command = "bpy.context.object.data.use_auto_smooth = True"
+    macro = action.macros.add()
+    macro.id = "c7a6be1e164611ec8ede70c94ef23b30"
+    macro.label = "Auto Smooth Angle = 3.14159"
+    macro.command = "bpy.context.object.data.auto_smooth_angle = 3.14159"
+    action.icon = 127
+
+    action = pref.global_actions.add()
+    action.id = "c7a6be1f164611ec9a5570c94ef23b30"
+    action.label = "Align_X"
+    macro = action.macros.add()
+    macro.id = "c7a6e499164611ec927970c94ef23b30"
+    macro.label = "Only Locations = True"
+    macro.command = "bpy.context.scene.tool_settings.use_transform_pivot_point_align = True"
+    macro = action.macros.add()
+    macro.id = "c7a6e49a164611ec9f1370c94ef23b30"
+    macro.label = "Resize"
+    macro.command = "bpy.ops.transform.resize(value=(1, 0, 1))"
+    macro = action.macros.add()
+    macro.id = "c7a6e49b164611ecadb070c94ef23b30"
+    macro.label = "Only Locations = False"
+    macro.command = "bpy.context.scene.tool_settings.use_transform_pivot_point_align = False"

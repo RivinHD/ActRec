@@ -23,9 +23,7 @@ def main():
         test_format = "unit"
 
     config = {
-        "coverage": True,
-        "tests": os.path.join("testing", test_format),
-        "pytest_args": "--tb=long"
+        "tests": os.path.join("testing", test_format)
     }
 
     try:
