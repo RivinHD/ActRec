@@ -109,7 +109,9 @@ def register():
 def unregister():
     addon = bpy.context.window_manager.keyconfigs.addon
     if addon:
-        save_action_keymap(keymaps['default'].keymap_items)
+        default_km = keymaps.get('default')
+        if default_km:
+            save_action_keymap(default_km.keymap_items)
         for km in keymaps.values():
             addon.keymaps.remove(km)
 # endregion
