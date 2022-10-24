@@ -20,9 +20,9 @@
 	"AR_preferences": {
 		"prefix":["AR_preferences"],
 		"body": [
-		 	"AR = bpy.context.preferences.addons[__module__].preferences"
+		 	"ActRec_pref = bpy.functions.get_preferences(context)"
 		],
-		"description": "Instert AR Prefeneces with __module__"
+		"description": "Instert ActRec_pref Prefeneces with __module__"
 	},
 
 	"Registration": {
